@@ -12,6 +12,16 @@
             "title": "Citations",
             "type": "array"
           },
+          "diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Diagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "disease_id": {
             "title": "Disease Id",
             "type": "string"
@@ -29,7 +39,11 @@
               "Moderate",
               "Limited",
               "Disputed",
-              "Refuted"
+              "Refuted",
+              "No Known Disease Relationship",
+              "Established association",
+              "Likely association",
+              "Uncertain association"
             ],
             "title": "Evidence Strength",
             "type": "string"
@@ -46,10 +60,138 @@
             ],
             "title": "Evidence Summary"
           },
+          "external_curator": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Curator"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "external_reviewer": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reviewer"
+          },
+          "external_url": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Url"
+          },
           "gene_symbol": {
             "maxLength": 100,
             "minLength": 1,
             "title": "Gene Symbol",
+            "type": "string"
+          },
+          "methodology": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Methodology"
+          },
+          "methodology_version": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Methodology Version"
+          },
+          "moi": {
+            "anyOf": [
+              {
+                "enum": [
+                  "HP:0000006",
+                  "HP:0000007",
+                  "HP:0001417",
+                  "HP:0001419",
+                  "HP:0001423",
+                  "HP:0032113",
+                  "HP:0001427",
+                  "HP:0001450",
+                  "HP:0010984",
+                  "HP:0001426"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moi"
+          },
+          "relationship_type": {
+            "default": "mendelian",
+            "enum": [
+              "mendelian",
+              "susceptibility"
+            ],
+            "title": "Relationship Type",
+            "type": "string"
+          },
+          "scores": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Scores"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "default": "kgdb",
+            "enum": [
+              "kgdb",
+              "gene_curator"
+            ],
+            "title": "Source",
             "type": "string"
           }
         },
@@ -105,6 +247,18 @@
             "title": "Curator Id",
             "type": "integer"
           },
+          "diagnostics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnostics"
+          },
           "disease_id": {
             "title": "Disease Id",
             "type": "string"
@@ -120,7 +274,11 @@
               "Moderate",
               "Limited",
               "Disputed",
-              "Refuted"
+              "Refuted",
+              "No Known Disease Relationship",
+              "Established association",
+              "Likely association",
+              "Uncertain association"
             ],
             "title": "Evidence Strength",
             "type": "string"
@@ -136,6 +294,50 @@
             ],
             "title": "Evidence Summary"
           },
+          "external_curator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Curator"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "external_reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reviewer"
+          },
+          "external_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Url"
+          },
           "gene_id": {
             "title": "Gene Id",
             "type": "integer"
@@ -148,6 +350,50 @@
             "title": "Id",
             "type": "integer"
           },
+          "methodology": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Methodology"
+          },
+          "methodology_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Methodology Version"
+          },
+          "moi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moi"
+          },
+          "moi_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moi Label"
+          },
           "published_at": {
             "anyOf": [
               {
@@ -159,6 +405,14 @@
               }
             ],
             "title": "Published At"
+          },
+          "relationship_type": {
+            "enum": [
+              "mendelian",
+              "susceptibility"
+            ],
+            "title": "Relationship Type",
+            "type": "string"
           },
           "reviewed_at": {
             "anyOf": [
@@ -182,6 +436,26 @@
               }
             ],
             "title": "Reviewer Id"
+          },
+          "scores": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scores"
+          },
+          "source": {
+            "enum": [
+              "kgdb",
+              "gene_curator"
+            ],
+            "title": "Source",
+            "type": "string"
           },
           "status": {
             "enum": [
@@ -216,8 +490,10 @@
           "gene_symbol",
           "disease_id",
           "disease_name",
+          "relationship_type",
           "evidence_strength",
           "citations",
+          "source",
           "status",
           "curator_id",
           "created_at",
@@ -227,7 +503,7 @@
         "type": "object"
       },
       "AssociationUpdate": {
-        "description": "Partial update of a draft; the gene is fixed once created.",
+        "description": "Partial update of a draft; the gene is fixed once created.\n\nClassification and provenance consistency is checked by the service on the merged record.",
         "properties": {
           "citations": {
             "anyOf": [
@@ -244,6 +520,16 @@
               }
             ],
             "title": "Citations"
+          },
+          "diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Diagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "disease_id": {
             "anyOf": [
@@ -278,7 +564,11 @@
                   "Moderate",
                   "Limited",
                   "Disputed",
-                  "Refuted"
+                  "Refuted",
+                  "No Known Disease Relationship",
+                  "Established association",
+                  "Likely association",
+                  "Uncertain association"
                 ],
                 "type": "string"
               },
@@ -299,6 +589,146 @@
               }
             ],
             "title": "Evidence Summary"
+          },
+          "external_curator": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Curator"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "external_reviewer": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reviewer"
+          },
+          "external_url": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Url"
+          },
+          "methodology": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Methodology"
+          },
+          "methodology_version": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Methodology Version"
+          },
+          "moi": {
+            "anyOf": [
+              {
+                "enum": [
+                  "HP:0000006",
+                  "HP:0000007",
+                  "HP:0001417",
+                  "HP:0001419",
+                  "HP:0001423",
+                  "HP:0032113",
+                  "HP:0001427",
+                  "HP:0001450",
+                  "HP:0010984",
+                  "HP:0001426"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moi"
+          },
+          "relationship_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mendelian",
+                  "susceptibility"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relationship Type"
+          },
+          "scores": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Scores"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "kgdb",
+                  "gene_curator"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
           }
         },
         "title": "AssociationUpdate",
@@ -848,6 +1278,161 @@
           }
         },
         "title": "CreateBackupRequest",
+        "type": "object"
+      },
+      "Detectability": {
+        "additionalProperties": false,
+        "properties": {
+          "affected_variants": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Affected Variants"
+          },
+          "challenge": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Challenge",
+            "type": "string"
+          },
+          "methods": {
+            "default": [],
+            "items": {
+              "maxLength": 50,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Methods",
+            "type": "array"
+          },
+          "negative_report_does_not_exclude": {
+            "default": false,
+            "title": "Negative Report Does Not Exclude",
+            "type": "boolean"
+          },
+          "share_of_variants": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Of Variants"
+          },
+          "sources": {
+            "default": [],
+            "items": {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Sources",
+            "type": "array"
+          },
+          "tools": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DetectabilityTool"
+            },
+            "maxItems": 10,
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "challenge"
+        ],
+        "title": "Detectability",
+        "type": "object"
+      },
+      "DetectabilityTool": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "pmid_or_doi": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pmid Or Doi"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "DetectabilityTool",
+        "type": "object"
+      },
+      "Diagnostics": {
+        "additionalProperties": false,
+        "description": "Non-scoring clinical diagnostics section (#439); never feeds a score.",
+        "properties": {
+          "detectability": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Detectability"
+            },
+            "maxItems": 20,
+            "title": "Detectability",
+            "type": "array"
+          },
+          "recommended_transcript": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecommendedTranscript"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resources": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Resource"
+            },
+            "maxItems": 50,
+            "title": "Resources",
+            "type": "array"
+          }
+        },
+        "title": "Diagnostics",
         "type": "object"
       },
       "EnrichmentResult": {
@@ -1972,6 +2557,76 @@
         "title": "PendingStagingPage",
         "type": "object"
       },
+      "RecommendedTranscript": {
+        "additionalProperties": false,
+        "properties": {
+          "ensembl": {
+            "anyOf": [
+              {
+                "pattern": "^ENST\\d{11}\\.\\d+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ensembl"
+          },
+          "legacy_transcript": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legacy Transcript"
+          },
+          "mane_status": {
+            "enum": [
+              "select",
+              "plus_clinical",
+              "none",
+              "not_checked"
+            ],
+            "title": "Mane Status",
+            "type": "string"
+          },
+          "numbering_conversion": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Numbering Conversion"
+          },
+          "refseq": {
+            "anyOf": [
+              {
+                "pattern": "^NM_\\d+\\.\\d+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refseq"
+          }
+        },
+        "required": [
+          "mane_status"
+        ],
+        "title": "RecommendedTranscript",
+        "type": "object"
+      },
       "ReleaseList": {
         "description": "Schema for paginated release list",
         "properties": {
@@ -2178,6 +2833,94 @@
         "title": "ReleaseUpdate",
         "type": "object"
       },
+      "Resource": {
+        "additionalProperties": false,
+        "properties": {
+          "audiences": {
+            "default": [],
+            "items": {
+              "maxLength": 50,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Audiences",
+            "type": "array"
+          },
+          "conflict_of_interest": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflict Of Interest"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "maintainer": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maintainer"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "patient_organisation",
+              "registry",
+              "variant_database",
+              "guideline",
+              "other"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2000,
+            "title": "Url",
+            "type": "string"
+          },
+          "verified": {
+            "$ref": "#/components/schemas/Verified"
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "url",
+          "verified"
+        ],
+        "title": "Resource",
+        "type": "object"
+      },
       "RestoreBackupRequest": {
         "description": "Request model for restoring a backup",
         "properties": {
@@ -2216,6 +2959,52 @@
           "expected_updated_at"
         ],
         "title": "ReviewDecision",
+        "type": "object"
+      },
+      "Scores": {
+        "additionalProperties": false,
+        "properties": {
+          "experimental": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experimental"
+          },
+          "genetic": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Genetic"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "title": "Scores",
         "type": "object"
       },
       "SettingCategory": {
@@ -2677,6 +3466,31 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "Verified": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "fetched",
+              "api",
+              "captcha_title_only"
+            ],
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "date"
+        ],
+        "title": "Verified",
         "type": "object"
       }
     },

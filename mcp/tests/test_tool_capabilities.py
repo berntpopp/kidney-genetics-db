@@ -30,6 +30,7 @@ _EXPECTED_TOOLS = {
     "kgdb_get_database_stats",
     "kgdb_list_sources",
     "kgdb_get_release_citation",
+    "kgdb_list_curated_associations",
 }
 
 
@@ -71,7 +72,7 @@ async def test_all_eleven_tools_present() -> None:
     result = await _call_capabilities()
     names = {tool["name"] for tool in result["tools"]}
     assert names == _EXPECTED_TOOLS
-    assert len(result["tools"]) == 11
+    assert len(result["tools"]) == 12
 
 
 async def test_filterable_fields_populated_from_enums() -> None:

@@ -8,7 +8,13 @@ from kidney_genetics_mcp.tools import _MODULES, register_all
 
 
 def test_modules_list() -> None:
-    assert _MODULES == ("genes", "annotations", "statistics", "capabilities")
+    assert _MODULES == (
+        "genes",
+        "annotations",
+        "statistics",
+        "capabilities",
+        "curation",
+    )
 
 
 def test_each_module_imports_and_has_register() -> None:

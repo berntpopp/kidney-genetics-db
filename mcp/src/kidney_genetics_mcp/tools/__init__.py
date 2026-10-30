@@ -17,7 +17,13 @@ if TYPE_CHECKING:
     from kidney_genetics_mcp.client.api_client import ApiClient
 
 #: Tool-module names (under ``kidney_genetics_mcp.tools``) registered at startup.
-_MODULES: tuple[str, ...] = ("genes", "annotations", "statistics", "capabilities")
+_MODULES: tuple[str, ...] = (
+    "genes",
+    "annotations",
+    "statistics",
+    "capabilities",
+    "curation",
+)
 
 
 def register_all(mcp: FastMCP, client: ApiClient | None) -> None:
