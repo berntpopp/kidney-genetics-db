@@ -104,6 +104,22 @@ class KidneyAssertionIndex:
         return False
 
 
+def ciliopathy_match(index: KidneyAssertionIndex | None, symbol: Any, text: str) -> str | None:
+    """Kidney match for a "ciliopathy" title, which kidney_exclude blanks (#451).
+
+    Retinal, motile and skeletal ciliopathy titles (ARL2BP, TUBB4B) are not kidney-related,
+    but "BBS1-related ciliopathy" is: keep them for PanelApp/DiagnosticPanels genes only.
+    Without an index keep them all, as before #454, so a failed index never drops BBS genes.
+    """
+    if "ciliopathy" not in text.lower():
+        return None
+    if index is None:
+        return "keyword"
+    if isinstance(symbol, str) and symbol.strip().upper() in index.panel_genes:
+        return "keyword_panel"
+    return None
+
+
 async def _pinned_file(url: str, fmt: str, sha256: str) -> Path:
     class _Pinned(BulkDataSourceMixin):
         bulk_file_url = url

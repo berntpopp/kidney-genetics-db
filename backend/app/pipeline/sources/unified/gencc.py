@@ -21,6 +21,7 @@ from app.core.logging import get_logger
 from app.pipeline.sources.unified.base import UnifiedDataSource
 from app.pipeline.sources.unified.kidney_assertions import (
     KidneyAssertionIndex,
+    ciliopathy_match,
     load_kidney_assertion_index,
 )
 
@@ -240,26 +241,19 @@ class GenCCUnifiedSource(UnifiedDataSource):
         return self.kidney_match(record) is not None
 
     def kidney_match(self, record: dict[str, Any] | pd.Series) -> str | None:
-        """Why a submission is kidney-related ("keyword" or "hpo_panel"), or None (#438)."""
-        if self._matches_keyword(record):
+        """Why a submission is kidney-related (keyword, hpo_panel, keyword_panel) or None."""
+        text = self._disease_text(record)
+        if matches_kidney_keyword(text, self.kidney_keywords):
             return "keyword"
+        symbol = record.get("gene_symbol") or record.get("submitted_as_hgnc_symbol")
         if self.kidney_index is not None:
-            symbol = record.get("gene_symbol") or record.get("submitted_as_hgnc_symbol")
             ids = [record.get("disease_curie"), record.get("disease_original_curie")]
             if isinstance(symbol, str) and self.kidney_index.matches(symbol, ids):
                 return "hpo_panel"
-        return None
+        return ciliopathy_match(self.kidney_index, symbol, text)
 
-    def _matches_keyword(self, record: dict[str, Any] | pd.Series) -> bool:
-        """
-        Check if a GenCC submission's disease text has a kidney keyword.
-
-        Args:
-            record: DataFrame row (Series) or dict with GenCC submission
-
-        Returns:
-            True if kidney-related
-        """
+    def _disease_text(self, record: dict[str, Any] | pd.Series) -> str:
+        """Lower-cased disease and description text of a GenCC submission."""
         # Fields to check for kidney keywords
         text_fields: list[str] = []
 
@@ -296,11 +290,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
                 if "description" in str(field).lower() and record[field] is not None:
                     text_fields.append(str(record[field]).lower())
 
-        # Combine all text
-        combined_text = " ".join(text_fields)
-
-        # Check for kidney-related keywords
-        return matches_kidney_keyword(combined_text, self.kidney_keywords)
+        return " ".join(text_fields)
 
     def _extract_gene_info(self, row: pd.Series) -> dict[str, Any] | None:
         """

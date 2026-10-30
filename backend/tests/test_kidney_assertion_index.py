@@ -8,7 +8,7 @@ import pytest
 from app.pipeline.sources.unified import kidney_assertions
 from app.pipeline.sources.unified.clingen import ClinGenUnifiedSource
 from app.pipeline.sources.unified.gencc import GenCCUnifiedSource
-from app.pipeline.sources.unified.kidney_assertions import KidneyAssertionIndex
+from app.pipeline.sources.unified.kidney_assertions import KidneyAssertionIndex, ciliopathy_match
 
 # HP:0000077 kidney > HP:0000787 nephrolithiasis; HP:0001250 seizure is outside the root
 PARENTS = {
@@ -40,7 +40,7 @@ SSSOM = {
     "OMIM:222222": {"MONDO:0000003"},  # obsolete
 }
 LABELS = {"MONDO:0000003": "obsolete thing"}
-PANEL_GENES = {"AGXT", "SLC12A3", "SCN1A", "EXCL", "NEGATED", "ZERO"}
+PANEL_GENES = {"AGXT", "SLC12A3", "SCN1A", "EXCL", "NEGATED", "ZERO", "BBS1"}
 
 
 @pytest.fixture
@@ -88,6 +88,23 @@ class TestIndex:
 
     def test_blank_ids_ignored(self, index):
         assert not index.matches("AGXT", [None, "", "  "])
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("symbol", "title", "with_index", "expected"),
+    [
+        ("BBS1", "BBS1-related ciliopathy", True, "keyword_panel"),  # panel gene (#454)
+        ("bbs1 ", "BBS1-related ciliopathy", True, "keyword_panel"),
+        ("TUBB4B", "TUBB4B-related ciliopathy", True, None),  # on no kidney panel (#451)
+        ("ARL2BP", "ciliopathy", True, None),  # Retina GCEP (#451)
+        ("BBS1", "Bardet-Biedl syndrome 1", True, None),  # no ciliopathy title
+        (float("nan"), "ciliopathy", True, None),  # GenCC row without a symbol
+        ("TUBB4B", "TUBB4B-related ciliopathy", False, "keyword"),  # no index: as before #454
+    ],
+)
+def test_ciliopathy_title_needs_panel_gene(index, symbol, title, with_index, expected):
+    assert ciliopathy_match(index if with_index else None, symbol, title) == expected
 
 
 @pytest.mark.unit
@@ -159,6 +176,21 @@ async def test_gencc_falls_back_to_keyword_only():
     assert result["PKD1"]["kidney_filter"] == "keyword_only"
 
 
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_gencc_keeps_ciliopathy_title_for_panel_gene_only(index):
+    rows = [
+        {"gene_symbol": "BBS1", "disease_title": "BBS1-related ciliopathy"},
+        {"gene_symbol": "TUBB4B", "disease_title": "TUBB4B-related ciliopathy"},
+    ]
+    source, loader = _gencc(index)
+    with patch("app.pipeline.sources.unified.gencc.load_kidney_assertion_index", loader):
+        result = await source.process_data(pd.DataFrame(rows))
+
+    assert set(result) == {"BBS1"}
+    assert result["BBS1"]["submissions"][0]["kidney_match"] == "keyword_panel"
+
+
 CLINGEN_CSV = (
     '"","","","","","","","","",""\n'
     * 4
@@ -172,12 +204,40 @@ CLINGEN_CSV = (
     '"Definitive","https://example.org/r3","2024-01-01","Kidney Cystic and Ciliopathy '
     'Disorders Gene Curation Expert Panel"\n'
 )
+CLINGEN_CILIOPATHY_ROWS = (
+    '"BBS1","HGNC:966","BBS1-related ciliopathy","MONDO:0100493","AR","SOP10",'
+    '"Definitive","https://example.org/r4","2024-01-01","Retina GCEP"\n'
+    '"TUBB4B","HGNC:20774","TUBB4B-related ciliopathy","MONDO:0100493","AD","SOP10",'
+    '"Definitive","https://example.org/r5","2024-01-01","Motile Ciliopathy GCEP"\n'
+    '"ARL2BP","HGNC:17146","ciliopathy","MONDO:0005308","AR","SOP10",'
+    '"Moderate","https://example.org/r6","2024-01-01","Retina GCEP"\n'
+)
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
 @pytest.mark.parametrize("with_index", [True, False])
 async def test_clingen_keeps_agxt_via_hpo_panel(index, with_index):
+    result = await _clingen(index if with_index else None, CLINGEN_CSV)
+    if with_index:
+        assert set(result) == {"AGXT", "PKD1"}
+        assert result["AGXT"]["validities"][0]["kidney_match"] == "hpo_panel"
+        assert result["AGXT"]["kidney_filter"] == "ontology"
+    else:
+        assert set(result) == {"PKD1"}
+        assert result["PKD1"]["kidney_filter"] == "keyword_only"
+    assert result["PKD1"]["validities"][0]["kidney_match"] in {"keyword", "expert_panel"}
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_clingen_keeps_ciliopathy_title_for_panel_gene_only(index):
+    result = await _clingen(index, CLINGEN_CSV + CLINGEN_CILIOPATHY_ROWS)
+    assert {"BBS1", "TUBB4B", "ARL2BP"} & set(result) == {"BBS1"}
+    assert result["BBS1"]["validities"][0]["kidney_match"] == "keyword_panel"
+
+
+async def _clingen(index, csv_text):
     source = ClinGenUnifiedSource.__new__(ClinGenUnifiedSource)
     source.csv_url = "https://example.org/csv"
     source.kidney_panel_names = {
@@ -187,19 +247,9 @@ async def test_clingen_keeps_agxt_via_hpo_panel(index, with_index):
     source.db_session = object()
     source.http_client = AsyncMock()
     response = AsyncMock()
-    response.text = CLINGEN_CSV
+    response.text = csv_text
     response.raise_for_status = lambda: None
     source.http_client.get = AsyncMock(return_value=response)
-    loader = AsyncMock(return_value=index if with_index else None)
-
+    loader = AsyncMock(return_value=index)
     with patch("app.pipeline.sources.unified.clingen.load_kidney_assertion_index", loader):
-        result = await source.process_data(await source.fetch_raw_data())
-
-    if with_index:
-        assert set(result) == {"AGXT", "PKD1"}
-        assert result["AGXT"]["validities"][0]["kidney_match"] == "hpo_panel"
-        assert result["AGXT"]["kidney_filter"] == "ontology"
-    else:
-        assert set(result) == {"PKD1"}
-        assert result["PKD1"]["kidney_filter"] == "keyword_only"
-    assert result["PKD1"]["validities"][0]["kidney_match"] in {"keyword", "expert_panel"}
+        return await source.process_data(await source.fetch_raw_data())
