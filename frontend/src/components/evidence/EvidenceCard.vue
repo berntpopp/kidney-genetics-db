@@ -172,6 +172,6 @@ const updated = computed(() => {
   const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00:00` : raw)
   return Number.isNaN(date.getTime())
     ? null
-    : date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 })
 </script>

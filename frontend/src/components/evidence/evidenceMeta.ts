@@ -59,8 +59,8 @@ export function strongestClassification(labels: (string | null | undefined)[]): 
   return best
 }
 
-const andMore = (first: string, more: number, unit: string) =>
-  more > 0 ? `${first} and ${more} more ${plural(more, unit)}` : first
+const andMore = (first: string, more: number, unit: string, many?: string) =>
+  more > 0 ? `${first} and ${more} more ${plural(more, unit, many)}` : first
 
 const classifiedFor = (classification: string | null, diseases: string[]) => {
   const unique = [...new Set(diseases.filter(Boolean))]
@@ -256,9 +256,18 @@ export function evidenceMeta(
           )
         : 0
       return {
-        summary: panels.length
-          ? andMore([...panels].sort()[0]!, panels.length - 1, 'panel')
-          : 'Listed on diagnostic gene panels',
+        // With per-lab lists the summary names labs, so it never contradicts the pair count
+        summary:
+          d.provider_panels && providers.length
+            ? andMore(
+                [...providers].sort()[0]!.replace(/_/g, ' '),
+                providers.length - 1,
+                'laboratory',
+                'laboratories'
+              )
+            : panels.length
+              ? andMore([...panels].sort()[0]!, panels.length - 1, 'panel')
+              : 'Listed on diagnostic gene panels',
         stats: [
           ...(providers.length ? [stat(providers.length, 'laboratory', 'laboratories')] : []),
           stat(pairs || panels.length, 'panel')

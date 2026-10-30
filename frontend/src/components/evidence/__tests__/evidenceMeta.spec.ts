@@ -75,6 +75,7 @@ describe('evidence card summaries', () => {
       gene
     )
     expect(meta.stats.map(s => `${s.value} ${s.unit}`)).toEqual(['2 laboratories', '3 panels'])
+    expect(meta.summary).toBe('Centogene AG and 1 more laboratory')
   })
 
   it('links HPO by NCBI gene ID only when it is known', () => {
@@ -174,7 +175,7 @@ describe('EvidenceCard anatomy', () => {
     await toggle.trigger('click')
     await flushPromises()
     expect(toggle.attributes('aria-expanded')).toBe('true')
-    expect(wrapper.text()).toContain('Last updated Mar 15, 2026')
+    expect(wrapper.text()).toContain('Last updated 15 Mar 2026')
     expect(wrapper.text()).toContain('Renasight')
     expect(wrapper.text()).not.toContain('Seeded from')
     expect(wrapper.find('a[href="#"]').exists()).toBe(false)
