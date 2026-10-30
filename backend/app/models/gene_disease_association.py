@@ -10,18 +10,49 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Index,
     String,
     Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, text
 
 from app.models.base import Base, TimestampMixin
 
-EVIDENCE_STRENGTHS = ("Definitive", "Strong", "Moderate", "Limited", "Disputed", "Refuted")
+RELATIONSHIP_TYPES = ("mendelian", "susceptibility")
+MENDELIAN_STRENGTHS = (
+    "Definitive",
+    "Strong",
+    "Moderate",
+    "Limited",
+    "Disputed",
+    "Refuted",
+    "No Known Disease Relationship",
+)
+# Alpha draft, modelled on the ClinGen risk-allele tiers (#437, #439)
+SUSCEPTIBILITY_STRENGTHS = (
+    "Established association",
+    "Likely association",
+    "Uncertain association",
+)
+EVIDENCE_STRENGTHS = MENDELIAN_STRENGTHS + SUSCEPTIBILITY_STRENGTHS
 STATUSES = ("draft", "in_review", "published")
+SOURCES = ("kgdb", "gene_curator")
+# HPO mode-of-inheritance terms, labels from the pinned hp.json (HPO 2026-09-01)
+MOI_TERMS = {
+    "HP:0000006": "Autosomal dominant inheritance",
+    "HP:0000007": "Autosomal recessive inheritance",
+    "HP:0001417": "X-linked inheritance",
+    "HP:0001419": "X-linked recessive inheritance",
+    "HP:0001423": "X-linked dominant inheritance",
+    "HP:0032113": "Semidominant inheritance",
+    "HP:0001427": "Mitochondrial inheritance",
+    "HP:0001450": "Y-linked inheritance",
+    "HP:0010984": "Digenic inheritance",
+    "HP:0001426": "Non-Mendelian inheritance",
+}
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -33,11 +64,49 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
 
     __tablename__ = "gene_disease_associations"
     __table_args__ = (
-        UniqueConstraint("gene_id", "disease_id", name="uq_gda_gene_disease"),
+        # NULLS NOT DISTINCT: two records without an MOI still collide (migration 0013)
+        UniqueConstraint(
+            "gene_id",
+            "disease_id",
+            "moi",
+            name="uq_gda_gene_disease_moi",
+            postgresql_nulls_not_distinct=True,
+        ),
+        Index(
+            "uq_gda_source_external_id",
+            "source",
+            "external_id",
+            unique=True,
+            postgresql_where=text("external_id IS NOT NULL"),
+        ),
         CheckConstraint(
             r"disease_id ~ '^(MONDO:[0-9]{7}|OMIM:[0-9]{6})$'", name="ck_gda_disease_id"
         ),
-        CheckConstraint(_in("evidence_strength", EVIDENCE_STRENGTHS), name="ck_gda_strength"),
+        CheckConstraint(
+            f"(relationship_type = 'mendelian' AND {_in('evidence_strength', MENDELIAN_STRENGTHS)})"
+            f" OR (relationship_type = 'susceptibility'"
+            f" AND {_in('evidence_strength', SUSCEPTIBILITY_STRENGTHS)})",
+            name="ck_gda_strength",
+        ),
+        CheckConstraint(
+            _in("relationship_type", RELATIONSHIP_TYPES), name="ck_gda_relationship_type"
+        ),
+        CheckConstraint(r"moi IS NULL OR moi ~ '^HP:[0-9]{7}$'", name="ck_gda_moi"),
+        CheckConstraint(_in("source", SOURCES), name="ck_gda_source"),
+        CheckConstraint(
+            "external_url IS NULL OR external_url ~ '^https?://'", name="ck_gda_external_url"
+        ),
+        CheckConstraint(
+            "source = 'kgdb' OR (external_id IS NOT NULL AND external_url IS NOT NULL)",
+            name="ck_gda_external",
+        ),
+        CheckConstraint(
+            "scores IS NULL OR jsonb_typeof(scores) = 'object'", name="ck_gda_scores_object"
+        ),
+        CheckConstraint(
+            "diagnostics IS NULL OR jsonb_typeof(diagnostics) = 'object'",
+            name="ck_gda_diagnostics_object",
+        ),
         CheckConstraint(_in("status", STATUSES), name="ck_gda_status"),
         # jsonb renders arrays canonically as ["a", "b"], so one regex checks every element
         CheckConstraint(
@@ -58,7 +127,20 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
     gene_id = Column(BigInteger, ForeignKey("genes.id"), nullable=False, index=True)
     disease_id = Column(String(20), nullable=False)
     disease_name = Column(String(255), nullable=False)
-    evidence_strength = Column(String(20), nullable=False)
+    evidence_strength = Column(String(40), nullable=False)
+    relationship_type = Column(String(20), nullable=False, server_default="mendelian")
+    moi = Column(String(10), nullable=True)
+    methodology = Column(String(100), nullable=True)
+    methodology_version = Column(String(50), nullable=True)
+    # Where the curation was made; a KGDB curator other than the author still publishes it
+    source = Column(String(20), nullable=False, server_default="kgdb")
+    external_id = Column(String(100), nullable=True)
+    external_url = Column(Text, nullable=True)
+    external_curator = Column(String(255), nullable=True)
+    external_reviewer = Column(String(255), nullable=True)
+    # none_as_null: Python None must be SQL NULL, not JSON null (object checks)
+    scores = Column(JSONB(none_as_null=True), nullable=True)
+    diagnostics = Column(JSONB(none_as_null=True), nullable=True)  # non-scoring (#439)
     citations = Column(JSONB, nullable=False)
     evidence_summary = Column(Text, nullable=True)
     status = Column(String(20), nullable=False, server_default="draft", index=True)

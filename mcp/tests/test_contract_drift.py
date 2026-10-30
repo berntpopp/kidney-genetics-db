@@ -108,6 +108,7 @@ _EXPOSED_CONSUMED_TEMPLATES: tuple[str, ...] = (
     "/api/statistics/summary",
     "/api/datasources/",
     "/api/releases/",
+    "/api/curation/associations/",
 )
 
 # Exposed domains the spec scopes the MCP to. Used to find detail endpoints that
@@ -120,6 +121,7 @@ _EXPOSED_DOMAINS: tuple[str, ...] = (
     "/api/statistics/summary",
     "/api/datasources",
     "/api/releases",
+    "/api/curation/associations",
 )
 
 # Prefixes that must always be denied (privileged / side-effecting surfaces).

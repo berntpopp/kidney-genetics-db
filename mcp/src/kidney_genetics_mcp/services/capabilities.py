@@ -122,6 +122,14 @@ _TOOLS: list[dict[str, str]] = [
             f"{CONCEPT_DOI}."
         ),
     },
+    {
+        "name": "kgdb_list_curated_associations",
+        "summary": (
+            "Published expert-reviewed gene-disease associations (Mendelian or "
+            "susceptibility): MOI, methodology, provenance, diagnostics. Not part "
+            "of the evidence score."
+        ),
+    },
 ]
 
 #: Canonical multi-tool workflows clients should follow (resolution chain).

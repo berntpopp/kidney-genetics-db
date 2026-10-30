@@ -23,5 +23,7 @@ SOURCE = "source"
 RELEASE = "release"
 #: A canonical gene-identity resolution (id, hgnc_id, approved_symbol).
 GENE_IDENTITY = "gene_identity"
+#: An expert-reviewed, published gene-disease association (never scored).
+CURATED_ASSOCIATION = "curated_association"
 #: Server-local operational metadata (capabilities, resources).
 OPERATIONAL_METADATA = "operational_metadata"

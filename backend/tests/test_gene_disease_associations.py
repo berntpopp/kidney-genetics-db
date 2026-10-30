@@ -267,7 +267,18 @@ def test_unique_violation_on_commit_maps_to_409() -> None:
 
     db.reset_mock()
     db.commit.side_effect = IntegrityError("UPDATE", {}, Exception("uq_gda_gene_disease"))
-    record = MagicMock(curator_id=1, status="draft", gene_id=1, id=5)
+    record = MagicMock(
+        curator_id=1,
+        status="draft",
+        gene_id=1,
+        id=5,
+        relationship_type="mendelian",
+        evidence_strength="Strong",
+        source="kgdb",
+        moi=None,
+        external_id=None,
+        external_url=None,
+    )
     locked = db.query.return_value.filter.return_value.with_for_update.return_value
     locked.first.return_value = record
     db.query.return_value.filter.return_value.filter.return_value.first.return_value = None
@@ -360,3 +371,186 @@ async def test_deleting_an_earlier_reviewer_is_refused_with_409(
     admin = _auth(db_session, "deleter", "admin")
     resp = await async_client.delete(f"/api/auth/users/{first_id}", headers=admin)
     assert resp.status_code == 409, resp.text
+
+
+# --- relationship type, MOI, provenance and diagnostics (#437) ---
+
+GC = {
+    "source": "gene_curator",
+    "external_id": "GC-1",
+    "external_url": "https://example.org/curations/1",
+    "external_curator": "Curator A",
+    "external_reviewer": "Reviewer B",
+    "methodology": "Kidney Gene Curation",
+    "methodology_version": "draft iteration 3",
+    "scores": {"genetic": 10, "experimental": 5, "total": 15},
+}
+DIAGNOSTICS = {
+    "recommended_transcript": {
+        "refseq": None,
+        "ensembl": "ENST00000620103.4",
+        "mane_status": "none",
+        "legacy_transcript": "NM_002456.5",
+        "numbering_conversion": "No MANE Select; literature uses NM_002456.5.",
+    },
+    "detectability": [
+        {
+            "challenge": "VNTR frameshift (dupC) not called by short-read pipelines",
+            "share_of_variants": "~99%",
+            "affected_variants": None,
+            "methods": ["long_read_sequencing"],
+            "tools": [
+                {"name": "VNtyper 2", "url": "https://example.org/vntyper", "pmid_or_doi": None}
+            ],
+            "negative_report_does_not_exclude": True,
+            "sources": ["PMID:12345678"],
+        }
+    ],
+    "resources": [
+        {
+            "type": "patient_organisation",
+            "name": "Example ADTKD group",
+            "url": "https://example.org/adtkd",
+            "language": "de",
+            "audiences": ["patients"],
+            "maintainer": None,
+            "conflict_of_interest": None,
+            "verified": {"method": "fetched", "date": "2026-10-30"},
+        }
+    ],
+}
+
+
+async def _post(client: AsyncClient, headers: dict, **overrides):
+    return await client.post(f"{URL}/", json={**RECORD, **overrides}, headers=headers)
+
+
+@pytest.mark.integration
+async def test_create_susceptibility_record(async_client, db_session, gene) -> None:
+    author, reviewer = _auth(db_session, "author"), _auth(db_session, "reviewer", "admin")
+    rec = await _create(
+        async_client,
+        author,
+        relationship_type="susceptibility",
+        evidence_strength="Likely association",
+        moi="HP:0001426",
+    )
+    rec = (await async_client.post(f"{URL}/{rec['id']}/submit", headers=author)).json()
+    resp = await async_client.post(f"{URL}/{rec['id']}/publish", json=_seen(rec), headers=reviewer)
+    assert resp.status_code == 200, resp.text
+    [public] = await _public(async_client)
+    assert public["relationship_type"] == "susceptibility"
+    assert public["moi"] == "HP:0001426" and public["moi_label"] == "Non-Mendelian inheritance"
+
+
+@pytest.mark.integration
+async def test_strength_must_match_relationship_type(async_client, db_session, gene) -> None:
+    author = _auth(db_session, "author")
+    resp = await _post(async_client, author, relationship_type="susceptibility")
+    assert resp.status_code == 400, resp.text
+    rec = await _create(async_client, author)
+    resp = await async_client.patch(
+        f"{URL}/{rec['id']}", json={"relationship_type": "susceptibility"}, headers=author
+    )
+    assert resp.status_code == 422, resp.text
+
+
+@pytest.mark.integration
+async def test_no_known_only_mendelian(async_client, db_session, gene) -> None:
+    author = _auth(db_session, "author")
+    no_known = {"evidence_strength": "No Known Disease Relationship"}
+    assert (await _post(async_client, author, **no_known)).status_code == 201
+    resp = await _post(
+        async_client,
+        author,
+        disease_id="MONDO:0000001",
+        relationship_type="susceptibility",
+        **no_known,
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.integration
+async def test_gene_curator_source_needs_provenance(async_client, db_session, gene) -> None:
+    author = _auth(db_session, "author")
+    resp = await _post(async_client, author, **{**GC, "external_url": None})
+    assert resp.status_code == 400, resp.text
+    rec = await _create(async_client, author, **GC)
+    assert rec["source"] == "gene_curator" and rec["scores"]["total"] == 15
+    resp = await _post(async_client, author, disease_id="MONDO:0000002", **GC)
+    assert resp.status_code == 409, resp.text
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"external_url": "javascript:alert(1)"},
+        {
+            "diagnostics": {
+                "resources": [{**DIAGNOSTICS["resources"][0], "url": "data:text/html,x"}]
+            }
+        },
+        {
+            "diagnostics": {
+                "detectability": [
+                    {**DIAGNOSTICS["detectability"][0], "tools": [{"name": "x", "url": "ftp://x"}]}
+                ]
+            }
+        },
+    ],
+)
+async def test_rejects_non_http_links(async_client, db_session, gene, overrides) -> None:
+    resp = await _post(async_client, _auth(db_session, "author"), **overrides)
+    assert resp.status_code == 400, resp.text
+
+
+@pytest.mark.integration
+async def test_diagnostics_round_trip(async_client, db_session, gene) -> None:
+    author = _auth(db_session, "author")
+    rec = await _create(async_client, author, diagnostics=DIAGNOSTICS)
+    assert rec["diagnostics"] == DIAGNOSTICS
+    bad_key = {**DIAGNOSTICS, "surprise": 1}
+    assert (
+        await _post(async_client, author, disease_id="MONDO:0000003", diagnostics=bad_key)
+    ).status_code == 400
+    bad_mane = {
+        **DIAGNOSTICS,
+        "recommended_transcript": {**DIAGNOSTICS["recommended_transcript"], "mane_status": "maybe"},
+    }
+    assert (
+        await _post(async_client, author, disease_id="MONDO:0000004", diagnostics=bad_mane)
+    ).status_code == 400
+
+
+@pytest.mark.integration
+async def test_unique_per_moi(async_client, db_session, gene) -> None:
+    author = _auth(db_session, "author")
+    assert (await _post(async_client, author, moi="HP:0000006")).status_code == 201
+    assert (await _post(async_client, author, moi="HP:0000007")).status_code == 201
+    assert (await _post(async_client, author, moi="HP:0000006")).status_code == 409
+    other = {"disease_id": "MONDO:0000005"}
+    assert (await _post(async_client, author, **other)).status_code == 201
+    assert (await _post(async_client, author, **other)).status_code == 409
+    assert (await _post(async_client, author, moi="HP:9999999")).status_code == 400
+
+
+@pytest.mark.integration
+async def test_imported_record_needs_distinct_confirmer(async_client, db_session, gene) -> None:
+    author, other = _auth(db_session, "author"), _auth(db_session, "reviewer", "admin")
+    rec = await _create(async_client, author, **GC)
+    rec = (await async_client.post(f"{URL}/{rec['id']}/submit", headers=author)).json()
+    resp = await async_client.post(f"{URL}/{rec['id']}/publish", json=_seen(rec), headers=author)
+    assert resp.status_code == 403
+    resp = await async_client.post(f"{URL}/{rec['id']}/publish", json=_seen(rec), headers=other)
+    assert resp.status_code == 200 and resp.json()["external_curator"] == "Curator A"
+
+
+def test_schema_vocabularies_match_the_model() -> None:
+    from typing import get_args
+
+    from app.models.gene_disease_association import EVIDENCE_STRENGTHS, MOI_TERMS
+    from app.schemas.gene_disease_association import EvidenceStrength, Moi
+
+    assert set(get_args(Moi)) == set(MOI_TERMS)
+    assert set(get_args(EvidenceStrength)) == set(EVIDENCE_STRENGTHS)

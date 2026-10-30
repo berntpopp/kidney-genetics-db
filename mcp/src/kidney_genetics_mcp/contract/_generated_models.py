@@ -4,32 +4,47 @@
 
 from __future__ import annotations
 
+from datetime import date as date_aliased
 from typing import Annotated, Any, Literal
 
-from pydantic import AwareDatetime, BaseModel, EmailStr, Field, RootModel, SecretStr
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    RootModel,
+    SecretStr,
+)
 
 
 class EvidenceSummary(RootModel[str]):
     root: Annotated[str, Field(max_length=2000, title="Evidence Summary")]
 
 
-class AssociationCreate(BaseModel):
-    citations: Annotated[
-        list[str], Field(max_length=100, min_length=1, title="Citations")
-    ]
-    disease_id: Annotated[str, Field(title="Disease Id")]
-    disease_name: Annotated[
-        str, Field(max_length=255, min_length=1, title="Disease Name")
-    ]
-    evidence_strength: Annotated[
-        Literal["Definitive", "Strong", "Moderate", "Limited", "Disputed", "Refuted"],
-        Field(title="Evidence Strength"),
-    ]
-    evidence_summary: Annotated[
-        EvidenceSummary | None, Field(title="Evidence Summary")
-    ] = None
-    gene_symbol: Annotated[
-        str, Field(max_length=100, min_length=1, title="Gene Symbol")
+class ExternalCurator(RootModel[str]):
+    root: Annotated[str, Field(max_length=255, min_length=1, title="External Curator")]
+
+
+class ExternalId(RootModel[str]):
+    root: Annotated[str, Field(max_length=100, min_length=1, title="External Id")]
+
+
+class ExternalReviewer(RootModel[str]):
+    root: Annotated[str, Field(max_length=255, min_length=1, title="External Reviewer")]
+
+
+class ExternalUrl(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, title="External Url")]
+
+
+class Methodology(RootModel[str]):
+    root: Annotated[str, Field(max_length=100, min_length=1, title="Methodology")]
+
+
+class MethodologyVersion(RootModel[str]):
+    root: Annotated[
+        str, Field(max_length=50, min_length=1, title="Methodology Version")
     ]
 
 
@@ -37,19 +52,46 @@ class AssociationResponse(BaseModel):
     citations: Annotated[list[str], Field(title="Citations")]
     created_at: Annotated[AwareDatetime, Field(title="Created At")]
     curator_id: Annotated[int, Field(title="Curator Id")]
+    diagnostics: Annotated[dict[str, Any] | None, Field(title="Diagnostics")] = None
     disease_id: Annotated[str, Field(title="Disease Id")]
     disease_name: Annotated[str, Field(title="Disease Name")]
     evidence_strength: Annotated[
-        Literal["Definitive", "Strong", "Moderate", "Limited", "Disputed", "Refuted"],
+        Literal[
+            "Definitive",
+            "Strong",
+            "Moderate",
+            "Limited",
+            "Disputed",
+            "Refuted",
+            "No Known Disease Relationship",
+            "Established association",
+            "Likely association",
+            "Uncertain association",
+        ],
         Field(title="Evidence Strength"),
     ]
     evidence_summary: Annotated[str | None, Field(title="Evidence Summary")] = None
+    external_curator: Annotated[str | None, Field(title="External Curator")] = None
+    external_id: Annotated[str | None, Field(title="External Id")] = None
+    external_reviewer: Annotated[str | None, Field(title="External Reviewer")] = None
+    external_url: Annotated[str | None, Field(title="External Url")] = None
     gene_id: Annotated[int, Field(title="Gene Id")]
     gene_symbol: Annotated[str, Field(title="Gene Symbol")]
     id: Annotated[int, Field(title="Id")]
+    methodology: Annotated[str | None, Field(title="Methodology")] = None
+    methodology_version: Annotated[str | None, Field(title="Methodology Version")] = (
+        None
+    )
+    moi: Annotated[str | None, Field(title="Moi")] = None
+    moi_label: Annotated[str | None, Field(title="Moi Label")] = None
     published_at: Annotated[AwareDatetime | None, Field(title="Published At")] = None
+    relationship_type: Annotated[
+        Literal["mendelian", "susceptibility"], Field(title="Relationship Type")
+    ]
     reviewed_at: Annotated[AwareDatetime | None, Field(title="Reviewed At")] = None
     reviewer_id: Annotated[int | None, Field(title="Reviewer Id")] = None
+    scores: Annotated[dict[str, Any] | None, Field(title="Scores")] = None
+    source: Annotated[Literal["kgdb", "gene_curator"], Field(title="Source")]
     status: Annotated[Literal["draft", "in_review", "published"], Field(title="Status")]
     submitted_at: Annotated[AwareDatetime | None, Field(title="Submitted At")] = None
     updated_at: Annotated[AwareDatetime, Field(title="Updated At")]
@@ -61,20 +103,6 @@ class Citations(RootModel[list[str]]):
 
 class DiseaseName(RootModel[str]):
     root: Annotated[str, Field(max_length=255, min_length=1, title="Disease Name")]
-
-
-class AssociationUpdate(BaseModel):
-    citations: Annotated[Citations | None, Field(title="Citations")] = None
-    disease_id: Annotated[str | None, Field(title="Disease Id")] = None
-    disease_name: Annotated[DiseaseName | None, Field(title="Disease Name")] = None
-    evidence_strength: Annotated[
-        Literal["Definitive", "Strong", "Moderate", "Limited", "Disputed", "Refuted"]
-        | None,
-        Field(title="Evidence Strength"),
-    ] = None
-    evidence_summary: Annotated[
-        EvidenceSummary | None, Field(title="Evidence Summary")
-    ] = None
 
 
 class BackupStatus(
@@ -287,6 +315,39 @@ class CreateBackupRequest(BaseModel):
         int | None,
         Field(description="Number of parallel jobs", ge=1, le=8, title="Parallel Jobs"),
     ] = 2
+
+
+class AffectedVariants(RootModel[str]):
+    root: Annotated[str, Field(max_length=300, min_length=0, title="Affected Variants")]
+
+
+class Method(RootModel[str]):
+    root: Annotated[str, Field(max_length=50, min_length=1)]
+
+
+class ShareOfVariants(RootModel[str]):
+    root: Annotated[str, Field(max_length=100, min_length=0, title="Share Of Variants")]
+
+
+class Source(RootModel[str]):
+    root: Annotated[str, Field(max_length=300, min_length=1)]
+
+
+class PmidOrDoi(RootModel[str]):
+    root: Annotated[str, Field(max_length=100, min_length=0, title="Pmid Or Doi")]
+
+
+class Url1(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, title="Url")]
+
+
+class DetectabilityTool(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(max_length=100, min_length=1, title="Name")]
+    pmid_or_doi: Annotated[PmidOrDoi | None, Field(title="Pmid Or Doi")] = None
+    url: Annotated[Url1 | None, Field(title="Url")] = None
 
 
 class EnrichmentResult(BaseModel):
@@ -739,6 +800,42 @@ class PendingStagingPage(BaseModel):
     pagination: PaginationMeta
 
 
+class Ensembl(RootModel[str]):
+    root: Annotated[str, Field(pattern="^ENST\\d{11}\\.\\d+$", title="Ensembl")]
+
+
+class LegacyTranscript(RootModel[str]):
+    root: Annotated[str, Field(max_length=50, min_length=0, title="Legacy Transcript")]
+
+
+class NumberingConversion(RootModel[str]):
+    root: Annotated[
+        str, Field(max_length=500, min_length=0, title="Numbering Conversion")
+    ]
+
+
+class Refseq(RootModel[str]):
+    root: Annotated[str, Field(pattern="^NM_\\d+\\.\\d+$", title="Refseq")]
+
+
+class RecommendedTranscript(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    ensembl: Annotated[Ensembl | None, Field(title="Ensembl")] = None
+    legacy_transcript: Annotated[
+        LegacyTranscript | None, Field(title="Legacy Transcript")
+    ] = None
+    mane_status: Annotated[
+        Literal["select", "plus_clinical", "none", "not_checked"],
+        Field(title="Mane Status"),
+    ]
+    numbering_conversion: Annotated[
+        NumberingConversion | None, Field(title="Numbering Conversion")
+    ] = None
+    refseq: Annotated[Refseq | None, Field(title="Refseq")] = None
+
+
 class ReleaseResponse(BaseModel):
     citation_text: Annotated[str | None, Field(title="Citation Text")] = None
     created_at: Annotated[AwareDatetime, Field(title="Created At")]
@@ -772,6 +869,24 @@ class ReleaseUpdate(BaseModel):
     ] = None
 
 
+class Audience(RootModel[str]):
+    root: Annotated[str, Field(max_length=50, min_length=1)]
+
+
+class ConflictOfInterest(RootModel[str]):
+    root: Annotated[
+        str, Field(max_length=500, min_length=0, title="Conflict Of Interest")
+    ]
+
+
+class Language(RootModel[str]):
+    root: Annotated[str, Field(max_length=20, min_length=0, title="Language")]
+
+
+class Maintainer(RootModel[str]):
+    root: Annotated[str, Field(max_length=200, min_length=0, title="Maintainer")]
+
+
 class RestoreBackupRequest(BaseModel):
     create_safety_backup: Annotated[
         bool | None,
@@ -790,6 +905,27 @@ class RestoreBackupRequest(BaseModel):
 
 class ReviewDecision(BaseModel):
     expected_updated_at: Annotated[AwareDatetime, Field(title="Expected Updated At")]
+
+
+class Experimental(RootModel[float]):
+    root: Annotated[float, Field(ge=0.0, le=100.0, title="Experimental")]
+
+
+class Genetic(RootModel[float]):
+    root: Annotated[float, Field(ge=0.0, le=100.0, title="Genetic")]
+
+
+class Total(RootModel[float]):
+    root: Annotated[float, Field(ge=0.0, le=100.0, title="Total")]
+
+
+class Scores(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    experimental: Annotated[Experimental | None, Field(title="Experimental")] = None
+    genetic: Annotated[Genetic | None, Field(title="Genetic")] = None
+    total: Annotated[Total | None, Field(title="Total")] = None
 
 
 class SettingCategory(
@@ -962,9 +1098,47 @@ class ValidationError(BaseModel):
     type: Annotated[str, Field(title="Error Type")]
 
 
+class Verified(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    date: Annotated[date_aliased, Field(title="Date")]
+    method: Annotated[
+        Literal["fetched", "api", "captcha_title_only"], Field(title="Method")
+    ]
+
+
 class AssociationList(BaseModel):
     data: Annotated[list[AssociationResponse], Field(title="Data")]
     meta: Annotated[dict[str, int], Field(title="Meta")]
+
+
+class Detectability(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    affected_variants: Annotated[
+        AffectedVariants | None, Field(title="Affected Variants")
+    ] = None
+    challenge: Annotated[str, Field(max_length=300, min_length=1, title="Challenge")]
+    methods: Annotated[
+        list[Method] | None,
+        Field(max_length=20, title="Methods", validate_default=True),
+    ] = []
+    negative_report_does_not_exclude: Annotated[
+        bool | None, Field(title="Negative Report Does Not Exclude")
+    ] = False
+    share_of_variants: Annotated[
+        ShareOfVariants | None, Field(title="Share Of Variants")
+    ] = None
+    sources: Annotated[
+        list[Source] | None,
+        Field(max_length=10, title="Sources", validate_default=True),
+    ] = []
+    tools: Annotated[
+        list[DetectabilityTool] | None,
+        Field(max_length=10, title="Tools", validate_default=True),
+    ] = []
 
 
 class HTTPValidationError(BaseModel):
@@ -974,3 +1148,170 @@ class HTTPValidationError(BaseModel):
 class ReleaseList(BaseModel):
     data: Annotated[list[ReleaseResponse], Field(title="Data")]
     meta: Annotated[dict[str, int], Field(title="Meta")]
+
+
+class Resource(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    audiences: Annotated[
+        list[Audience] | None,
+        Field(max_length=10, title="Audiences", validate_default=True),
+    ] = []
+    conflict_of_interest: Annotated[
+        ConflictOfInterest | None, Field(title="Conflict Of Interest")
+    ] = None
+    language: Annotated[Language | None, Field(title="Language")] = None
+    maintainer: Annotated[Maintainer | None, Field(title="Maintainer")] = None
+    name: Annotated[str, Field(max_length=200, min_length=1, title="Name")]
+    type: Annotated[
+        Literal[
+            "patient_organisation", "registry", "variant_database", "guideline", "other"
+        ],
+        Field(title="Type"),
+    ]
+    url: Annotated[str, Field(max_length=2000, title="Url")]
+    verified: Verified
+
+
+class Diagnostics(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    detectability: Annotated[
+        list[Detectability] | None,
+        Field(max_length=20, title="Detectability", validate_default=True),
+    ] = []
+    recommended_transcript: RecommendedTranscript | None = None
+    resources: Annotated[
+        list[Resource] | None,
+        Field(max_length=50, title="Resources", validate_default=True),
+    ] = []
+
+
+class AssociationCreate(BaseModel):
+    citations: Annotated[
+        list[str], Field(max_length=100, min_length=1, title="Citations")
+    ]
+    diagnostics: Diagnostics | None = None
+    disease_id: Annotated[str, Field(title="Disease Id")]
+    disease_name: Annotated[
+        str, Field(max_length=255, min_length=1, title="Disease Name")
+    ]
+    evidence_strength: Annotated[
+        Literal[
+            "Definitive",
+            "Strong",
+            "Moderate",
+            "Limited",
+            "Disputed",
+            "Refuted",
+            "No Known Disease Relationship",
+            "Established association",
+            "Likely association",
+            "Uncertain association",
+        ],
+        Field(title="Evidence Strength"),
+    ]
+    evidence_summary: Annotated[
+        EvidenceSummary | None, Field(title="Evidence Summary")
+    ] = None
+    external_curator: Annotated[
+        ExternalCurator | None, Field(title="External Curator")
+    ] = None
+    external_id: Annotated[ExternalId | None, Field(title="External Id")] = None
+    external_reviewer: Annotated[
+        ExternalReviewer | None, Field(title="External Reviewer")
+    ] = None
+    external_url: Annotated[ExternalUrl | None, Field(title="External Url")] = None
+    gene_symbol: Annotated[
+        str, Field(max_length=100, min_length=1, title="Gene Symbol")
+    ]
+    methodology: Annotated[Methodology | None, Field(title="Methodology")] = None
+    methodology_version: Annotated[
+        MethodologyVersion | None, Field(title="Methodology Version")
+    ] = None
+    moi: Annotated[
+        Literal[
+            "HP:0000006",
+            "HP:0000007",
+            "HP:0001417",
+            "HP:0001419",
+            "HP:0001423",
+            "HP:0032113",
+            "HP:0001427",
+            "HP:0001450",
+            "HP:0010984",
+            "HP:0001426",
+        ]
+        | None,
+        Field(title="Moi"),
+    ] = None
+    relationship_type: Annotated[
+        Literal["mendelian", "susceptibility"] | None, Field(title="Relationship Type")
+    ] = "mendelian"
+    scores: Scores | None = None
+    source: Annotated[Literal["kgdb", "gene_curator"] | None, Field(title="Source")] = (
+        "kgdb"
+    )
+
+
+class AssociationUpdate(BaseModel):
+    citations: Annotated[Citations | None, Field(title="Citations")] = None
+    diagnostics: Diagnostics | None = None
+    disease_id: Annotated[str | None, Field(title="Disease Id")] = None
+    disease_name: Annotated[DiseaseName | None, Field(title="Disease Name")] = None
+    evidence_strength: Annotated[
+        Literal[
+            "Definitive",
+            "Strong",
+            "Moderate",
+            "Limited",
+            "Disputed",
+            "Refuted",
+            "No Known Disease Relationship",
+            "Established association",
+            "Likely association",
+            "Uncertain association",
+        ]
+        | None,
+        Field(title="Evidence Strength"),
+    ] = None
+    evidence_summary: Annotated[
+        EvidenceSummary | None, Field(title="Evidence Summary")
+    ] = None
+    external_curator: Annotated[
+        ExternalCurator | None, Field(title="External Curator")
+    ] = None
+    external_id: Annotated[ExternalId | None, Field(title="External Id")] = None
+    external_reviewer: Annotated[
+        ExternalReviewer | None, Field(title="External Reviewer")
+    ] = None
+    external_url: Annotated[ExternalUrl | None, Field(title="External Url")] = None
+    methodology: Annotated[Methodology | None, Field(title="Methodology")] = None
+    methodology_version: Annotated[
+        MethodologyVersion | None, Field(title="Methodology Version")
+    ] = None
+    moi: Annotated[
+        Literal[
+            "HP:0000006",
+            "HP:0000007",
+            "HP:0001417",
+            "HP:0001419",
+            "HP:0001423",
+            "HP:0032113",
+            "HP:0001427",
+            "HP:0001450",
+            "HP:0010984",
+            "HP:0001426",
+        ]
+        | None,
+        Field(title="Moi"),
+    ] = None
+    relationship_type: Annotated[
+        Literal["mendelian", "susceptibility"] | None, Field(title="Relationship Type")
+    ] = None
+    scores: Scores | None = None
+    source: Annotated[Literal["kgdb", "gene_curator"] | None, Field(title="Source")] = (
+        None
+    )

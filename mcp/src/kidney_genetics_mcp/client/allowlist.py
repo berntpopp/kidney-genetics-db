@@ -23,6 +23,8 @@ _ALLOW: list[re.Pattern[str]] = [
     re.compile(r"^/api/statistics/summary$"),
     re.compile(r"^/api/datasources/?$"),
     re.compile(r"^/api/releases/?$"),
+    # Public list of published curations only (#437); workflow and writes stay denied
+    re.compile(r"^/api/curation/associations/?$"),
 ]
 
 #: Explicit deny guards (defense-in-depth; these also fail the catch-all below).
@@ -37,6 +39,7 @@ _DENY: list[re.Pattern[str]] = [
         r"^/api/ingestion",
         r"^/api/progress",
         r"^/api/network",
+        r"^/api/curation/associations/(workflow|\d+)",
     )
 ]
 

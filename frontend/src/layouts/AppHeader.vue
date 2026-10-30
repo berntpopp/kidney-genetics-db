@@ -103,14 +103,14 @@ const drawerItem =
 
       <!-- Active link: weight + primary underline. The invisible bold ::after copy reserves
            the bold width, so links never shift when the active route changes. -->
-      <nav aria-label="Main" class="hidden h-full flex-1 items-stretch gap-1 md:flex">
+      <nav aria-label="Main" class="hidden h-full flex-1 items-stretch gap-1 lg:flex">
         <RouterLink
           v-for="link in navLinks"
           :key="link.to"
           :to="link.to"
           :data-label="link.label"
           :aria-current="isActive(link.to) ? 'page' : undefined"
-          class="inline-flex flex-col items-center justify-center border-b-2 px-3 pt-0.5 text-sm whitespace-nowrap transition-colors after:invisible after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-label)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+          class="inline-flex flex-col items-center justify-center border-b-2 px-2 pt-0.5 text-sm whitespace-nowrap xl:px-3 transition-colors after:invisible after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-label)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
           :class="
             isActive(link.to)
               ? 'border-primary font-semibold text-foreground'
@@ -121,7 +121,7 @@ const drawerItem =
         </RouterLink>
       </nav>
 
-      <div class="hidden items-center gap-2 md:flex">
+      <div class="hidden items-center gap-2 lg:flex">
         <UserMenu v-if="authStore.isAuthenticated" />
         <Button v-else variant="default" size="sm" @click="loginModalOpen = true">
           <LogIn class="mr-2 size-4" aria-hidden="true" />
@@ -139,7 +139,7 @@ const drawerItem =
         </Tooltip>
       </div>
 
-      <div class="ml-auto flex md:hidden">
+      <div class="ml-auto flex lg:hidden">
         <Tooltip>
           <TooltipTrigger as-child>
             <Button

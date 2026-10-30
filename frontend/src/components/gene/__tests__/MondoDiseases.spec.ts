@@ -63,10 +63,16 @@ describe('MondoDiseases (#28)', () => {
     expect(attribution.text()).toContain('CC BY 4.0')
   })
 
-  it('says so when a gene has no mapping, and shows a failed load as an error', () => {
-    expect(mountWith().find('[data-state="empty"]').text()).toContain(
-      'No MONDO mappings in the annotation data'
+  it('shows one quiet line instead of a card when a gene has no mapping', () => {
+    const empty = mountWith()
+    expect(empty.find('[data-testid="mondo-empty"]').text()).toBe(
+      'Diseases (MONDO): no mappings for this gene.'
     )
+    expect(empty.find('h2').exists()).toBe(false)
+    expect(empty.text()).not.toContain('mapped to the MONDO Disease Ontology')
+  })
+
+  it('shows a failed load as an error', () => {
     const failed = mountWith(undefined, { error: new Error('offline') })
     expect(failed.find('[data-state="error"]').text()).toContain('Could not load disease mappings')
   })

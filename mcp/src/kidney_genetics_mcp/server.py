@@ -45,6 +45,8 @@ Workflow primer:
      `kgdb_get_interaction_partners`.
   4. Cite provenance with `kgdb_list_sources` and the current data release via
      `kgdb_get_release_citation`.
+  5. `kgdb_list_curated_associations` returns published expert-reviewed
+     gene-disease associations; they are separate from the evidence score.
   5. Use `response_mode` (minimal | compact | standard | full) to control token
      cost; start compact and widen only if needed.
 

@@ -31,6 +31,7 @@ EXPECTED_TOOLS: frozenset[str] = frozenset(
         "kgdb_get_database_stats",
         "kgdb_list_sources",
         "kgdb_get_release_citation",
+        "kgdb_list_curated_associations",
     }
 )
 

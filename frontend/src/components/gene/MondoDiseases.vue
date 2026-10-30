@@ -1,5 +1,9 @@
 <template>
-  <Card class="gap-4">
+  <!-- Nothing mapped: one quiet line instead of a full card -->
+  <p v-if="quietEmpty" class="text-xs text-muted-foreground" data-testid="mondo-empty">
+    <span class="font-medium">Diseases (MONDO):</span> no mappings for this gene.
+  </p>
+  <Card v-else class="gap-4">
     <CardHeader>
       <CardTitle tag="h2" class="text-base">Diseases (MONDO)</CardTitle>
       <CardDescription>
@@ -103,4 +107,5 @@ const diseases = computed(() =>
     })
     .sort((a, b) => (a.label ?? a.mondo_id).localeCompare(b.label ?? b.mondo_id))
 )
+const quietEmpty = computed(() => !props.loading && !props.error && !diseases.value.length)
 </script>

@@ -166,6 +166,23 @@ describe('Main navigation', () => {
     expect(wrapper.find('button[aria-label="Switch to dark mode"]').exists()).toBe(true)
   })
 
+  it('switches to the desktop header only from lg, so 768px tablets do not scroll sideways', async () => {
+    const AppHeader = (await import('@/layouts/AppHeader.vue')).default
+    const { createPinia } = await import('pinia')
+    const router = routerWith('/', { render: () => null })
+    await router.push('/')
+    await router.isReady()
+    const { h } = await import('vue')
+    const { TooltipProvider } = await import('@/components/ui/tooltip')
+    wrapper = mount(
+      { render: () => h(TooltipProvider, () => h(AppHeader)) },
+      { global: { plugins: [router, createPinia()] } }
+    )
+    // Measured: nav + login need ~1000px; at md (768px) they overflowed by 229px
+    expect(wrapper.html()).not.toMatch(/\bmd:(flex|hidden)\b/)
+    expect(wrapper.get('nav[aria-label="Main"]').classes()).toContain('lg:flex')
+  })
+
   it('marks the gene browser active on gene detail routes', async () => {
     vi.stubGlobal('matchMedia', () => ({
       matches: false,
