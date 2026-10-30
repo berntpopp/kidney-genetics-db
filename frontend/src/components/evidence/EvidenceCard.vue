@@ -41,6 +41,15 @@
               }}</span>
               <span class="text-muted-foreground">{{ ` ${s.unit}` }}</span>
             </li>
+            <li v-if="captured" class="text-muted-foreground" data-testid="evidence-captured">
+              captured
+              <time :datetime="captured.oldest.toISOString()">{{ formatDay(captured.oldest) }}</time
+              ><template v-if="captured.newest"
+                >–<time :datetime="captured.newest.toISOString()">{{
+                  formatDay(captured.newest)
+                }}</time></template
+              >
+            </li>
           </ul>
         </div>
         <CollapsibleTrigger as-child>
@@ -99,6 +108,7 @@ import { Button } from '@/components/ui/button'
 import { Chip, SourceLabel } from '@/components/shared'
 import { sourceDisplayName } from '@/utils/sources'
 import { evidenceMeta } from './evidenceMeta'
+import { captureRange, formatDay, geneLabs, useProviderRegistry } from './diagnosticPanels'
 import GenCCEvidence from './GenCCEvidence.vue'
 import HPOEvidence from './HPOEvidence.vue'
 import PubTatorEvidence from './PubTatorEvidence.vue'
@@ -132,6 +142,16 @@ const bodyComponent = computed(() => BODIES[props.evidence.source_name] ?? null)
 const displayName = computed(() => sourceDisplayName(props.evidence.source_name))
 const meta = computed(() =>
   evidenceMeta(props.evidence.source_name, props.evidence.evidence_data, props.gene, props.context)
+)
+
+// Diagnostic panels only: when the gene's labs were scraped (enhancement; absent until loaded)
+const registry = useProviderRegistry(() => props.evidence.source_name === 'DiagnosticPanels')
+const captured = computed(() =>
+  props.evidence.source_name === 'DiagnosticPanels'
+    ? captureRange(
+        geneLabs(props.evidence.evidence_data ?? {}).map(p => registry.byName.value.get(p))
+      )
+    : null
 )
 
 const formatPercent = score => `${(score * 100).toFixed(1)}%`

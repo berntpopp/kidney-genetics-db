@@ -247,13 +247,21 @@ export function evidenceMeta(
       const providers = (
         d.provider_panels ? Object.keys(d.provider_panels) : (d.providers ?? [])
       ).filter(isRealProvider)
+      // With per-lab lists, one panel offered by two labs counts twice: (lab, panel) pairs
+      const pairs = d.provider_panels
+        ? providers.reduce(
+            (n: number, p: string) =>
+              n + new Set((d.provider_panels as Record<string, string[]>)[p]).size,
+            0
+          )
+        : 0
       return {
         summary: panels.length
           ? andMore([...panels].sort()[0]!, panels.length - 1, 'panel')
           : 'Listed on diagnostic gene panels',
         stats: [
-          stat(panels.length, 'panel'),
-          ...(providers.length ? [stat(providers.length, 'provider')] : [])
+          ...(providers.length ? [stat(providers.length, 'laboratory', 'laboratories')] : []),
+          stat(pairs || panels.length, 'panel')
         ],
         classification: null,
         link: null

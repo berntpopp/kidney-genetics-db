@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { h } from 'vue'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import EvidenceCard from '@/components/evidence/EvidenceCard.vue'
 import {
@@ -9,6 +10,10 @@ import {
   parsePanelAppPhenotypes,
   strongestClassification
 } from '@/components/evidence/evidenceMeta'
+
+vi.mock('@/api/datasources', () => ({
+  datasourceApi: { getDiagnosticPanelsProviders: vi.fn().mockRejectedValue(new Error('offline')) }
+}))
 
 const gene = { approved_symbol: 'HNF1B', hgnc_id: 'HGNC:11630' }
 
@@ -61,6 +66,15 @@ describe('evidence card summaries', () => {
     expect(meta.link).toBeNull()
     expect(meta.stats.map(s => s.unit)).toEqual(['panels'])
     expect(meta.summary).toBe('CentoNephro and 1 more panel')
+  })
+
+  it('counts diagnostic laboratories and (lab, panel) pairs', () => {
+    const meta = evidenceMeta(
+      'DiagnosticPanels',
+      { provider_panels: { Natera: ['Renasight', 'Renasight'], Centogene_AG: ['Renasight', 'B'] } },
+      gene
+    )
+    expect(meta.stats.map(s => `${s.value} ${s.unit}`)).toEqual(['2 laboratories', '3 panels'])
   })
 
   it('links HPO by NCBI gene ID only when it is known', () => {
@@ -139,7 +153,19 @@ describe('EvidenceCard anatomy', () => {
             })
           )
       },
-      { attachTo: document.body }
+      {
+        attachTo: document.body,
+        global: {
+          plugins: [
+            createRouter({
+              history: createMemoryHistory(),
+              routes: [
+                { path: '/data-sources', name: 'data-sources', component: { render: () => null } }
+              ]
+            })
+          ]
+        }
+      }
     )
     expect(wrapper.find('h3').text()).toBe('Diagnostic panels')
     const toggle = wrapper.get('button[aria-expanded]')
