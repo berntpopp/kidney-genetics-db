@@ -8,10 +8,12 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import {
   EVIDENCE_STRENGTHS,
+  MANE_LABELS,
   MANE_STATUSES,
   MOI_TERMS,
   RELATIONSHIP_LABELS,
   RELATIONSHIP_TYPES,
+  RESOURCE_LABELS,
   RESOURCE_TYPES,
   VERIFIED_METHODS,
   isHttpUrl,
@@ -251,7 +253,7 @@ function loadDiagnostics(d: Diagnostics | null | undefined) {
   rowErrors.value = {}
 }
 
-/** Rows -> API payload; returns null and sets rowErrors when a row is incomplete */
+/** Rows -> API payload (null = no diagnostics); false and rowErrors when a row is incomplete */
 function buildDiagnostics(): Diagnostics | null | false {
   const errs: Record<string, string> = {}
   const t = transcript.value
@@ -403,19 +405,6 @@ const describedBy = (f: (typeof FIELDS)[number], hint?: string) =>
   [errors.value[f] ? `gda-${f}-error` : '', hint ?? ''].filter(Boolean).join(' ') || undefined
 const fieldClass =
   'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50'
-const MANE_LABELS: Record<string, string> = {
-  select: 'MANE Select',
-  plus_clinical: 'MANE Plus Clinical',
-  none: 'No MANE transcript',
-  not_checked: 'Not checked'
-}
-const RESOURCE_LABELS: Record<string, string> = {
-  patient_organisation: 'Patient organisation',
-  registry: 'Registry',
-  variant_database: 'Variant database',
-  guideline: 'Guideline',
-  other: 'Other'
-}
 </script>
 
 <template>

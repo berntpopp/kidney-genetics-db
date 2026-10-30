@@ -6,23 +6,9 @@
 import { computed } from 'vue'
 import { AlertTriangle } from 'lucide-vue-next'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { isHttpUrl, type Diagnostics } from '@/api/curation'
+import { isHttpUrl, MANE_LABELS, RESOURCE_LABELS, type Diagnostics } from '@/api/curation'
 
 const props = defineProps<{ diagnostics: Diagnostics | null | undefined }>()
-
-const MANE_LABELS: Record<string, string> = {
-  select: 'MANE Select',
-  plus_clinical: 'MANE Plus Clinical',
-  none: 'No MANE transcript',
-  not_checked: 'MANE status not checked'
-}
-const RESOURCE_LABELS: Record<string, string> = {
-  patient_organisation: 'Patient organisation',
-  registry: 'Registry',
-  variant_database: 'Variant database',
-  guideline: 'Guideline',
-  other: 'Resource'
-}
 
 const transcript = computed(() => props.diagnostics?.recommended_transcript ?? null)
 const detectability = computed(() => props.diagnostics?.detectability ?? [])

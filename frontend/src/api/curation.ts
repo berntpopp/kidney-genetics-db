@@ -55,6 +55,19 @@ export const RESOURCE_TYPES = [
   'guideline',
   'other'
 ] as const
+export const MANE_LABELS: Record<string, string> = {
+  select: 'MANE Select',
+  plus_clinical: 'MANE Plus Clinical',
+  none: 'No MANE transcript',
+  not_checked: 'MANE status not checked'
+}
+export const RESOURCE_LABELS: Record<string, string> = {
+  patient_organisation: 'Patient organisation',
+  registry: 'Registry',
+  variant_database: 'Variant database',
+  guideline: 'Guideline',
+  other: 'Other resource'
+}
 export const VERIFIED_METHODS = ['fetched', 'api', 'captcha_title_only'] as const
 
 export interface Scores {
