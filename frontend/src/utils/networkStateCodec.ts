@@ -25,6 +25,8 @@ export interface NetworkState {
   largestComponentOnly?: boolean
   nodeColorMode?: string
   enrichmentType?: string
+  /** 'reference' (default) or 'network' */
+  enrichmentBackground?: string
   fdrThreshold?: number
   selectedClusters?: number[]
   highlightedCluster?: number | null
@@ -170,6 +172,10 @@ function encodeNetworkStateV1(state: NetworkState): QueryParams {
     params.enrichType = state.enrichmentType
   }
 
+  if (state.enrichmentBackground === 'network') {
+    params.bg = 'network'
+  }
+
   if (state.fdrThreshold !== undefined && state.fdrThreshold !== 0.05) {
     params.fdr = state.fdrThreshold.toString()
   }
@@ -236,6 +242,7 @@ const STATE_FIELDS: Record<string, (_v: unknown) => boolean> = {
   largestComponentOnly: isBoolean,
   nodeColorMode: oneOf('cluster', 'clinical_group', 'onset_group', 'syndromic'),
   enrichmentType: oneOf('go', 'hpo'),
+  enrichmentBackground: oneOf('reference', 'network'),
   fdrThreshold: isNumber,
   selectedClusters: isIntList,
   highlightedCluster: v => v === null || isNumber(v),
@@ -347,6 +354,10 @@ function decodeNetworkStateV1(query: QueryParams): NetworkState {
   // Enrichment analysis
   if (query.enrichType) {
     state.enrichmentType = query.enrichType
+  }
+
+  if (query.bg === 'network') {
+    state.enrichmentBackground = 'network'
   }
 
   if (query.fdr) {

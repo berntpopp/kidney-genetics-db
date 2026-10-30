@@ -23,11 +23,11 @@ describe('network export builders', () => {
     ])
   })
 
-  it('writes edges by gene symbol with the raw STRING score', () => {
-    expect(edgesCsv(elements).split('\r\n')).toEqual([
-      'Source Symbol,Target Symbol,STRING Score',
-      'PKD1,PKD2,900',
-      'PKD1,A&B<1>,500'
+  it('writes edges by gene symbol and HGNC ID with the raw STRING score', () => {
+    expect(edgesCsv(elements, ctx).split('\r\n')).toEqual([
+      'Source Symbol,Source HGNC ID,Target Symbol,Target HGNC ID,STRING Score',
+      'PKD1,HGNC:9008,PKD2,,900',
+      'PKD1,HGNC:9008,A&B<1>,,500'
     ])
   })
 

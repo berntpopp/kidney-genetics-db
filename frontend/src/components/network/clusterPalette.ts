@@ -6,25 +6,11 @@
  * the hues with a diamond node shape, so every cluster keeps its own colour+shape pair; only
  * clusters below the minimum cluster size are neutral grey. Light fills keep >= 3:1 against
  * the canvas through markOutline() (chartMarks.ts). Resolve with canvasColor() for Cytoscape.
- * Written in oklch like the main.css tokens; the comments give Tol's published sRGB values.
  */
 import { OTHER_CLUSTER_COLOR } from '@/config/networkAnalysis'
 
-// ponytail: same values in both themes; move to main.css tokens if dark mode needs its own
-export const CLUSTER_PALETTE = [
-  'oklch(0.635 0.13 11)', // rose CC6677
-  'oklch(0.347 0.159 281.8)', // indigo 332288
-  'oklch(0.841 0.108 98.3)', // sand DDCC77
-  'oklch(0.499 0.135 148.6)', // green 117733
-  'oklch(0.812 0.084 230.8)', // cyan 88CCEE
-  'oklch(0.432 0.145 354.5)', // wine 882255
-  'oklch(0.674 0.098 180.4)', // teal 44AA99
-  'oklch(0.663 0.123 109.3)', // olive 999933
-  'oklch(0.553 0.167 334.6)', // purple AA4499
-  'oklch(0.697 0.167 47)', // orange EE7733
-  'oklch(0.556 0.097 250)', // blue 4477AA
-  'oklch(0.806 0.168 115.9)' // pear BBCC33
-] as const
+// Theme tokens (main.css --cluster-1..12): dark mode lifts the indigo and wine hues
+export const CLUSTER_PALETTE = Array.from({ length: 12 }, (_, i) => `var(--cluster-${i + 1})`)
 
 export type ClusterShape = 'ellipse' | 'round-diamond'
 

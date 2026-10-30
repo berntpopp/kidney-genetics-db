@@ -105,6 +105,21 @@
     --source-7: oklch(0.902 0.172 105);
     --source-8: oklch(0.596 0 0);
 
+    /* Network clusters — Paul Tol muted (9) + orange, blue, pear: 12 colour-blind-considerate
+       hues by cluster size rank (components/network/clusterPalette.ts) */
+    --cluster-1: oklch(0.635 0.13 11);
+    --cluster-2: oklch(0.347 0.159 281.8);
+    --cluster-3: oklch(0.841 0.108 98.3);
+    --cluster-4: oklch(0.499 0.135 148.6);
+    --cluster-5: oklch(0.812 0.084 230.8);
+    --cluster-6: oklch(0.432 0.145 354.5);
+    --cluster-7: oklch(0.674 0.098 180.4);
+    --cluster-8: oklch(0.663 0.123 109.3);
+    --cluster-9: oklch(0.553 0.167 334.6);
+    --cluster-10: oklch(0.697 0.167 47);
+    --cluster-11: oklch(0.556 0.097 250);
+    --cluster-12: oklch(0.806 0.168 115.9);
+
     /* Domain colors — Kidney/DNA science palette */
     --kidney-primary: oklch(0.704 0.14 180.72);
     --kidney-secondary: oklch(0.638 0.148 179.37);
@@ -191,6 +206,10 @@
     /* Sources (dark) — blue and grey lifted for >= 3:1 on the canvas */
     --source-1: oklch(0.65 0.13 244);
     --source-8: oklch(0.68 0 0);
+
+    /* Clusters (dark) — indigo and wine lifted for >= 3:1 on the canvas; hue kept */
+    --cluster-2: oklch(0.58 0.19 284);
+    --cluster-6: oklch(0.56 0.17 354.5);
 
     /* Domain colors — dark mode */
     --kidney-primary: oklch(0.834 0.1 181.07);

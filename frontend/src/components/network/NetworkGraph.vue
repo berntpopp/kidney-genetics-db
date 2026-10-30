@@ -1313,18 +1313,32 @@ const fitGraph = () => {
 const exportBaseName = () =>
   `kgdb_network_${cyInstance.value?.nodes().length ?? 0}genes_${isoDate()}`
 
+// Images go into papers and slides: export on white with dark labels in either theme
+const PRINT = { background: 'oklch(1 0 0)', text: 'oklch(0.2 0 0)', edge: 'oklch(0.7 0 0)' }
+const withPrintStyle = (cy, render) => {
+  const bg = canvasColor(PRINT.background)
+  cy.style()
+    .selector('node')
+    .style({ color: canvasColor(PRINT.text), 'text-outline-color': bg })
+    .selector('edge')
+    .style({ 'line-color': canvasColor(PRINT.edge) })
+    .update()
+  try {
+    return render(bg)
+  } finally {
+    cy.style(buildStylesheet())
+  }
+}
+
 const exportPng = () => {
   const cy = cyInstance.value
   if (!cy) return
   // 3x for print, capped so large networks stay under browser canvas limits (Cytoscape
   // ignores maxWidth/maxHeight once a scale is given)
   const { w, h } = cy.elements().boundingBox()
-  const png = cy.png({
-    output: 'blob',
-    bg: canvasColor('var(--background)'),
-    full: true,
-    scale: Math.min(3, 8000 / Math.max(w, h, 1))
-  })
+  const png = withPrintStyle(cy, bg =>
+    cy.png({ output: 'blob', bg, full: true, scale: Math.min(3, 8000 / Math.max(w, h, 1)) })
+  )
   downloadFile(png, `${exportBaseName()}.png`, 'image/png')
 }
 
@@ -1338,7 +1352,7 @@ const exportSvg = async () => {
       cytoscape.use(svgExtension)
       svgRegistered = true
     }
-    const svg = cy.svg({ full: true, scale: 1, bg: canvasColor('var(--background)') })
+    const svg = withPrintStyle(cy, bg => cy.svg({ full: true, scale: 1, bg }))
     downloadFile(svg, `${exportBaseName()}.svg`, 'image/svg+xml')
   } catch (error) {
     toast.error('Could not export the network as SVG')
@@ -1356,7 +1370,7 @@ const exportData = format => {
     cyjs: () => [cyjs(json, base), `${base}.cyjs`, 'application/json'],
     graphml: () => [graphml(json, ctx), `${base}.graphml`, 'application/graphml+xml'],
     nodes: () => [nodesCsv(json, ctx), `${base}_nodes.csv`, 'text/csv'],
-    edges: () => [edgesCsv(json), `${base}_edges.csv`, 'text/csv']
+    edges: () => [edgesCsv(json, ctx), `${base}_edges.csv`, 'text/csv']
   }
   downloadFile(...files[format]())
 }

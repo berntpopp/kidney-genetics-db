@@ -971,6 +971,7 @@ const getStateSnapshot = (): NetworkState => {
     largestComponentOnly: built?.largest_component_only ?? largestComponentOnly.value,
     nodeColorMode: nodeColorMode.value,
     enrichmentType: enrichmentType.value,
+    enrichmentBackground: enrichmentBackground.value,
     fdrThreshold: fdrThreshold.value,
     selectedClusters: selectedClusters.value,
     highlightedCluster: null,
@@ -993,6 +994,7 @@ const applyRestoredState = async (urlState: NetworkState) => {
       largestComponentOnly.value = urlState.largestComponentOnly
     if (urlState.nodeColorMode) nodeColorMode.value = urlState.nodeColorMode
     if (urlState.enrichmentType) enrichmentType.value = urlState.enrichmentType
+    if (urlState.enrichmentBackground === 'network') enrichmentBackground.value = 'network'
     if (urlState.fdrThreshold !== undefined) fdrThreshold.value = urlState.fdrThreshold
 
     if (urlState.geneIds && urlState.geneIds.length > 0) {

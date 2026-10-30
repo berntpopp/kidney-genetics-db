@@ -14,6 +14,15 @@ describe('networkStateCodec', () => {
     expect(decoded).toMatchObject(state)
   })
 
+  it('v1 and v2 round-trip the network enrichment background', () => {
+    const state = { geneIds: [1, 2], enrichmentBackground: 'network' }
+    expect(decodeNetworkState(encodeNetworkState(state, 1))).toMatchObject(state)
+    expect(decodeNetworkState(encodeNetworkState(state))).toMatchObject(state)
+    expect(
+      decodeNetworkState(v2({ geneIds: [1], enrichmentBackground: 'genome' }))
+    ).not.toHaveProperty('enrichmentBackground')
+  })
+
   it('legacy v1 links without those params keep their old meaning (0/0/1)', () => {
     const decoded = decodeNetworkState({ v: '1', genes: '1,2' })
     expect(decoded).toMatchObject({ minScore: 0, minDegree: 0, minClusterSize: 1 })

@@ -45,12 +45,16 @@ function nodeRows(elements: NetworkElement[], ctx: NetworkExportContext) {
   ])
 }
 
-function edgeRows(elements: NetworkElement[]) {
+function edgeRows(elements: NetworkElement[], ctx: NetworkExportContext) {
   const { nodes, edges } = split(elements)
-  const label = new Map(nodes.map(({ data }) => [String(data.id), data.label ?? data.id]))
+  const byId = new Map(nodes.map(({ data }) => [String(data.id), data]))
+  const end = (id: unknown) => {
+    const node = byId.get(String(id))
+    return [node?.label ?? id, ctx.hgncIds?.get(Number(node?.gene_id)) ?? '']
+  }
   return edges.map(({ data }) => [
-    label.get(String(data.source)) ?? data.source,
-    label.get(String(data.target)) ?? data.target,
+    ...end(data.source),
+    ...end(data.target),
     data.string_score ?? ''
   ])
 }
@@ -58,8 +62,11 @@ function edgeRows(elements: NetworkElement[]) {
 export const nodesCsv = (elements: NetworkElement[], ctx: NetworkExportContext = {}): string =>
   toCsv(['Gene Symbol', 'HGNC ID', 'Gene ID', 'Cluster', 'Degree'], nodeRows(elements, ctx))
 
-export const edgesCsv = (elements: NetworkElement[]): string =>
-  toCsv(['Source Symbol', 'Target Symbol', 'STRING Score'], edgeRows(elements))
+export const edgesCsv = (elements: NetworkElement[], ctx: NetworkExportContext = {}): string =>
+  toCsv(
+    ['Source Symbol', 'Source HGNC ID', 'Target Symbol', 'Target HGNC ID', 'STRING Score'],
+    edgeRows(elements, ctx)
+  )
 
 /** Cytoscape desktop .cyjs (File > Import > Network from File) */
 export function cyjs(elements: NetworkElement[], name: string): string {
