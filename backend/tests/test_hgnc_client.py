@@ -241,9 +241,53 @@ class TestHGNCClientCached:
             result = await client.standardize_symbol("PKD1")
 
             assert result == "PKD1"
-            # Check that the first call was to search/symbol/PKD1
+            # The first call searches approved entries only (withdrawn ACMG/IV must not match)
             first_call_args = mock_request.call_args_list[0]
-            assert "search/symbol/PKD1" in first_call_args[0][0]
+            assert first_call_args[0][0] == "search/status:Approved+AND+symbol:PKD1"
+
+    @pytest.mark.asyncio
+    async def test_short_symbol_never_normalizes_via_alias(self, client, mock_empty_response):
+        """A 1-3 letter alias ("IV") is too ambiguous: not found, without an alias query."""
+
+        async def bypass_cache(key, fetch_func, namespace, ttl, db_session):
+            return await fetch_func()
+
+        with (
+            patch.object(client, "_make_request", new_callable=AsyncMock) as mock_request,
+            patch("app.core.hgnc_client.cached", side_effect=bypass_cache),
+        ):
+            mock_request.return_value = mock_empty_response
+            assert await client.standardize_symbol("IV") == "IV"
+            endpoints = [c[0][0] for c in mock_request.call_args_list]
+            assert endpoints == [
+                "search/status:Approved+AND+symbol:IV",
+                "search/status:Approved+AND+prev_symbol:IV",
+            ]
+
+    @pytest.mark.asyncio
+    async def test_gene_info_and_batch_query_approved_entries_only(
+        self, client, mock_empty_response
+    ):
+        """No free-text search/symbol?symbol=X (its top hit is PHIP for any X)."""
+
+        async def bypass_cache(key, fetch_func, namespace, ttl, db_session):
+            return await fetch_func()
+
+        with (
+            patch.object(client, "_make_request", new_callable=AsyncMock) as mock_request,
+            patch("app.core.hgnc_client.cached", side_effect=bypass_cache),
+        ):
+            mock_request.return_value = mock_empty_response
+            assert await client.get_gene_info("acmg") is None
+            assert await client.symbol_to_hgnc_id("ACMG") is None
+            await client._process_batch(["PKD1", "ACMG"])
+            endpoints = [c[0][0] for c in mock_request.call_args_list]
+            assert endpoints[:3] == [
+                "search/status:Approved+AND+symbol:ACMG",
+                "search/status:Approved+AND+symbol:ACMG",
+                "search/status:Approved+AND+symbol:(PKD1+OR+ACMG)",
+            ]
+            assert all(len(c[0]) == 1 for c in mock_request.call_args_list)  # no params
 
     @pytest.mark.asyncio
     async def test_standardize_symbol_previous_symbol(
