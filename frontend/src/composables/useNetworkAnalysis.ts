@@ -19,7 +19,8 @@ import type {
 } from '@/api/network'
 import type { HPOClassificationsResult } from '@/api/genes'
 import type { Gene } from '@/types/gene'
-import { networkAnalysisConfig, clusterColorByRank } from '@/config/networkAnalysis'
+import { networkAnalysisConfig } from '@/config/networkAnalysis'
+import { clusterStyle } from '@/components/network/clusterPalette'
 
 const cfg = networkAnalysisConfig
 
@@ -211,7 +212,7 @@ export function useNetworkAnalysis() {
         backendId,
         size: genes.length,
         genes,
-        color: clusterColorByRank(displayId)
+        color: clusterStyle(displayId, genes.length, clusteredWith.value?.minClusterSize ?? 1).color
       }))
   })
 
@@ -579,6 +580,7 @@ export function useNetworkAnalysis() {
     removeIsolated,
     minDegree,
     minClusterSize,
+    clusteredWith,
     largestComponentOnly,
     buildingNetwork,
     clustering,

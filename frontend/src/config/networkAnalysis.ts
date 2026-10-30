@@ -69,17 +69,9 @@ export interface NetworkAnalysisConfig {
   }
 }
 
-/**
- * Cluster colours by size rank (0 = largest): the Okabe-Ito tokens --source-1..7, the app's
- * only colour-blind-validated categorical palette. Only the 7 largest clusters get a colour of
- * their own; the rest share the neutral --source-8, since more hues stop being tellable apart
- * (#325). Canvas code resolves these with canvasColor() (components/network/canvasColor.ts).
- */
-export const CLUSTER_PALETTE = [1, 2, 3, 4, 5, 6, 7].map(n => `var(--source-${n})`)
+/** Neutral colour for clusters below the minimum size; the cluster palette lives in
+ * components/network/clusterPalette.ts. */
 export const OTHER_CLUSTER_COLOR = 'var(--source-8)'
-
-export const clusterColorByRank = (rank: number): string =>
-  CLUSTER_PALETTE[rank] ?? OTHER_CLUSTER_COLOR
 
 export const networkAnalysisConfig: NetworkAnalysisConfig = {
   // Gene Selection Parameters
@@ -162,7 +154,7 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
     // Default color mode
     defaultMode: 'cluster',
 
-    // Categorical token colours for HPO-based colouring (Okabe-Ito, see CLUSTER_PALETTE)
+    // Categorical token colours for HPO-based colouring (Okabe-Ito)
     colorSchemes: {
       clinical_group: {
         cyst_cilio: 'var(--source-3)',

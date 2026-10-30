@@ -12,11 +12,8 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import NetworkAnalysis from '@/views/NetworkAnalysis.vue'
 import { networkApi } from '@/api/network'
-import {
-  networkAnalysisConfig,
-  CLUSTER_PALETTE,
-  OTHER_CLUSTER_COLOR
-} from '@/config/networkAnalysis'
+import { networkAnalysisConfig } from '@/config/networkAnalysis'
+import { CLUSTER_PALETTE } from '@/components/network/clusterPalette'
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -524,18 +521,16 @@ describe('NetworkAnalysis.vue', () => {
       return { clusters, num_clusters: 12, modularity: 0.5 }
     }
 
-    it('colours only the 7 largest clusters, each distinctly, and greys the rest', async () => {
+    it('gives the 12 largest clusters the graph palette, each distinct', async () => {
       const vm = mountComponent().vm as any
       vm.clusterStats = twelveClusters()
       vm.clusterData = { nodes: 1, edges: 0, cytoscape_json: { elements: [] } }
       await nextTick()
       const colors = vm.clusterList.map((c: any) => c.color)
-      expect(colors.slice(0, 7)).toEqual(CLUSTER_PALETTE)
-      expect(new Set(colors.slice(0, 7)).size).toBe(7)
-      expect(colors.slice(7)).toEqual(Array(5).fill(OTHER_CLUSTER_COLOR))
+      expect(colors).toEqual([...CLUSTER_PALETTE])
       // The graph gets the same colours
       expect(vm.clusterColors.get(0)).toBe(CLUSTER_PALETTE[0])
-      expect(vm.clusterColors.get(11)).toBe(OTHER_CLUSTER_COLOR)
+      expect(vm.clusterColors.get(11)).toBe(CLUSTER_PALETTE[11])
     })
 
     it('renders cluster rows as toggle buttons with aria-pressed', async () => {

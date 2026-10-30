@@ -514,6 +514,7 @@
             :error="networkError ?? undefined"
             :cluster-id-mapping="clusterIdMapping"
             :cluster-colors-map="clusterColors"
+            :min-cluster-size="clusteredWith?.minClusterSize ?? 1"
             :hpo-classifications="hpoClassifications ?? undefined"
             :hgnc-ids="hgncIds"
             :loading-h-p-o-data="loadingHPOClassifications"
@@ -744,6 +745,7 @@ const {
   removeIsolated,
   minDegree,
   minClusterSize,
+  clusteredWith,
   largestComponentOnly,
   buildingNetwork,
   clustering,
