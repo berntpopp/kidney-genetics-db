@@ -248,8 +248,11 @@
                 </PopoverTrigger>
                 <PopoverContent class="w-[300px] p-2" align="start" side="bottom">
                   <p class="px-1 pb-2 text-xs text-muted-foreground">
-                    Genes of the selected clusters are pooled and tested against all
-                    {{ networkGeneIds.length }} network genes.
+                    Genes of the selected clusters are pooled and tested against
+                    <template v-if="enrichmentBackground === 'network'">
+                      all {{ networkGeneIds.length }} network genes.
+                    </template>
+                    <template v-else>the background chosen under Background.</template>
                   </p>
                   <div class="max-h-[300px] overflow-y-auto space-y-0.5">
                     <button
@@ -307,6 +310,28 @@
                   <SelectItem v-for="opt in enrichmentOptions" :key="opt.value" :value="opt.value">
                     {{ opt.title }}
                   </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div class="space-y-1">
+              <div class="flex items-center gap-1">
+                <label for="na-enrich-bg" class="text-xs font-medium text-muted-foreground">
+                  Background
+                </label>
+                <HoverPopover :content-class="HELP_CLASS">
+                  <CircleHelp class="size-3.5 text-muted-foreground" aria-hidden="true" />
+                  <span class="sr-only">About the enrichment background</span>
+                  <template #content>{{ HELP.background }}</template>
+                </HoverPopover>
+              </div>
+              <Select v-model="enrichmentBackground">
+                <SelectTrigger id="na-enrich-bg" class="h-8 w-40 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reference">All genes</SelectItem>
+                  <SelectItem value="network">Network genes</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -559,10 +584,16 @@
             {{ enrichmentRun.clusterLabel }}:
             <span class="tabular-nums">{{ enrichmentRun.geneCount }}</span>
             genes tested &middot; background:
-            <span class="tabular-nums">{{ enrichmentBackgroundSize }}</span>
-            network genes<template v-if="enrichmentRun.type === 'hpo'">
-              (only those with kidney HPO annotations are tested)</template
-            >
+            <template v-if="enrichmentRun.background === 'network'">
+              <span class="tabular-nums">{{ enrichmentBackgroundSize }}</span>
+              network genes<template v-if="enrichmentRun.type === 'hpo'">
+                (only those with kidney HPO annotations are tested)</template
+              >
+            </template>
+            <template v-else-if="enrichmentRun.type === 'hpo'">
+              all kidney genes with HPO annotations
+            </template>
+            <template v-else>whole genome (Enrichr library)</template>
           </p>
           <EnrichmentTable
             :results="visibleEnrichmentTerms"
@@ -725,7 +756,9 @@ const HELP = {
   minCluster: 'After clustering, drop clusters with fewer genes than this (1 keeps every cluster).',
   fdr: 'False discovery rate cut-off for significant terms. Lowering it filters the current results; raising it re-runs the analysis.',
   clusters:
-    'Genes of the selected clusters are pooled and tested for enrichment against all genes in the network. The largest cluster is selected after clustering.'
+    'Genes of the selected clusters are pooled and tested for enrichment against the chosen background. The largest cluster is selected after clustering.',
+  background:
+    'All genes: GO terms are tested against the whole genome (Enrichr library) and HPO terms against every kidney gene with HPO annotations; this describes what a cluster does. Network genes: tested against the genes in this network only; this shows what sets a cluster apart from the rest of the network, but has less power on small networks.'
 }
 
 // UI State
@@ -765,6 +798,7 @@ const {
   nextStep,
   selectedClusters,
   enrichmentType,
+  enrichmentBackground,
   geneSet,
   fdrThreshold,
   runningEnrichment,
@@ -822,7 +856,10 @@ const hasAnyState = computed(
 const pipelineBusy = computed(() => buildingNetwork.value || clustering.value)
 
 const selectsWholeNetwork = computed(
-  () => clusterList.value.length > 1 && selectedClusters.value.length === clusterList.value.length
+  () =>
+    enrichmentBackground.value === 'network' &&
+    clusterList.value.length > 1 &&
+    selectedClusters.value.length === clusterList.value.length
 )
 
 const clusteringSummary = computed(() => {
@@ -839,9 +876,7 @@ const clusteringSummary = computed(() => {
   return parts.join(' · ')
 })
 
-const enrichmentBackgroundSize = computed(
-  () => enrichmentResults.value?.background_size ?? enrichmentRun.value?.backgroundSize ?? 0
-)
+const enrichmentBackgroundSize = computed(() => enrichmentRun.value?.backgroundSize ?? 0)
 
 const nextStepText = computed(() => {
   switch (nextStep.value) {

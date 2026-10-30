@@ -725,15 +725,24 @@ describe('NetworkAnalysis.vue', () => {
       expect(state.minStringScore).toBe(700)
     })
 
-    it('sends the network genes as enrichment background and labels it', async () => {
+    it('uses the reference background by default and the network genes on request', async () => {
       const slot = { template: '<div><slot /></div>' }
       const wrapper = mountComponent({ Tabs: slot, TabsContent: slot })
       const vm = wrapper.vm as any
       await buildAndCluster(vm, twoClusters)
 
       await vm.runEnrichment()
-      expect(networkApi.enrichGO).toHaveBeenCalledWith(
-        expect.objectContaining({ cluster_genes: [3, 4, 5], background_genes: [1, 2, 3, 4, 5] }),
+      expect(networkApi.enrichGO).toHaveBeenLastCalledWith(
+        expect.objectContaining({ cluster_genes: [3, 4, 5], background_genes: null }),
+        expect.anything()
+      )
+      expect(wrapper.find('[data-testid="enrichment-background"]').text()).toMatch(/whole genome/)
+
+      // Switching the background re-runs against the network genes
+      vm.enrichmentBackground = 'network'
+      await flushPromises()
+      expect(networkApi.enrichGO).toHaveBeenLastCalledWith(
+        expect.objectContaining({ background_genes: [1, 2, 3, 4, 5] }),
         expect.anything()
       )
 

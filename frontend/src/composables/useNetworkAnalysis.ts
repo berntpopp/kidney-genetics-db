@@ -65,8 +65,12 @@ export interface EnrichmentRun {
   fdr: number
   geneCount: number
   clusterLabel: string
+  /** 'reference' = genome (GO) or all kidney HPO genes (HPO); 'network' = the network on screen */
+  background: EnrichmentBackground
   backgroundSize: number
 }
+
+export type EnrichmentBackground = 'reference' | 'network'
 
 type Pipeline = 'genes' | 'build' | 'cluster' | 'enrich' | 'hpo'
 /** Downstream pipelines a new run of the key invalidates */
@@ -141,6 +145,9 @@ export function useNetworkAnalysis() {
   // Enrichment
   const selectedClusters = ref<number[]>([])
   const enrichmentType = ref<string>(cfg.enrichment.defaultEnrichmentType)
+  // Reference background by default: a network background asks a narrower question (what sets
+  // a cluster apart from the rest of the network) and is often underpowered on small networks
+  const enrichmentBackground = ref<EnrichmentBackground>('reference')
   const geneSet = ref<string>(cfg.enrichment.goGeneSets[0]!)
   const fdrThreshold = ref<number>(cfg.enrichment.defaultFdrThreshold)
   const runningEnrichment = ref(false)
@@ -447,8 +454,7 @@ export function useNetworkAnalysis() {
       }
       clusteredWith.value = settings
       clearEnrichment()
-      // Default to the largest cluster: enriching every cluster would test the network
-      // against itself, since the network is the background
+      // Default to the largest cluster; pooling every cluster tests the whole network
       selectedClusters.value = clusterList.value[0] ? [clusterList.value[0].value] : []
       window.logService?.info(
         `Detected ${response.num_clusters} clusters (modularity: ${response.modularity.toFixed(3)})`
@@ -474,7 +480,7 @@ export function useNetworkAnalysis() {
       integer: false
     })
     fdrThreshold.value = fdr
-    const background = networkGeneIds.value
+    const background = enrichmentBackground.value === 'network' ? networkGeneIds.value : null
     const run: EnrichmentRun = {
       type: enrichmentType.value,
       geneSet: geneSet.value,
@@ -482,7 +488,8 @@ export function useNetworkAnalysis() {
       geneCount: genes.length,
       clusterLabel:
         selected.length === 1 ? selected[0]!.title : `${selected.length} clusters (pooled)`,
-      backgroundSize: background.length
+      background: enrichmentBackground.value,
+      backgroundSize: background?.length ?? 0
     }
     clearEnrichment()
     enrichmentRun.value = run
@@ -531,10 +538,14 @@ export function useNetworkAnalysis() {
   }
 
   // Type or gene set changed: the old results no longer answer the question, so re-run
-  watch([enrichmentType, geneSet], () => {
+  watch([enrichmentType, geneSet, enrichmentBackground], () => {
     const run = enrichmentRun.value
     if (!run) return
-    if (run.type !== enrichmentType.value || (run.type === 'go' && run.geneSet !== geneSet.value))
+    if (
+      run.type !== enrichmentType.value ||
+      run.background !== enrichmentBackground.value ||
+      (run.type === 'go' && run.geneSet !== geneSet.value)
+    )
       void runEnrichment()
   })
 
@@ -563,6 +574,7 @@ export function useNetworkAnalysis() {
     minClusterSize.value = cfg.filtering.defaultMinClusterSize
     largestComponentOnly.value = cfg.filtering.defaultLargestComponentOnly
     enrichmentType.value = cfg.enrichment.defaultEnrichmentType
+    enrichmentBackground.value = 'reference'
     geneSet.value = cfg.enrichment.goGeneSets[0]!
     fdrThreshold.value = cfg.enrichment.defaultFdrThreshold
   }
@@ -601,6 +613,7 @@ export function useNetworkAnalysis() {
     // enrichment
     selectedClusters,
     enrichmentType,
+    enrichmentBackground,
     geneSet,
     fdrThreshold,
     runningEnrichment,

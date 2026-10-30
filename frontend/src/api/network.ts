@@ -73,8 +73,6 @@ export interface EnrichmentResponse {
   gene_set?: string
   /** HPO only: submitted gene IDs not tested (no kidney HPO annotation or outside the background) */
   excluded_genes?: number[]
-  /** Optional: size of the background the backend actually used */
-  background_size?: number | null
 }
 
 /** HPOBatchEnrichmentResponse */
@@ -83,7 +81,6 @@ export interface HPOBatchEnrichmentResponse {
   total_tests: number
   fdr_threshold: number
   excluded_genes?: number[][]
-  background_size?: number | null
 }
 
 /** Parameters for buildNetwork */
