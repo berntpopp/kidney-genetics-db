@@ -1,10 +1,9 @@
-"""Established support needs an assertion source; HPO counts most-specific terms (#450)."""
+"""Established support and above need a gene-disease assertion source (#450)."""
 
 import pytest
 from sqlalchemy import text
 
 from app.db import views
-from app.pipeline.sources.unified.hpo import most_specific_terms
 from tests.test_audit_migration_views import (  # noqa: F401 - baseline_db is a fixture
     _add_evidence,
     _add_gene,
@@ -12,26 +11,6 @@ from tests.test_audit_migration_views import (  # noqa: F401 - baseline_db is a 
     _assert_view_matches_canonical,
     baseline_db,
 )
-
-
-@pytest.mark.unit
-def test_deep_term_and_its_ancestors_count_once():
-    # Renal artery stenosis -> Abnormal renal artery morphology -> Abnormality of the kidney
-    parents = {
-        "HP:0001920": {"HP:0008776"},
-        "HP:0008776": {"HP:0000077"},
-        "HP:0000077": {"HP:0010935"},
-        "HP:0000107": {"HP:0000077"},
-    }
-    terms = [{"id": t} for t in ("HP:0000077", "HP:0001920", "HP:0008776", "HP:0010935")]
-    assert most_specific_terms(terms, parents) == [{"id": "HP:0001920"}]
-    # A sibling leaf is independent and kept; a term missing from the ontology is kept
-    terms += [{"id": "HP:0000107"}, {"id": "HP:9999999"}]
-    assert [t["id"] for t in most_specific_terms(terms, parents)] == [
-        "HP:0001920",
-        "HP:0000107",
-        "HP:9999999",
-    ]
 
 
 TIER_COUNTS = "SELECT evidence_tier, count(*) AS n FROM gene_scores GROUP BY evidence_tier"
