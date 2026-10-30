@@ -9,7 +9,7 @@ vi.mock('cytoscape', () => {
   })
   return { default: fake }
 })
-vi.mock('cytoscape-cose-bilkent', () => ({ default: {} }))
+vi.mock('cytoscape-fcose', () => ({ default: {} }))
 
 import NetworkGraph from '../NetworkGraph.vue'
 

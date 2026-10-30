@@ -10,6 +10,24 @@
         </p>
       </div>
       <div class="flex items-center gap-1">
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          aria-label="Network view"
+          class="mr-1"
+          :model-value="view"
+          @update:model-value="setView"
+        >
+          <ToggleGroupItem
+            v-for="option in VIEWS"
+            :key="option.value"
+            :value="option.value"
+            class="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+          >
+            {{ option.label }}
+          </ToggleGroupItem>
+        </ToggleGroup>
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
             <Button
@@ -201,7 +219,7 @@
     <Separator />
 
     <!-- Cytoscape Graph Container -->
-    <CardContent class="p-0 network-container-wrapper">
+    <CardContent v-show="view === 'graph'" class="p-0 network-container-wrapper">
       <div
         ref="cytoscapeContainer"
         class="cytoscape-container"
@@ -323,6 +341,13 @@
       </div>
     </CardContent>
 
+    <!-- Accessible alternative to the canvas: the same genes as a sortable table -->
+    <NetworkNodeTable
+      v-if="view === 'table' && !loading && !error"
+      :rows="tableRows"
+      @select="$emit('nodeClick', $event)"
+    />
+
     <!-- Dynamic Legend (Clusters or HPO Classifications) -->
     <Separator v-if="showLegend" />
     <CardContent v-if="showLegend" class="p-3">
@@ -411,8 +436,12 @@
                     :style="swatchStyle(item.color)"
                     aria-hidden="true"
                   />
-                  {{ item.label }}
-                  <span class="tabular-nums text-muted-foreground">{{ item.size }}</span>
+                  Cluster {{ item.number }}
+                  <span v-if="item.name" class="max-w-36 truncate" :title="item.name"
+                    >· {{ item.name }}</span
+                  >
+                  <!-- Muted grey falls below 4.5:1 on the tinted chip: the count stays foreground -->
+                  <span class="tabular-nums font-normal">{{ item.size }}</span>
                 </Badge>
               </TooltipTrigger>
 
@@ -468,8 +497,9 @@
       v-model="clusterDialogOpen"
       :cluster-id="selectedClusterId"
       :cluster-display-name="
-        selectedClusterId !== null ? getClusterDisplayName(selectedClusterId) : ''
+        selectedClusterId !== null ? `Cluster ${clusterNumber(selectedClusterId)}` : ''
       "
+      :cluster-label="clusterLabels?.get(selectedClusterId)"
       :cluster-color="selectedClusterColor"
       :genes="selectedClusterGenes"
       :hpo-classifications="hpoClassifications"
@@ -501,7 +531,7 @@ import {
   X
 } from 'lucide-vue-next'
 import cytoscape from 'cytoscape'
-import coseBilkent from 'cytoscape-cose-bilkent'
+import fcose from 'cytoscape-fcose'
 import { toast } from 'vue-sonner'
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -524,6 +554,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { DataState } from '@/components/shared'
 import { useAppTheme } from '@/composables/useAppTheme'
@@ -534,6 +565,7 @@ import { canvasColor, clearCanvasColors } from './canvasColor'
 import { clusterStyle } from './clusterPalette'
 
 import ClusterDetailsDialog from './ClusterDetailsDialog.vue'
+import NetworkNodeTable from './NetworkNodeTable.vue'
 import { useNetworkSearch } from '../../composables/useNetworkSearch'
 import { networkAnalysisConfig, OTHER_CLUSTER_COLOR } from '../../config/networkAnalysis'
 import { computeHpoClusterStats } from './hpoClusterStats'
@@ -543,8 +575,7 @@ const DEFAULT_NODE_COLOR = 'var(--muted-foreground)'
 // Above this many nodes the layout jumps straight to its result: animating it costs more than it shows
 const ANIMATE_MAX_NODES = 200
 
-// Register cose-bilkent layout
-cytoscape.use(coseBilkent)
+cytoscape.use(fcose)
 
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -597,6 +628,11 @@ const props = defineProps({
   minClusterSize: {
     type: Number,
     default: networkAnalysisConfig.filtering.defaultMinClusterSize
+  },
+  /** Backend cluster id -> short label (e.g. "Renal cyst"), shown after "Cluster N" */
+  clusterLabels: {
+    type: Map,
+    default: undefined
   }
 })
 
@@ -610,9 +646,14 @@ const emit = defineEmits(['refresh', 'update:colorMode', 'nodeClick', 'selectClu
 const cytoscapeContainer = ref(null)
 const cyInstance = shallowRef(null)
 const layingOut = ref(false)
-const layoutType = ref('cose-bilkent')
+const layoutType = ref('fcose')
 const clusterCentroids = ref({}) // { clusterId: { x, y } }
 const clusterSortMethod = ref('size') // 'size' or 'spatial'
+const VIEWS = [
+  { value: 'graph', label: 'Graph' },
+  { value: 'table', label: 'Table' }
+]
+const view = ref('graph')
 
 // Cluster details dialog state
 const clusterDialogOpen = ref(false)
@@ -643,6 +684,7 @@ let clusterIndex = new Map()
 let highlightedCluster
 let currentLayout = null
 let renderToken = 0
+let renderedElements = null // the element JSON currently in Cytoscape
 
 // Computed
 const graphHeight = computed(() => props.height)
@@ -724,6 +766,8 @@ const sortedClusters = computed(() => {
 const clusterLegendItems = computed(() =>
   sortedClusters.value.map(cluster => ({
     label: getClusterDisplayName(cluster.backendId),
+    number: clusterNumber(cluster.backendId),
+    name: props.clusterLabels?.get(cluster.backendId) ?? null,
     size: clusterSizes.value.get(cluster.backendId) ?? 0,
     color: cluster.color,
     shape: cluster.shape,
@@ -851,9 +895,45 @@ const nodeColorMap = computed(() => {
   return colorMap
 })
 
+// One row per gene for the table view; an active search narrows it to its matches
+const tableRows = computed(() => {
+  const matches = searchMatches.value
+  const matchIds = hasPattern.value && matches ? new Set(matches.map(n => n.id())) : null
+  const degrees = new Map()
+  for (const { data } of elements.value) {
+    if (!data?.source) continue
+    degrees.set(data.source, (degrees.get(data.source) ?? 0) + 1)
+    degrees.set(data.target, (degrees.get(data.target) ?? 0) + 1)
+  }
+  return elements.value
+    .filter(el => el.data?.gene_id && (!matchIds || matchIds.has(el.data.id)))
+    .map(({ data }) => {
+      const clustered = data.cluster_id !== undefined && data.cluster_id !== null
+      const color = clusterStyles.value.get(data.cluster_id)?.color ?? DEFAULT_NODE_COLOR
+      return {
+        gene_id: data.gene_id,
+        label: data.label,
+        hgnc_id: props.hgncIds.get(data.gene_id) ?? null,
+        cluster_id: data.cluster_id,
+        clusterName: clustered ? getClusterDisplayName(data.cluster_id) : null,
+        clusterRank: clustered ? (clusterRanks.value.get(data.cluster_id) ?? Infinity) : Infinity,
+        color,
+        outline: markOutline(color),
+        degree: degrees.get(data.id) ?? 0
+      }
+    })
+})
+
+const setView = value => {
+  if (!value) return // a single toggle group may emit '' when the active item is pressed again
+  view.value = value
+  // The canvas was hidden: let Cytoscape re-measure its container
+  if (value === 'graph') nextTick(() => cyInstance.value?.resize())
+}
+
 // Layout options
 const layoutOptions = [
-  { title: 'COSE Bilkent (Force-directed)', value: 'cose-bilkent' },
+  { title: 'fCoSE (Force-directed)', value: 'fcose' },
   { title: 'COSE (Force-directed)', value: 'cose' },
   { title: 'Circle', value: 'circle' },
   { title: 'Grid', value: 'grid' },
@@ -868,9 +948,13 @@ const legendChipStyle = color => ({
 const swatchStyle = color => ({ backgroundColor: color, borderColor: markOutline(color) })
 
 // Methods
+const clusterNumber = backendClusterId =>
+  (clusterRanks.value.get(backendClusterId) ?? backendClusterId) + 1
+
+/** "Cluster N", plus the cluster's short label when the parent provides one */
 const getClusterDisplayName = backendClusterId => {
-  const displayId = clusterRanks.value.get(backendClusterId)
-  return `Cluster ${(displayId ?? backendClusterId) + 1}`
+  const label = props.clusterLabels?.get(backendClusterId)
+  return `Cluster ${clusterNumber(backendClusterId)}${label ? ` · ${label}` : ''}`
 }
 
 const showTooltip = (node, event) => {
@@ -1068,21 +1152,41 @@ const clearSearchHighlight = () => {
   clearSearch()
 }
 
+/** A node's resolved colour, outline and shape, for the 'data(...)' styles */
+const nodeStyleData = data => {
+  const color = nodeColorMap.value.get(data.gene_id) || DEFAULT_NODE_COLOR
+  return {
+    color: canvasColor(color),
+    outline: canvasColor(markOutline(color)),
+    shape:
+      (props.colorMode === 'cluster' && clusterStyles.value.get(data.cluster_id)?.shape) ||
+      'ellipse'
+  }
+}
+
+// Style data goes on the JSON before Cytoscape sees it: a mapping to missing data warns per node
+const styledElements = json =>
+  json.map(el =>
+    el.data?.source ? el : { ...el, data: { ...el.data, ...nodeStyleData(el.data) } }
+  )
+
 /** Write each node's resolved colour, outline and shape into its data for 'data(...)' styles */
 const applyNodeStyles = () => {
   const cy = cyInstance.value
   if (!cy || cy.destroyed()) return
-  const byCluster = props.colorMode === 'cluster'
   cy.batch(() => {
-    cy.nodes().forEach(node => {
-      const color = nodeColorMap.value.get(node.data('gene_id')) || DEFAULT_NODE_COLOR
-      node.data({
-        color: canvasColor(color),
-        outline: canvasColor(markOutline(color)),
-        shape: (byCluster && clusterStyles.value.get(node.data('cluster_id'))?.shape) || 'ellipse'
-      })
-    })
+    cy.nodes().forEach(node => node.data(nodeStyleData(node.data())))
   })
+}
+
+/** True when json is the graph on screen, minus some nodes: a clustering result keeps positions */
+const isSameGraph = (cy, json) => {
+  const ids = json.map(el => el.data.id)
+  if (!ids.every(id => cy.getElementById(id).length)) return false
+  const kept = cy.collection(
+    json.filter(el => !el.data.source).map(el => cy.getElementById(el.data.id))
+  )
+  return kept.edgesWith(kept).length === json.length - kept.length
 }
 
 /** Stylesheet from theme tokens; canvasColor() turns them into colours Cytoscape can parse */
@@ -1177,7 +1281,7 @@ const layoutConfig = (name, nodeCount, initial) => {
     animationDuration: 500,
     fit: true,
     padding: 50,
-    ...(name === 'cose-bilkent' && {
+    ...(name === 'fcose' && {
       animate: animate ? 'end' : false,
       quality: 'default',
       // Fresh elements sit at the origin; only a layout switch starts from current positions
@@ -1186,7 +1290,8 @@ const layoutConfig = (name, nodeCount, initial) => {
       edgeElasticity: 0.45,
       nestingFactor: 0.1,
       gravity: 0.25,
-      numIter: 2500,
+      // Every gene node is the same size: skips per-node intersection maths
+      uniformNodeDimensions: true,
       tile: true,
       tilingPaddingVertical: 10,
       tilingPaddingHorizontal: 10
@@ -1256,10 +1361,12 @@ const renderNetwork = () => {
   hideTooltip()
   clearSearchHighlight()
 
+  const styled = styledElements(elementsJson)
+  renderedElements = elementsJson
   if (!cyInstance.value) {
     const cy = cytoscape({
       container: cytoscapeContainer.value,
-      elements: elementsJson,
+      elements: styled,
       style: buildStylesheet(),
       hideEdgesOnViewport: true, // Hide edges during pan/zoom for better performance
       pixelRatio: 1,
@@ -1268,16 +1375,28 @@ const renderNetwork = () => {
     })
     bindEvents(cy)
     cyInstance.value = markRaw(cy)
+  } else if (!layingOut.value && isSameGraph(cyInstance.value, styled)) {
+    // Clustering only recolours and drops small clusters: update data, keep every position
+    const cy = cyInstance.value
+    const ids = new Set(styled.map(el => el.data.id))
+    cy.batch(() => {
+      cy.elements()
+        .filter(ele => !ids.has(ele.id()))
+        .remove()
+      // Edges are unchanged; each data() call restyles, so touch nodes only
+      for (const el of styled) if (!el.data.source) cy.getElementById(el.data.id).data(el.data)
+    })
+    computeClusterCentroids()
+    return
   } else {
     const cy = cyInstance.value
     currentLayout?.stop()
     cy.batch(() => {
       cy.elements().remove()
-      cy.add(elementsJson)
+      cy.add(styled)
     })
     cy.resize()
   }
-  applyNodeStyles()
   runLayout(true)
 }
 
@@ -1379,7 +1498,8 @@ const exportData = format => {
 watch(() => props.networkData, scheduleRender)
 
 // Node colours follow colour mode, HPO data and cluster ranks without a restyle
-watch(nodeColorMap, applyNodeStyles)
+// New elements are styled by renderNetwork; only restyle the network already on screen
+watch(nodeColorMap, () => renderedElements === elements.value && applyNodeStyles())
 
 // Theme switch: re-resolve the token colours after VueUse has toggled the `dark` class
 watch(
