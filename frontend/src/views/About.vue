@@ -303,6 +303,7 @@ const questions: { question: string; answer: Paragraph[] }[] = [
     answer: [
       'Each clinical group (complement, CAKUT, glomerulopathy, cystic/ciliopathy, tubulopathy, nephrolithiasis, renal neoplasia) is defined by a few HPO root terms; a phenotype counts for a group when it is one of these terms or a more specific term below it.',
       "For every disease linked to the gene, each matching phenotype adds its frequency in that disease times its information content (rarer, more specific terms weigh more). Where a disease lists both a term and a term below it, only the more specific term counts. The group with the most evidence summed over the gene's diseases is the primary group; other groups with at least half of the primary group's evidence are shown as secondary groups. The score shown is the group's share of the gene's kidney-group evidence.",
+      'Genes whose primary group is renal neoplasia, or whose neoplasia share is at least 25%, carry a "Renal neoplasia" badge and can be filtered in the gene table. These are mostly tumour-predisposition genes (for example the Lynch syndrome genes); their ClinGen and GenCC assertions still count toward the score.',
       'Classifications use the pinned HPO release 2026-09-01.'
     ]
   },

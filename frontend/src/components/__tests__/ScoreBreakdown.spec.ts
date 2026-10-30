@@ -32,6 +32,15 @@ describe('ScoreBreakdown', () => {
     expect(wrapper.text()).not.toContain('100')
   })
 
+  it('shows the renal-neoplasia badge next to the tier only when flagged (#447)', () => {
+    expect(
+      card({ score: 48, tier: 'multi_source_support', renalNeoplasia: true }).text()
+    ).toContain('Renal neoplasia')
+    expect(card({ score: 48, tier: 'multi_source_support' }).text()).not.toContain(
+      'Renal neoplasia'
+    )
+  })
+
   it('labels the score with the backend evidence tier (#314)', () => {
     // A 60% score is "Strong" in the old score ranges but multi_source_support in the API
     const wrapper = card({ score: 60, tier: 'multi_source_support' })

@@ -33,7 +33,10 @@
               {{ formattedScore }}<span class="text-sm text-muted-foreground">%</span>
             </span>
           </div>
-          <Chip :tier="tier" />
+          <div class="flex flex-wrap justify-center gap-1.5">
+            <Chip :tier="tier" />
+            <RenalNeoplasiaChip v-if="renalNeoplasia" />
+          </div>
 
           <Separator class="my-1" />
           <div class="w-full">
@@ -64,7 +67,7 @@
 import { computed } from 'vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { Chip } from '@/components/shared'
+import { Chip, RenalNeoplasiaChip } from '@/components/shared'
 import { getTierConfig } from '@/utils/evidenceTiers'
 import { sourceDisplayName } from '@/utils/sources'
 import { CircleHelp } from 'lucide-vue-next'
@@ -73,7 +76,8 @@ const props = defineProps({
   score: { type: Number, default: null },
   // Backend evidence_tier; the only source of the label (issue 314)
   tier: { type: String, default: null },
-  breakdown: { type: Object, default: () => ({}) }
+  breakdown: { type: Object, default: () => ({}) },
+  renalNeoplasia: { type: Boolean, default: false }
 })
 
 const formattedScore = computed(() => (props.score == null ? 'N/A' : props.score.toFixed(1)))

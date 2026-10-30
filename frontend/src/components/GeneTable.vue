@@ -8,7 +8,7 @@ import { useMediaQuery } from '@vueuse/core'
 import { geneApi } from '../api/genes'
 import { TIER_CONFIG, getScoreExplanation, type TierName } from '@/utils/evidenceTiers'
 import { getSourceConfig, sourceDisplayName } from '@/utils/sources'
-import { Chip, DataState, OntologyTerm } from '@/components/shared'
+import { Chip, DataState, OntologyTerm, RenalNeoplasiaChip } from '@/components/shared'
 import {
   DataTable,
   DataTableColumnHeader,
@@ -48,6 +48,7 @@ interface GeneRow {
   sources?: string[]
   evidence_tier?: string
   evidence_group?: string
+  renal_neoplasia?: boolean
 }
 
 interface FilterMetadata {
@@ -77,6 +78,13 @@ const sortOption = ref('score_desc')
 const filterMeta = ref<FilterMetadata | null>(null)
 const sortBy = ref([{ key: 'evidence_score', order: 'desc' }])
 const showZeroScoreGenes = ref(false)
+// Renal-neoplasia genes (#447): all, only or exclude
+const neoplasia = ref('all')
+const neoplasiaOptions = [
+  { title: 'All genes', value: 'all' },
+  { title: 'Only renal neoplasia', value: 'only' },
+  { title: 'Exclude renal neoplasia', value: 'exclude' }
+]
 
 // Track initialization to prevent circular updates
 const isInitializing = ref(true)
@@ -224,7 +232,11 @@ const columns: ColumnDef<DataTableFeatures, GeneRow>[] = [
   {
     accessorKey: 'evidence_tier',
     header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Tier' }),
-    cell: ({ row }) => h(Chip, { tier: (row.getValue('evidence_tier') as string) ?? null }),
+    cell: ({ row }) =>
+      h('div', { class: 'flex flex-wrap gap-1' }, [
+        h(Chip, { tier: (row.getValue('evidence_tier') as string) ?? null }),
+        ...(row.original.renal_neoplasia ? [h(RenalNeoplasiaChip)] : [])
+      ]),
     size: 190
   },
   {
@@ -279,6 +291,7 @@ const hasActiveFilters = computed(() => {
     evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 7) ||
     selectedSources.value.length > 0 ||
     selectedTiers.value.length > 0 ||
+    neoplasia.value !== 'all' ||
     showZeroScoreGenes.value
   )
 })
@@ -396,6 +409,10 @@ const parseUrlParams = () => {
       .filter(t => t)
   }
 
+  if (query.neoplasia === 'only' || query.neoplasia === 'exclude') {
+    neoplasia.value = query.neoplasia
+  }
+
   if (query.show_zero_scores !== undefined) {
     showZeroScoreGenes.value = query.show_zero_scores === 'true'
   }
@@ -423,6 +440,7 @@ const updateUrl = () => {
   if (selectedSources.value.length > 0) query.source = selectedSources.value[0]
   if (selectedTiers.value.length > 0) query.tier = selectedTiers.value.join(',')
   if (showZeroScoreGenes.value) query.show_zero_scores = 'true'
+  if (neoplasia.value !== 'all') query.neoplasia = neoplasia.value
 
   router.replace({ query })
 }
@@ -450,7 +468,8 @@ const loadGenes = async (): Promise<void> => {
     tiers: selectedTiers.value.length > 0 ? selectedTiers.value : null,
     sortBy: sortByField,
     sortDesc,
-    hideZeroScores: !showZeroScoreGenes.value
+    hideZeroScores: !showZeroScoreGenes.value,
+    renalNeoplasia: neoplasia.value === 'all' ? null : neoplasia.value === 'only'
   }
   const requestKey = JSON.stringify(params)
   if (activeRequest) {
@@ -513,6 +532,13 @@ const applySorting = (value: string) => {
   loadGenes()
 }
 
+const applyNeoplasia = (value: unknown) => {
+  neoplasia.value = String(value)
+  page.value = 1
+  updateUrl()
+  loadGenes()
+}
+
 const toggleZeroScore = (val: boolean) => {
   showZeroScoreGenes.value = val
   page.value = 1
@@ -536,6 +562,7 @@ const clearAllFilters = () => {
   evidenceCountRange.value = [1, filterMeta.value?.evidence_count?.max || 7]
   selectedSources.value = []
   selectedTiers.value = []
+  neoplasia.value = 'all'
   sortOption.value = 'score_desc'
   sortBy.value = [{ key: 'evidence_score', order: 'desc' }]
   showZeroScoreGenes.value = false
@@ -743,6 +770,17 @@ onMounted(async () => {
                 </div>
               </PopoverContent>
             </Popover>
+
+            <Select :model-value="neoplasia" @update:model-value="applyNeoplasia">
+              <SelectTrigger aria-label="Renal neoplasia genes" class="w-[200px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="opt in neoplasiaOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.title }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
             <Button
               variant="outline"

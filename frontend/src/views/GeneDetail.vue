@@ -134,6 +134,7 @@
                 :score="gene.evidence_score"
                 :tier="gene.evidence_tier"
                 :breakdown="gene.score_breakdown"
+                :renal-neoplasia="gene.renal_neoplasia"
                 class="flex-1"
               />
             </div>

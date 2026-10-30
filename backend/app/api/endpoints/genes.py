@@ -49,6 +49,17 @@ HPO_CACHE_TTL = 3600  # 1 hour
 GENE_IDS_CACHE_NAMESPACE = "gene_ids"
 GENE_IDS_CACHE_TTL = 3600  # 1 hour
 
+# #447: a secondary neoplasia share this large still flags renal-tumour risk (SDHA: 0.254)
+RENAL_NEOPLASIA_MIN_SCORE = 0.25
+# Badge only; ClinGen/GenCC assertions of these genes still count toward the score (#447).
+RENAL_NEOPLASIA_SQL = f"""EXISTS (
+    SELECT 1 FROM gene_annotations ga_rn
+    WHERE ga_rn.gene_id = g.id AND ga_rn.source = 'hpo'
+      AND (ga_rn.annotations->'classification'->'clinical_group'->>'primary' = 'neoplasia'
+           OR (ga_rn.annotations->'classification'->'clinical_group'->'scores'->>'neoplasia')
+              ::float >= {RENAL_NEOPLASIA_MIN_SCORE})
+)"""
+
 # Note: Gene annotations endpoints are in annotation_retrieval, annotation_updates,
 # and percentile_management modules
 
@@ -217,6 +228,7 @@ def transform_gene_to_jsonapi(results: Any) -> list[dict[str, Any]]:
                     "evidence_group": row[9],
                     # Skip row[10] (tier_sort_order) and row[11] (group_sort_order) - internal use only
                     "sources": list(row[12]) if row[12] else [],
+                    "renal_neoplasia": row[13],
                 },
             }
         )
@@ -255,6 +267,11 @@ async def get_genes(
         None,
         alias="filter[group]",
         description="Filter by evidence group (well_supported, emerging_evidence)",
+    ),
+    filter_renal_neoplasia: bool | None = Query(
+        None,
+        alias="filter[renal_neoplasia]",
+        description="true: only renal-neoplasia genes (HPO); false: exclude them (#447)",
     ),
     # NEW: Filter by gene IDs (for URL state restoration)
     filter_ids: str | None = Query(
@@ -367,6 +384,11 @@ async def get_genes(
             )
         where_clauses.append("gs.evidence_group = :group")
         query_params["group"] = filter_group
+
+    if filter_renal_neoplasia is not None:
+        where_clauses.append(
+            RENAL_NEOPLASIA_SQL if filter_renal_neoplasia else f"NOT {RENAL_NEOPLASIA_SQL}"
+        )
 
     # NEW: Filter by gene IDs (for URL state restoration)
     if filter_ids:
@@ -481,7 +503,8 @@ async def get_genes(
                 WHEN 'emerging_evidence' THEN 2
                 ELSE 999
             END as group_sort_order,
-            COALESCE(ea.sources, ARRAY[]::text[]) as sources
+            COALESCE(ea.sources, ARRAY[]::text[]) as sources,
+            {RENAL_NEOPLASIA_SQL} as renal_neoplasia
         FROM genes g
         LEFT JOIN gene_scores gs ON gs.gene_id = g.id
         LEFT JOIN evidence_agg ea ON ea.gene_id = g.id
@@ -699,6 +722,11 @@ async def get_gene(
 
     sources = [row[0] for row in sources_result]
 
+    renal_neoplasia = db.execute(
+        text(f"SELECT {RENAL_NEOPLASIA_SQL} FROM genes g WHERE g.id = :gene_id"),
+        {"gene_id": gene.id},
+    ).scalar_one()
+
     # Score breakdown from the materialized view, not a live rescoring of all evidence (#363)
     source_scores = (score_result[2] if score_result else None) or {}
     score_breakdown = {
@@ -727,6 +755,7 @@ async def get_gene(
                 "sources": sources,
                 "score_breakdown": score_breakdown,
                 "source_scores": score_result[2] if score_result else {},
+                "renal_neoplasia": renal_neoplasia,
             },
         }
     }

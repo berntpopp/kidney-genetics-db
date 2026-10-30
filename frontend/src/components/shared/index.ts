@@ -1,4 +1,5 @@
 export { default as Chip } from './Chip.vue'
+export { default as RenalNeoplasiaChip } from './RenalNeoplasiaChip.vue'
 export { default as StatusBadge } from './StatusBadge.vue'
 export { default as OntologyTerm } from './OntologyTerm.vue'
 export { default as OntologyTermList } from './OntologyTermList.vue'

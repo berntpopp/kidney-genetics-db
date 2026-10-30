@@ -7406,6 +7406,24 @@
             }
           },
           {
+            "description": "true: only renal-neoplasia genes (HPO); false: exclude them (#447)",
+            "in": "query",
+            "name": "filter[renal_neoplasia]",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "true: only renal-neoplasia genes (HPO); false: exclude them (#447)",
+              "title": "Filter[Renal Neoplasia]"
+            }
+          },
+          {
             "description": "Filter by gene IDs (comma-separated, max 5000). Used for URL state restoration.",
             "in": "query",
             "name": "filter[ids]",
