@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useCurationStore } from '@/stores/curation'
 import {
+  MOI_TERMS,
   RELATIONSHIP_LABELS,
   RELATIONSHIP_TYPES,
   type Association,
@@ -58,6 +59,28 @@ const STATUS_LABELS: Record<string, string> = {
 const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
 /** Below lg each table row is a stacked card: a 6-column table cannot fit a phone */
 const STACK = 'max-lg:block max-lg:min-w-0 max-lg:max-w-none max-lg:px-0 max-lg:py-1'
+const moiText = (r: Association) =>
+  r.moi ? (r.moi_label ?? MOI_TERMS[r.moi] ?? r.moi) : 'Not specified'
+/** Records of one gene-disease pair under one header (one record per MOI / relationship) */
+function byPair(records: Association[]) {
+  const pairs = new Map<
+    string,
+    { key: string; gene: string; diseaseId: string; diseaseName: string; records: Association[] }
+  >()
+  for (const r of records) {
+    const key = `${r.gene_symbol}|${r.disease_id}`
+    if (!pairs.has(key))
+      pairs.set(key, {
+        key,
+        gene: r.gene_symbol,
+        diseaseId: r.disease_id,
+        diseaseName: r.disease_name,
+        records: []
+      })
+    pairs.get(key)!.records.push(r)
+  }
+  return [...pairs.values()]
+}
 const isSusceptibility = (r: Association) => r.relationship_type === 'susceptibility'
 
 const auth = useAuthStore()
@@ -175,8 +198,7 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
                 <Table class="max-lg:block">
                   <TableHeader class="max-lg:sr-only">
                     <TableRow>
-                      <TableHead>Gene</TableHead>
-                      <TableHead>Disease</TableHead>
+                      <TableHead>Inheritance</TableHead>
                       <TableHead>{{
                         group.type === 'mendelian' ? 'Strength' : 'Risk association'
                       }}</TableHead>
@@ -186,58 +208,69 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
                     </TableRow>
                   </TableHeader>
                   <TableBody class="max-lg:block" :aria-busy="store.loading">
-                    <TableRow
-                      v-for="r in group.records"
-                      :key="r.id"
-                      class="max-lg:block max-lg:py-2"
-                    >
-                      <TableCell :class="STACK">
-                        <RouterLink
-                          :to="`/genes/${r.gene_symbol}`"
-                          class="font-medium underline-offset-4 hover:underline"
+                    <template v-for="pair in byPair(group.records)" :key="pair.key">
+                      <!-- One header per gene-disease pair, as ClinGen's "group by gene-disease pair" -->
+                      <TableRow
+                        data-testid="gda-pair"
+                        class="bg-muted/40 hover:bg-muted/40 max-lg:block"
+                      >
+                        <TableCell
+                          colspan="5"
+                          class="whitespace-normal [overflow-wrap:anywhere] max-lg:block max-lg:px-2"
                         >
-                          {{ r.gene_symbol }}
-                        </RouterLink>
-                      </TableCell>
-                      <TableCell
-                        :class="[STACK, 'min-w-48 whitespace-normal [overflow-wrap:anywhere]']"
+                          <RouterLink
+                            :to="`/genes/${pair.gene}`"
+                            class="mr-2 font-medium underline-offset-4 hover:underline"
+                          >
+                            {{ pair.gene }}
+                          </RouterLink>
+                          <OntologyTerm :id="pair.diseaseId" :name="pair.diseaseName" />
+                        </TableCell>
+                      </TableRow>
+                      <TableRow
+                        v-for="r in pair.records"
+                        :key="r.id"
+                        data-testid="gda-row"
+                        class="max-lg:block max-lg:py-2"
                       >
-                        <OntologyTerm :id="r.disease_id" :name="r.disease_name" />
-                      </TableCell>
-                      <TableCell :class="STACK">
-                        <Chip
-                          v-if="isSusceptibility(r)"
-                          kind="neutral"
-                          :label="r.evidence_strength"
-                        />
-                        <Chip v-else :classification="r.evidence_strength" />
-                      </TableCell>
-                      <TableCell
-                        :class="[
-                          STACK,
-                          'max-w-md min-w-64 space-y-2 whitespace-normal [overflow-wrap:anywhere]'
-                        ]"
-                      >
-                        <AssociationProvenance :record="r" />
-                        <AssociationDiagnostics :diagnostics="r.diagnostics" />
-                      </TableCell>
-                      <TableCell :class="[STACK, 'min-w-32 whitespace-normal']">
-                        <OntologyTermList :terms="citationTerms(r)" source="PubMed" />
-                      </TableCell>
-                      <TableCell :class="[STACK, 'whitespace-nowrap tabular-nums']">
-                        <span class="lg:hidden">Published </span>{{ fmtDate(r.published_at) }}
-                      </TableCell>
-                    </TableRow>
+                        <TableCell :class="[STACK, 'min-w-40 whitespace-normal']">{{
+                          moiText(r)
+                        }}</TableCell>
+                        <TableCell :class="STACK">
+                          <Chip
+                            v-if="isSusceptibility(r)"
+                            kind="neutral"
+                            :label="r.evidence_strength"
+                          />
+                          <Chip v-else :classification="r.evidence_strength" />
+                        </TableCell>
+                        <TableCell
+                          :class="[
+                            STACK,
+                            'max-w-md min-w-64 space-y-2 whitespace-normal [overflow-wrap:anywhere]'
+                          ]"
+                        >
+                          <AssociationProvenance :record="r" :show-moi="false" />
+                          <AssociationDiagnostics :diagnostics="r.diagnostics" />
+                        </TableCell>
+                        <TableCell :class="[STACK, 'min-w-32 whitespace-normal']">
+                          <OntologyTermList :terms="citationTerms(r)" source="PubMed" />
+                        </TableCell>
+                        <TableCell :class="[STACK, 'whitespace-nowrap tabular-nums']">
+                          <span class="lg:hidden">Published </span>{{ fmtDate(r.published_at) }}
+                        </TableCell>
+                      </TableRow>
+                    </template>
                     <template v-if="group.type === 'mendelian'">
                       <template v-if="store.loading && !store.published.length">
                         <TableRow v-for="n in 3" :key="`skeleton-${n}`" aria-hidden="true">
-                          <TableCell v-for="c in 6" :key="c">
+                          <TableCell v-for="c in 5" :key="c">
                             <div class="h-4 rounded-md bg-muted motion-safe:animate-pulse" />
                           </TableCell>
                         </TableRow>
                       </template>
                       <TableRow v-else-if="!group.records.length">
-                        <TableCell colspan="6" class="py-8 text-center text-muted-foreground">
+                        <TableCell colspan="5" class="py-8 text-center text-muted-foreground">
                           No published associations yet.
                         </TableCell>
                       </TableRow>
@@ -282,8 +315,7 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
                 <Table class="max-lg:block">
                   <TableHeader class="max-lg:sr-only">
                     <TableRow>
-                      <TableHead>Gene</TableHead>
-                      <TableHead>Disease</TableHead>
+                      <TableHead>Inheritance</TableHead>
                       <TableHead>Evidence</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Updated</TableHead>
@@ -291,71 +323,88 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
                     </TableRow>
                   </TableHeader>
                   <TableBody class="max-lg:block">
-                    <TableRow
-                      v-for="r in store.workflow"
-                      :key="r.id"
-                      class="max-lg:block max-lg:py-2"
-                      :data-testid="`wf-${r.id}`"
-                    >
-                      <TableCell :class="[STACK, 'font-medium']">{{ r.gene_symbol }}</TableCell>
-                      <TableCell
-                        :class="[STACK, 'min-w-48 whitespace-normal [overflow-wrap:anywhere]']"
+                    <template v-for="pair in byPair(store.workflow)" :key="pair.key">
+                      <!-- One header per gene-disease pair, as ClinGen's "group by gene-disease pair" -->
+                      <TableRow
+                        data-testid="gda-pair"
+                        class="bg-muted/40 hover:bg-muted/40 max-lg:block"
                       >
-                        <OntologyTerm :id="r.disease_id" :name="r.disease_name" />
-                      </TableCell>
-                      <!-- What the reviewer approves: strength, citations and summary (issue 376) -->
-                      <TableCell
-                        :class="[
-                          STACK,
-                          'max-w-md min-w-64 space-y-1 whitespace-normal [overflow-wrap:anywhere]'
-                        ]"
-                      >
-                        <Chip
-                          v-if="isSusceptibility(r)"
-                          kind="neutral"
-                          :label="r.evidence_strength"
-                        />
-                        <Chip v-else :classification="r.evidence_strength" />
-                        <OntologyTermList :terms="citationTerms(r)" source="PubMed" />
-                        <p v-if="r.evidence_summary" class="text-xs text-muted-foreground">
-                          {{ r.evidence_summary }}
-                        </p>
-                        <AssociationProvenance :record="r" />
-                        <AssociationDiagnostics :diagnostics="r.diagnostics" />
-                      </TableCell>
-                      <TableCell :class="[STACK, 'space-y-1']">
-                        <StatusBadge
-                          :status="STATUS_KEYS[r.status] ?? r.status"
-                          :label="STATUS_LABELS[r.status] ?? r.status"
-                        />
-                        <!-- Imported records still need a KGDB curator other than the author -->
-                        <Chip
-                          v-if="r.source === 'gene_curator'"
-                          kind="neutral"
-                          label="Gene Curator import"
-                          tooltip="Curated in Gene Curator; publishing needs a KGDB curator other than the author"
-                        />
-                      </TableCell>
-                      <TableCell :class="[STACK, 'whitespace-nowrap tabular-nums']">
-                        <span class="lg:hidden">Updated </span>{{ fmtDate(r.updated_at) }}
-                      </TableCell>
-                      <TableCell :class="[STACK, 'whitespace-normal']">
-                        <div class="flex min-w-36 flex-wrap gap-2">
-                          <Button
-                            v-for="a in actionsFor(r)"
-                            :key="a.action"
-                            size="sm"
-                            variant="outline"
-                            :disabled="store.loading"
-                            @click="onAction(r, a.action)"
+                        <TableCell
+                          colspan="5"
+                          class="whitespace-normal [overflow-wrap:anywhere] max-lg:block max-lg:px-2"
+                        >
+                          <RouterLink
+                            :to="`/genes/${pair.gene}`"
+                            class="mr-2 font-medium underline-offset-4 hover:underline"
                           >
-                            {{ a.label }}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                            {{ pair.gene }}
+                          </RouterLink>
+                          <OntologyTerm :id="pair.diseaseId" :name="pair.diseaseName" />
+                        </TableCell>
+                      </TableRow>
+                      <TableRow
+                        v-for="r in pair.records"
+                        :key="r.id"
+                        class="max-lg:block max-lg:py-2"
+                        :data-testid="`wf-${r.id}`"
+                      >
+                        <TableCell :class="[STACK, 'min-w-40 whitespace-normal']">{{
+                          moiText(r)
+                        }}</TableCell>
+                        <!-- What the reviewer approves: strength, citations and summary (issue 376) -->
+                        <TableCell
+                          :class="[
+                            STACK,
+                            'max-w-md min-w-64 space-y-1 whitespace-normal [overflow-wrap:anywhere]'
+                          ]"
+                        >
+                          <Chip
+                            v-if="isSusceptibility(r)"
+                            kind="neutral"
+                            :label="r.evidence_strength"
+                          />
+                          <Chip v-else :classification="r.evidence_strength" />
+                          <OntologyTermList :terms="citationTerms(r)" source="PubMed" />
+                          <p v-if="r.evidence_summary" class="text-xs text-muted-foreground">
+                            {{ r.evidence_summary }}
+                          </p>
+                          <AssociationProvenance :record="r" :show-moi="false" />
+                          <AssociationDiagnostics :diagnostics="r.diagnostics" />
+                        </TableCell>
+                        <TableCell :class="[STACK, 'space-y-1']">
+                          <StatusBadge
+                            :status="STATUS_KEYS[r.status] ?? r.status"
+                            :label="STATUS_LABELS[r.status] ?? r.status"
+                          />
+                          <!-- Imported records still need a KGDB curator other than the author -->
+                          <Chip
+                            v-if="r.source === 'gene_curator'"
+                            kind="neutral"
+                            label="Gene Curator import"
+                            tooltip="Curated in Gene Curator; publishing needs a KGDB curator other than the author"
+                          />
+                        </TableCell>
+                        <TableCell :class="[STACK, 'whitespace-nowrap tabular-nums']">
+                          <span class="lg:hidden">Updated </span>{{ fmtDate(r.updated_at) }}
+                        </TableCell>
+                        <TableCell :class="[STACK, 'whitespace-normal']">
+                          <div class="flex min-w-36 flex-wrap gap-2">
+                            <Button
+                              v-for="a in actionsFor(r)"
+                              :key="a.action"
+                              size="sm"
+                              variant="outline"
+                              :disabled="store.loading"
+                              @click="onAction(r, a.action)"
+                            >
+                              {{ a.label }}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </template>
                     <TableRow v-if="!store.workflow.length && !store.loading">
-                      <TableCell colspan="6" class="py-8 text-center text-muted-foreground">
+                      <TableCell colspan="5" class="py-8 text-center text-muted-foreground">
                         No associations in the workflow.
                       </TableCell>
                     </TableRow>

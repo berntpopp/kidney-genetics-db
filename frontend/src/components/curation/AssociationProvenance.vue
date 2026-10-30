@@ -3,7 +3,10 @@
 import { computed } from 'vue'
 import { isHttpUrl, MOI_TERMS, type Association } from '@/api/curation'
 
-const props = defineProps<{ record: Association }>()
+// showMoi: false where a table already shows the inheritance mode in its own column
+const props = withDefaults(defineProps<{ record: Association; showMoi?: boolean }>(), {
+  showMoi: true
+})
 
 const moiLabel = computed(() =>
   props.record.moi ? (props.record.moi_label ?? MOI_TERMS[props.record.moi] ?? null) : null
@@ -26,10 +29,10 @@ const points = computed(() => {
 
 <template>
   <dl
-    v-if="record.moi || methodology || fromGeneCurator || points"
+    v-if="(showMoi && record.moi) || methodology || fromGeneCurator || points"
     class="whitespace-normal [overflow-wrap:anywhere] grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs"
   >
-    <template v-if="record.moi">
+    <template v-if="showMoi && record.moi">
       <dt class="text-muted-foreground">Inheritance</dt>
       <dd>
         {{ moiLabel ?? 'Unknown term' }}

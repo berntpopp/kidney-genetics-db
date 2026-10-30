@@ -164,8 +164,38 @@ describe('CuratedAssociations', () => {
     // TableCell defaults to whitespace-nowrap; long diagnostics pushed Actions off-screen
     const w = await mountAs('curator')
     const cells = w.find('[data-testid="wf-3"]').findAll('td')
-    for (const i of [1, 2]) expect(cells[i]!.classes()).toContain('whitespace-normal')
-    expect(cells[5]!.classes()).not.toContain('whitespace-nowrap')
+    // MOI, Evidence, Status, Updated, Actions (gene and disease are in the pair header)
+    for (const i of [0, 1]) expect(cells[i]!.classes()).toContain('whitespace-normal')
+    expect(cells[4]!.classes()).not.toContain('whitespace-nowrap')
+  })
+
+  it('groups records of one gene-disease pair under one header with MOI per row', async () => {
+    const pair = (id: number, moi: string, label: string) =>
+      ({
+        ...RECORDS[3]!,
+        id,
+        disease_id: 'MONDO:0004691',
+        disease_name: 'autosomal dominant polycystic kidney disease',
+        moi,
+        moi_label: label
+      }) as Association
+    api.listPublished.mockResolvedValue(
+      page([
+        pair(11, 'HP:0000006', 'Autosomal dominant inheritance'),
+        pair(12, 'HP:0000007', 'Autosomal recessive inheritance')
+      ])
+    )
+    const w = await mountAs(null)
+    const table = w.find('[data-testid="published-mendelian"]')
+    const headers = table.findAll('[data-testid="gda-pair"]')
+    expect(headers).toHaveLength(1)
+    expect(headers[0]!.text()).toContain('PKD1')
+    expect(headers[0]!.text()).toContain('autosomal dominant polycystic kidney disease')
+    const rows = table.findAll('[data-testid="gda-row"]')
+    expect(rows.map(r => r.find('td').text())).toEqual([
+      'Autosomal dominant inheritance',
+      'Autosomal recessive inheritance'
+    ])
   })
 
   it('says when a list is truncated at the server maximum', async () => {
