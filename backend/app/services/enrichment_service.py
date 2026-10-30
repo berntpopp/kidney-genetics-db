@@ -12,22 +12,37 @@ CRITICAL DESIGN PATTERNS:
 """
 
 import asyncio
+import functools
+import re
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, cast
 
 import numpy as np
+import pandas as pd
 from scipy.stats import fisher_exact
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from statsmodels.stats.multitest import fdrcorrection
 
+from app.core.cache_service import get_cache_service
 from app.core.database import get_thread_pool_executor
+from app.core.datasource_config import get_config, get_source_parameter
 from app.core.hpo.terms import HPOTerms
 from app.core.logging import get_logger
 from app.models.gene import Gene
+from app.pipeline.sources.annotations.hpo import (
+    ClinicalGroupClassifier,
+    download_pinned_hp_json,
+    load_hpo_ontology,
+)
 
 logger = get_logger(__name__)
+
+# Cleared with the network_analysis namespace after every successful source update
+HPO_TERM_GENES_CACHE_KEY = "hpo_kidney_term_genes:true_path"
+TERM_NAME_CONCURRENCY = 10
 
 # Lazy import of gseapy (not always needed)
 try:
@@ -37,6 +52,16 @@ try:
 except ImportError:
     GSEAPY_AVAILABLE = False
     logger.sync_warning("GSEApy not available - GO/KEGG enrichment disabled")
+
+
+_ENRICHR_GO_TERM = re.compile(r"^(?P<name>.+) \((?P<id>GO:\d{7})\)$")
+
+
+def split_enrichr_term(term: str) -> tuple[str, str]:
+    """Enrichr GO terms read "Name (GO:0000000)"; return (id, name). Other libraries
+    (e.g. KEGG) carry no ID, so the term doubles as its ID."""
+    match = _ENRICHR_GO_TERM.match(term)
+    return (match["id"], match["name"]) if match else (term, term)
 
 
 class EnrichmentService:
@@ -56,12 +81,25 @@ class EnrichmentService:
 
         IMPORTANT: Session NOT stored - passed per-call for thread safety.
         """
+        enrichment = get_config().enrichment
+        hpo_config, go_config = enrichment.get("hpo", {}), enrichment.get("go", {})
         self.hpo_client = HPOTerms()
         self._executor = get_thread_pool_executor()
+        # Terms with fewer annotated genes in the tested universe are not tested (gene-set size)
+        self.min_term_genes: int = hpo_config.get("min_term_genes", 2)
+        # Pinned HPO is_a graph + kidney subtree, loaded once per process for true-path
+        self._ontology: tuple[ClinicalGroupClassifier, frozenset[str]] | None = None
+        self._ontology_lock = asyncio.Lock()
+        self._term_names: dict[str, str] = {}
 
+        # Enrichr calls get their own pool: a timed-out call must not occupy the shared DB pool
+        self._enrichr_executor = ThreadPoolExecutor(
+            max_workers=go_config.get("max_concurrent_requests", 1),
+            thread_name_prefix="enrichr",
+        )
         # Rate limiting for GSEApy/Enrichr API (prevents IP blocking)
         self._last_enrichr_call: float = 0.0
-        self._enrichr_min_interval: float = 2.0  # 2 seconds between calls
+        self._enrichr_min_interval: float = go_config.get("min_request_interval", 2.0)
         self._enrichr_lock = threading.Lock()
 
     async def enrich_hpo_terms(
@@ -133,6 +171,7 @@ class EnrichmentService:
         communities: list[list[int]],
         session: Session,
         fdr_threshold: float = 0.05,
+        background_genes: list[int] | None = None,
     ) -> tuple[list[list[dict[str, Any]]], int, list[list[int]]]:
         """
         HPO enrichment for several communities with one Benjamini-Hochberg
@@ -144,7 +183,9 @@ class EnrichmentService:
         excluded gene IDs per community; universe as in enrich_hpo_terms).
         """
         id_to_symbol = self._gene_symbols([g for c in communities for g in c], session)
-        per_community, excluded = await self._run_hpo_tests(communities, id_to_symbol, session)
+        per_community, excluded = await self._run_hpo_tests(
+            communities, id_to_symbol, session, background_genes
+        )
         pooled = [r for results in per_community for r in results]
         if pooled:
             self._apply_bh(pooled)  # mutates the shared result dicts
@@ -180,7 +221,11 @@ class EnrichmentService:
         universe: set[str] = set().union(*hpo_term_to_genes.values())
         if background_genes is not None:
             universe &= set(self._gene_symbols(background_genes, session).values())
-        term_to_genes = {t: g & universe for t, g in hpo_term_to_genes.items() if g & universe}
+        term_to_genes = {
+            t: in_universe
+            for t, g in hpo_term_to_genes.items()
+            if len(in_universe := g & universe) >= self.min_term_genes
+        }
         await logger.info(
             "HPO enrichment background",
             communities=len(communities),
@@ -264,16 +309,24 @@ class EnrichmentService:
             result["enrichment_score"] = -np.log10(fdr_val) if fdr_val > 0 else 100.0
 
     async def _fill_term_names(self, results: list[dict[str, Any]]) -> None:
-        """Get term names from HPO API (call after filtering: significant rows only)."""
-        for result in results:
+        """Term names from the pinned ontology loaded for propagation (_get_hpo_annotations);
+        the HPO API only for IDs missing from it (call after filtering: significant rows only)."""
+        semaphore = asyncio.Semaphore(TERM_NAME_CONCURRENCY)
+
+        async def fill(result: dict[str, Any]) -> None:
+            hpo_term_id = str(result["term_id"])
+            if hpo_term_id in self._term_names:
+                result["term_name"] = self._term_names[hpo_term_id]
+                return
             try:
-                hpo_term_id: str = str(result["term_id"])
-                term = await self.hpo_client.get_term(hpo_term_id)
+                async with semaphore:
+                    term = await self.hpo_client.get_term(hpo_term_id)
                 result["term_name"] = term.name if term else hpo_term_id
             except Exception as e:
-                hpo_term_id_str = str(result["term_id"])
-                await logger.debug(f"Failed to get HPO term name: {e}", term_id=hpo_term_id_str)
-                result["term_name"] = hpo_term_id_str
+                await logger.debug(f"Failed to get HPO term name: {e}", term_id=hpo_term_id)
+                result["term_name"] = hpo_term_id
+
+        await asyncio.gather(*(fill(r) for r in results))
 
     @staticmethod
     def _filter_and_sort(
@@ -291,6 +344,7 @@ class EnrichmentService:
         gene_set: str = "GO_Biological_Process_2023",
         fdr_threshold: float = 0.05,
         timeout_seconds: int = 120,
+        background_genes: list[int] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Perform GO/KEGG enrichment using GSEApy with timeout and rate limiting.
@@ -301,6 +355,9 @@ class EnrichmentService:
             gene_set: GSEApy gene set name (GO_Biological_Process_2023, KEGG_2021_Human, etc.)
             fdr_threshold: FDR cutoff
             timeout_seconds: Maximum time to wait for Enrichr API (default: 120s)
+            background_genes: Background gene IDs; when given, Enrichr's background
+                endpoint (speedrichr backgroundenrich) tests against them instead of the
+                library's genome background, and cluster genes outside it are not tested
 
         Returns:
             Same format as enrich_hpo_terms
@@ -313,6 +370,12 @@ class EnrichmentService:
         genes = session.query(Gene).filter(Gene.id.in_(cluster_genes)).all()
         gene_symbols = [g.approved_symbol for g in genes]
 
+        background: list[str] | None = None
+        if background_genes is not None:
+            background_set = set(self._gene_symbols(background_genes, session).values())
+            background = sorted(background_set)
+            gene_symbols = [s for s in gene_symbols if s in background_set]
+
         if not gene_symbols:
             await logger.warning("No valid genes found in cluster")
             return []
@@ -323,7 +386,12 @@ class EnrichmentService:
         try:
             enr_result = await asyncio.wait_for(
                 loop.run_in_executor(
-                    self._executor, self._run_gseapy_enrichr_safe, gene_symbols, gene_set
+                    self._enrichr_executor,
+                    self._run_gseapy_enrichr_safe,
+                    gene_symbols,
+                    gene_set,
+                    background,
+                    timeout_seconds,
                 ),
                 timeout=timeout_seconds,
             )
@@ -346,7 +414,8 @@ class EnrichmentService:
         # Convert GSEApy results to our format
         results = []
 
-        if enr_result.results.empty:
+        # gseapy leaves results as [] when no library returned hits
+        if not isinstance(enr_result.results, pd.DataFrame) or enr_result.results.empty:
             await logger.info("No GO terms enriched in cluster")
             return []
 
@@ -355,6 +424,7 @@ class EnrichmentService:
                 continue
 
             gene_list = row["Genes"].split(";") if isinstance(row["Genes"], str) else []
+            term_id, term_name = split_enrichr_term(row["Term"])
 
             # Cap infinite values for JSON serialization
             odds_ratio = float(row.get("Odds Ratio", 0))
@@ -367,8 +437,8 @@ class EnrichmentService:
 
             results.append(
                 {
-                    "term_id": row["Term"],
-                    "term_name": row["Term"],  # GSEApy uses same for both
+                    "term_id": term_id,
+                    "term_name": term_name,
                     "p_value": float(row["P-value"]),
                     "fdr": float(row["Adjusted P-value"]),
                     "gene_count": len(gene_list),
@@ -392,7 +462,13 @@ class EnrichmentService:
 
         return results
 
-    def _run_gseapy_enrichr_safe(self, gene_list: list[str], gene_set: str) -> Any:
+    def _run_gseapy_enrichr_safe(
+        self,
+        gene_list: list[str],
+        gene_set: str,
+        background: list[str] | None = None,
+        timeout_seconds: float = 120,
+    ) -> Any:
         """
         Synchronous GSEApy call with rate limiting (runs in thread pool).
 
@@ -417,78 +493,102 @@ class EnrichmentService:
                 "Calling GSEApy Enrichr API", gene_count=len(gene_list), gene_set=gene_set
             )
 
-            result = gp.enrichr(
+            result = gp.Enrichr(
                 gene_list=gene_list,
                 gene_sets=gene_set,
                 organism="human",
                 outdir=None,  # Don't save files
+                background=background,  # list -> Enrichr background API, None -> genome
             )
-
+            # ponytail: gseapy 1.3.1 has no timeout option, so bound each HTTP call on its
+            # private requests session; revisit if gseapy exposes a timeout or renames _session
+            result._session.request = functools.partial(
+                result._session.request, timeout=(10, timeout_seconds)
+            )
+            result.set_organism()
+            result.run()
             return result
 
         except Exception as e:
             logger.sync_error(f"GSEApy API error: {e}")
             return None
 
-    async def _get_hpo_annotations(
-        self, session: Session, use_kidney_only: bool = True
-    ) -> dict[str, set]:
+    async def _kidney_ontology(self) -> tuple[ClinicalGroupClassifier, frozenset[str]]:
+        """Pinned HPO is_a graph and the configured kidney subtree (loaded once)."""
+        async with self._ontology_lock:
+            if self._ontology is None:
+                parents, self._term_names = await asyncio.to_thread(
+                    load_hpo_ontology, await download_pinned_hp_json()
+                )
+                ontology = ClinicalGroupClassifier(
+                    parents, {}, str(get_source_parameter("HPO", "hpo_release"))
+                )
+                roots = get_source_parameter("HPO", "kidney_terms", [])
+                kidney = frozenset().union(*(ontology.descendants(t) for t in roots))
+                self._ontology = (ontology, kidney)
+            return self._ontology
+
+    async def _get_hpo_annotations(self, session: Session) -> dict[str, set[str]]:
         """
-        Get HPO term → genes mapping from database using JSONB operators.
+        Kidney HPO term -> gene symbols, closed under the true-path rule.
 
-        Extracts HPO terms from gene_annotations.annotations JSONB column.
-
-        Args:
-            session: Database session
-            use_kidney_only: If True, use kidney_phenotypes; if False, use all phenotypes
+        A gene annotated to a term also counts for that term's is_a ancestors inside the
+        kidney subtree (e.g. "Renal cortical cyst" genes count for "Renal cyst"); stored
+        annotations are not changed. Cached in the network_analysis namespace, which is
+        cleared after every source update. Database errors propagate.
 
         Returns:
             {"HP:0000107": {"WT1", "PAX2", ...}, ...}
         """
-        try:
-            # Choose which phenotype field to use
-            phenotype_field = "kidney_phenotypes" if use_kidney_only else "phenotypes"
+        cache = get_cache_service(session)
+        cached = await cache.get(HPO_TERM_GENES_CACHE_KEY, namespace="network_analysis")
+        if cached is not None:
+            return {term: set(genes) for term, genes in cached.items()}
 
-            # Use PostgreSQL JSONB operators to extract phenotypes
-            # Note: phenotype_field must be string-formatted (not parameterized) for JSONB key access
-            result = session.execute(
-                text(f"""
-                WITH hpo_genes AS (
-                    SELECT
-                        g.approved_symbol,
-                        jsonb_array_elements(ga.annotations->'{phenotype_field}') AS phenotype
-                    FROM gene_annotations ga
-                    JOIN genes g ON ga.gene_id = g.id
-                    WHERE ga.source = 'hpo'
-                      AND ga.annotations ? '{phenotype_field}'
-                      AND jsonb_typeof(ga.annotations->'{phenotype_field}') = 'array'
-                )
+        result = session.execute(
+            text("""
+            WITH hpo_genes AS (
                 SELECT
-                    phenotype->>'id' AS hpo_term_id,
-                    array_agg(DISTINCT approved_symbol) AS gene_symbols
-                FROM hpo_genes
-                WHERE phenotype->>'id' IS NOT NULL
-                GROUP BY phenotype->>'id'
-            """)
+                    g.approved_symbol,
+                    jsonb_array_elements(ga.annotations->'kidney_phenotypes') AS phenotype
+                FROM gene_annotations ga
+                JOIN genes g ON ga.gene_id = g.id
+                WHERE ga.source = 'hpo'
+                  AND ga.annotations ? 'kidney_phenotypes'
+                  AND jsonb_typeof(ga.annotations->'kidney_phenotypes') = 'array'
             )
-
-            hpo_to_genes = {}
-            for row in result:
-                if row.hpo_term_id and row.gene_symbols:
-                    hpo_to_genes[row.hpo_term_id] = set(row.gene_symbols)
-
-            logger.sync_info(
-                "Loaded HPO annotations from database",
-                phenotype_field=phenotype_field,
-                term_count=len(hpo_to_genes),
-                total_genes=sum(len(genes) for genes in hpo_to_genes.values()),
-            )
-
-            return hpo_to_genes
-
-        except Exception as e:
-            logger.sync_error(f"Failed to load HPO annotations from database: {e}")
+            SELECT
+                phenotype->>'id' AS hpo_term_id,
+                array_agg(DISTINCT approved_symbol) AS gene_symbols
+            FROM hpo_genes
+            WHERE phenotype->>'id' IS NOT NULL
+            GROUP BY phenotype->>'id'
+        """)
+        )
+        direct = {row.hpo_term_id: set(row.gene_symbols) for row in result if row.gene_symbols}
+        if not direct:
             return {}
+
+        ontology, kidney = await self._kidney_ontology()
+        hpo_to_genes: dict[str, set[str]] = {}
+        for term, genes in direct.items():
+            # The term itself always counts, even if a newer release moved it out of the subtree
+            for target in {term} | (ontology.ancestors(term) & kidney):
+                hpo_to_genes.setdefault(target, set()).update(genes)
+
+        logger.sync_info(
+            "Loaded HPO annotations from database",
+            annotated_terms=len(direct),
+            term_count=len(hpo_to_genes),
+            total_genes=len(set().union(*direct.values())),
+        )
+        await cache.set(
+            HPO_TERM_GENES_CACHE_KEY,
+            {term: sorted(genes) for term, genes in hpo_to_genes.items()},
+            namespace="network_analysis",
+            ttl=3600,
+        )
+        return hpo_to_genes
 
     async def get_cluster_summary(
         self, cluster_genes: list[int], session: Session

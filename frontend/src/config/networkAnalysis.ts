@@ -12,13 +12,6 @@ export interface ColorModeOption {
   description: string
 }
 
-/** Warning message configuration */
-export interface WarningMessageConfig {
-  title: string
-  threshold: number
-  message: (_count: number) => string
-}
-
 /** Network analysis configuration shape */
 export interface NetworkAnalysisConfig {
   geneSelection: {
@@ -26,7 +19,6 @@ export interface NetworkAnalysisConfig {
     defaultMaxGenes: number
     maxGenesHardLimit: number
     minGenesLimit: number
-    largeNetworkThreshold: number
     maxGeneIds: number
   }
   networkConstruction: {
@@ -39,6 +31,8 @@ export interface NetworkAnalysisConfig {
     defaultMinDegree: number
     defaultMinClusterSize: number
     defaultLargestComponentOnly: boolean
+    maxMinDegree: number
+    maxMinClusterSize: number
   }
   enrichment: {
     defaultEnrichmentType: string
@@ -48,9 +42,6 @@ export interface NetworkAnalysisConfig {
   }
   ui: {
     defaultGraphHeight: string
-    warningMessages: {
-      largeNetwork: WarningMessageConfig
-    }
   }
   search: {
     enabled: boolean
@@ -78,17 +69,9 @@ export interface NetworkAnalysisConfig {
   }
 }
 
-/**
- * Cluster colours by size rank (0 = largest): the Okabe-Ito tokens --source-1..7, the app's
- * only colour-blind-validated categorical palette. Only the 7 largest clusters get a colour of
- * their own; the rest share the neutral --source-8, since more hues stop being tellable apart
- * (#325). Canvas code resolves these with canvasColor() (components/network/canvasColor.ts).
- */
-export const CLUSTER_PALETTE = [1, 2, 3, 4, 5, 6, 7].map(n => `var(--source-${n})`)
+/** Neutral colour for clusters below the minimum size; the cluster palette lives in
+ * components/network/clusterPalette.ts. */
 export const OTHER_CLUSTER_COLOR = 'var(--source-8)'
-
-export const clusterColorByRank = (rank: number): string =>
-  CLUSTER_PALETTE[rank] ?? OTHER_CLUSTER_COLOR
 
 export const networkAnalysisConfig: NetworkAnalysisConfig = {
   // Gene Selection Parameters
@@ -97,7 +80,6 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
     defaultMaxGenes: 700, // Maximum genes to include in network
     maxGenesHardLimit: 700, // Hard limit for gene count (cannot exceed)
     minGenesLimit: 10, // Minimum genes required
-    largeNetworkThreshold: 700, // Show warning when exceeding this threshold
     maxGeneIds: 5000 // Maximum gene IDs allowed per API request (backend limit)
   },
 
@@ -105,7 +87,7 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
   networkConstruction: {
     defaultMinStringScore: 400, // Default STRING confidence score (0-1000)
     minStringScoreRange: {
-      min: 0,
+      min: 400, // Backend rejects < 400 (medium confidence)
       max: 1000,
       step: 50
     },
@@ -117,7 +99,9 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
     defaultRemoveIsolated: false, // Remove isolated nodes by default
     defaultMinDegree: 2, // Default minimum node degree
     defaultMinClusterSize: 3, // Default minimum cluster size
-    defaultLargestComponentOnly: false // Keep only largest component
+    defaultLargestComponentOnly: false, // Keep only largest component
+    maxMinDegree: 10, // Backend limit (NetworkBuildRequest.min_degree)
+    maxMinClusterSize: 20 // UI limit; backend accepts up to 50
   },
 
   // Enrichment Analysis Parameters
@@ -134,15 +118,7 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
 
   // UI Configuration
   ui: {
-    defaultGraphHeight: '700px', // Default height for network visualization
-    warningMessages: {
-      largeNetwork: {
-        title: 'Large Network Warning',
-        threshold: 700,
-        message: (count: number) =>
-          `You have selected ${count} genes. Networks with >${networkAnalysisConfig.geneSelection.largeNetworkThreshold} nodes may take longer to build and visualize. Consider filtering to higher evidence tiers for better performance.`
-      }
-    }
+    defaultGraphHeight: '700px' // Default height for network visualization
   },
 
   // Search Configuration
@@ -178,7 +154,7 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
     // Default color mode
     defaultMode: 'cluster',
 
-    // Categorical token colours for HPO-based colouring (Okabe-Ito, see CLUSTER_PALETTE)
+    // Categorical token colours for HPO-based colouring (Okabe-Ito)
     colorSchemes: {
       clinical_group: {
         cyst_cilio: 'var(--source-3)',

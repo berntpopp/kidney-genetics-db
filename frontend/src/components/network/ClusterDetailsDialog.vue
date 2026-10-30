@@ -1,6 +1,8 @@
 <template>
   <Dialog :open="modelValue" @update:open="$emit('update:modelValue', $event)">
-    <DialogContent class="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+    <!-- Focus the dialog itself, not the first gene: that gene's tooltip would open on focus
+         and take the first Escape -->
+    <DialogContent class="sm:max-w-4xl max-h-[90vh] overflow-y-auto" @open-auto-focus="focusDialog">
       <!-- Header -->
       <DialogHeader>
         <div class="flex items-center gap-3">
@@ -13,10 +15,20 @@
             {{ clusterDisplayName || `Cluster ${clusterId + 1}` }}
           </Badge>
           <div>
-            <DialogTitle class="text-lg font-medium">Cluster Details</DialogTitle>
-            <p class="text-xs text-muted-foreground mt-1">
-              {{ geneCount }} gene{{ geneCount !== 1 ? 's' : '' }} in cluster
-            </p>
+            <DialogTitle class="text-lg font-medium">
+              <template v-if="clusterLabel">
+                {{ clusterDisplayName || `Cluster ${clusterId + 1}` }} &middot;
+                <span>{{ clusterLabel }}</span>
+              </template>
+              <template v-else>Cluster Details</template>
+            </DialogTitle>
+            <DialogDescription class="text-xs mt-1">
+              {{ geneCount }} gene{{ geneCount !== 1 ? 's' : '' }} in cluster<template
+                v-if="clusterLabel"
+              >
+                &middot; {{ LABEL_NOTE }}</template
+              >
+            </DialogDescription>
           </div>
         </div>
       </DialogHeader>
@@ -116,9 +128,18 @@
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b bg-muted/50">
-              <th class="p-2 text-left font-semibold whitespace-nowrap">Gene Symbol</th>
-              <th class="p-2 text-left font-semibold whitespace-nowrap">HGNC</th>
-              <th class="p-2 text-right font-semibold whitespace-nowrap">Actions</th>
+              <th scope="col" class="p-2 text-left font-semibold whitespace-nowrap">Gene</th>
+              <th
+                v-if="hasDegree"
+                scope="col"
+                class="p-2 text-right font-semibold whitespace-nowrap"
+                title="Interactions with other genes in this cluster"
+              >
+                Links in cluster
+              </th>
+              <th scope="col" class="p-2 text-right font-semibold whitespace-nowrap">
+                <span class="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -127,21 +148,19 @@
               :key="item.gene_id"
               class="border-b last:border-0 hover:bg-muted/50"
             >
-              <!-- Gene Symbol with Link -->
-              <td class="p-2">
-                <router-link :to="`/genes/${item.symbol}`" class="gene-link">
-                  <Badge variant="outline" class="flex items-center gap-1 w-fit">
-                    <Dna class="size-4" />
-                    {{ item.symbol }}
-                  </Badge>
+              <!-- Symbol once, with its HGNC identifier -->
+              <td class="p-2 font-medium">
+                <OntologyTerm v-if="item.hgnc_id" :id="item.hgnc_id" :name="item.symbol" />
+                <router-link
+                  v-else
+                  :to="`/genes/${item.symbol}`"
+                  class="rounded-sm underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  {{ item.symbol }}
                 </router-link>
               </td>
 
-              <!-- HGNC identifier, named by its symbol -->
-              <td class="p-2">
-                <OntologyTerm v-if="item.hgnc_id" :id="item.hgnc_id" :name="item.symbol" />
-                <span v-else class="text-xs text-muted-foreground">Not available</span>
-              </td>
+              <td v-if="hasDegree" class="p-2 text-right tabular-nums">{{ item.degree ?? '—' }}</td>
 
               <!-- Actions -->
               <td class="p-2 text-right">
@@ -255,10 +274,19 @@
 
       <!-- Footer Actions -->
       <DialogFooter class="flex items-center sm:justify-between">
-        <Button variant="ghost" size="sm" @click="exportClusterGenes">
-          <Download class="size-4 mr-2" />
-          Export Genes
-        </Button>
+        <div class="flex flex-wrap items-center gap-1">
+          <Button variant="ghost" size="sm" :disabled="geneCount === 0" @click="exportClusterGenes">
+            <Download class="size-4 mr-2" aria-hidden="true" />
+            Export genes (CSV)
+          </Button>
+          <Button v-if="stringUrl" variant="ghost" size="sm" as-child>
+            <a :href="stringUrl" target="_blank" rel="noopener noreferrer">
+              <ExternalLink class="size-4 mr-2" aria-hidden="true" />
+              Open in STRING
+              <span class="sr-only">(opens in a new tab)</span>
+            </a>
+          </Button>
+        </div>
         <div class="flex-1" />
         <Button variant="secondary" @click="$emit('update:modelValue', false)">Close</Button>
       </DialogFooter>
@@ -275,8 +303,8 @@ import {
   ChevronRight,
   Copy,
   Database,
-  Dna,
   Download,
+  ExternalLink,
   Eye,
   MapPin
 } from 'lucide-vue-next'
@@ -285,10 +313,13 @@ import { networkAnalysisConfig, OTHER_CLUSTER_COLOR } from '../../config/network
 import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { OntologyTerm } from '@/components/shared'
 import { computeHpoClusterStats } from './hpoClusterStats'
+import { LABEL_MAX_FDR } from '@/composables/useNetworkAnalysis'
+import { downloadFile, fileSlug, isoDate, toCsv } from '@/utils/csv'
 
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle
@@ -319,6 +350,11 @@ const props = defineProps({
     type: String,
     default: ''
   },
+  /** Naming HPO term (useNetworkAnalysis clusterLabels), if any */
+  clusterLabel: {
+    type: String,
+    default: ''
+  },
   clusterColor: {
     type: String,
     default: OTHER_CLUSTER_COLOR
@@ -332,6 +368,13 @@ const props = defineProps({
     default: null
   }
 })
+
+const LABEL_NOTE = `named after its most significant specific HPO term (FDR < ${LABEL_MAX_FDR})`
+
+const focusDialog = event => {
+  event.preventDefault()
+  event.target?.focus()
+}
 
 // Emits
 defineEmits(['update:modelValue', 'highlightGene'])
@@ -351,6 +394,18 @@ const itemsPerPageStr = computed({
 
 // Computed
 const geneCount = computed(() => props.genes.length)
+
+// Intra-cluster degree is shown when the graph passed it (genes arrive sorted hubs first)
+const hasDegree = computed(() => props.genes.some(g => typeof g.degree === 'number'))
+
+// STRING caps a network request at a few thousand identifiers; clusters stay far below that
+const stringUrl = computed(() =>
+  geneCount.value === 0
+    ? null
+    : `https://string-db.org/cgi/network?identifiers=${props.genes
+        .map(g => encodeURIComponent(g.symbol))
+        .join('%0d')}&species=9606`
+)
 
 const totalPages = computed(() => Math.ceil(geneCount.value / itemsPerPage.value))
 
@@ -412,20 +467,18 @@ const exportClusterGenes = () => {
   // Use display name or fallback to cluster ID
   const clusterName = props.clusterDisplayName || `Cluster ${props.clusterId + 1}`
 
-  // Create CSV content
-  const csvHeaders = ['Gene Symbol', 'HGNC ID', 'Cluster']
-  const rows = props.genes.map(g => [g.symbol, g.hgnc_id ?? '', clusterName])
-
-  const csv = [csvHeaders.join(','), ...rows.map(row => row.join(','))].join('\n')
-
-  // Download CSV
-  const blob = new Blob([csv], { type: 'text/csv' })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  const sanitizedName = clusterName.toLowerCase().replace(/\s+/g, '_')
-  link.download = `${sanitizedName}_genes_${Date.now()}.csv`
-  link.click()
-  setTimeout(() => URL.revokeObjectURL(link.href))
+  const headers = ['Gene Symbol', 'HGNC ID', 'Cluster']
+  if (hasDegree.value) headers.push('Links in Cluster')
+  const rows = props.genes.map(g => {
+    const row = [g.symbol, g.hgnc_id ?? '', clusterName]
+    if (hasDegree.value) row.push(g.degree ?? '')
+    return row
+  })
+  downloadFile(
+    toCsv(headers, rows),
+    `kgdb_${fileSlug(clusterName)}_${geneCount.value}genes_${isoDate()}.csv`,
+    'text/csv'
+  )
 }
 
 // Reset page when genes change
@@ -438,15 +491,6 @@ watch(
 </script>
 
 <style scoped>
-.gene-link {
-  text-decoration: none;
-  transition: opacity 0.2s;
-}
-
-.gene-link:hover {
-  opacity: 0.8;
-}
-
 /* Statistics section styling */
 .stats-section {
   height: 100%;

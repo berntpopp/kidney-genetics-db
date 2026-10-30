@@ -14,7 +14,6 @@ from app.core.cache_decorator import cache
 from app.core.exceptions import ValidationError
 from app.core.logging import get_logger
 from app.core.rate_limit import LIMIT_NETWORK, limiter
-from app.models.gene import Gene
 from app.schemas.network import (
     GOEnrichmentRequest,
     GOEnrichmentResponse,
@@ -39,14 +38,13 @@ enrichment_service = EnrichmentService()
 
 
 def igraph_to_cytoscape(
-    graph: ig.Graph, gene_id_to_symbol: dict[int, str], cluster_colors: dict[int, str] | None = None
+    graph: ig.Graph, cluster_colors: dict[int, str] | None = None
 ) -> dict[str, Any]:
     """
     Convert igraph to Cytoscape.js JSON format.
 
     Args:
-        graph: igraph.Graph with gene_id vertex attribute
-        gene_id_to_symbol: Mapping of gene_id -> approved_symbol
+        graph: igraph.Graph with gene_id and symbol vertex attributes
         cluster_colors: Optional mapping of cluster_id -> color (hex)
 
     Returns:
@@ -57,7 +55,7 @@ def igraph_to_cytoscape(
     # Add nodes
     for vertex in graph.vs:
         gene_id = vertex["gene_id"]
-        symbol = gene_id_to_symbol.get(gene_id, f"Gene_{gene_id}")
+        symbol = vertex["symbol"]
 
         node_data = {
             "data": {
@@ -164,21 +162,17 @@ async def build_network(
             field="gene_ids", reason=f"Maximum 2000 genes allowed, got {len(body.gene_ids)}"
         )
 
-    # Get gene symbols for Cytoscape labels
-    genes = db.query(Gene).filter(Gene.id.in_(body.gene_ids)).all()
-    gene_id_to_symbol = {g.id: g.approved_symbol for g in genes}
-
-    if not gene_id_to_symbol:
-        raise HTTPException(status_code=404, detail="No valid genes found")
-
     await logger.info(
         "Building network", gene_count=len(body.gene_ids), min_score=body.min_string_score
     )
 
-    # Build network using service
+    # Build network using service (DB work runs in the thread pool)
     graph = await network_service.build_network_from_string_data(
         gene_ids=body.gene_ids, session=db, min_string_score=body.min_string_score
     )
+    if graph.vcount() == 0:
+        raise HTTPException(status_code=404, detail="No valid genes found")
+    unknown_gene_ids = graph["unknown_gene_ids"]
 
     await logger.info(
         "Initial network built",
@@ -207,7 +201,7 @@ async def build_network(
         )
 
     # Convert to Cytoscape.js format
-    cytoscape_json = igraph_to_cytoscape(graph, gene_id_to_symbol)
+    cytoscape_json = igraph_to_cytoscape(graph)
 
     elapsed_ms = (time.time() - start_time) * 1000
 
@@ -224,6 +218,7 @@ async def build_network(
         edges=graph.ecount(),
         components=len(graph.connected_components()),
         cytoscape_json=cytoscape_json,
+        unknown_gene_ids=unknown_gene_ids,
     )
 
 
@@ -251,13 +246,6 @@ async def cluster_network(
             field="gene_ids", reason=f"Maximum 2000 genes allowed, got {len(body.gene_ids)}"
         )
 
-    # Get gene symbols
-    genes = db.query(Gene).filter(Gene.id.in_(body.gene_ids)).all()
-    gene_id_to_symbol = {g.id: g.approved_symbol for g in genes}
-
-    if not gene_id_to_symbol:
-        raise HTTPException(status_code=404, detail="No valid genes found")
-
     await logger.info(
         "Clustering network",
         gene_count=len(body.gene_ids),
@@ -272,6 +260,11 @@ async def cluster_network(
     graph = await network_service.build_network_from_string_data(
         gene_ids=body.gene_ids, session=db, min_string_score=body.min_string_score
     )
+
+    if graph.vcount() == 0:
+        raise HTTPException(status_code=404, detail="No valid genes found")
+    unknown_gene_ids = graph["unknown_gene_ids"]
+    original_nodes = graph.vcount()
 
     await logger.info("Initial network for clustering", nodes=graph.vcount(), edges=graph.ecount())
 
@@ -318,15 +311,16 @@ async def cluster_network(
             graph = graph.subgraph(vertices_to_keep)
             await logger.info(
                 "Filtered graph to clustered genes only",
-                original_nodes=len(gene_id_to_symbol),
+                original_nodes=original_nodes,
                 filtered_nodes=graph.vcount(),
-                removed_nodes=len(gene_id_to_symbol) - graph.vcount(),
+                removed_nodes=original_nodes - graph.vcount(),
             )
         else:
             await logger.warning("All genes filtered out - returning empty graph")
             graph = ig.Graph()
 
-    # Add cluster IDs to graph vertices
+    # Copy: the graph may be the service's cached instance, which must stay unannotated
+    graph = graph.copy()
     for vertex in graph.vs:
         gene_id = vertex["gene_id"]
         vertex["cluster_id"] = gene_to_cluster.get(gene_id, -1)
@@ -336,7 +330,7 @@ async def cluster_network(
     cluster_colors = generate_cluster_colors(num_clusters)
 
     # Convert to Cytoscape.js with cluster colors
-    cytoscape_json = igraph_to_cytoscape(graph, gene_id_to_symbol, cluster_colors)
+    cytoscape_json = igraph_to_cytoscape(graph, cluster_colors)
 
     elapsed_ms = (time.time() - start_time) * 1000
 
@@ -358,6 +352,7 @@ async def cluster_network(
         algorithm=body.algorithm,
         parameters=parameters,
         cytoscape_json=cytoscape_json,
+        unknown_gene_ids=unknown_gene_ids,
     )
 
 
@@ -377,10 +372,6 @@ async def extract_subgraph(
     """
     start_time = time.time()
 
-    # Get gene symbols
-    genes = db.query(Gene).filter(Gene.id.in_(body.gene_ids)).all()
-    gene_id_to_symbol = {g.id: g.approved_symbol for g in genes}
-
     await logger.info("Extracting subgraph", seed_count=len(body.seed_gene_ids), k_hops=body.k)
 
     # Build full network
@@ -394,7 +385,7 @@ async def extract_subgraph(
     )
 
     # Convert to Cytoscape.js
-    cytoscape_json = igraph_to_cytoscape(subgraph, gene_id_to_symbol)
+    cytoscape_json = igraph_to_cytoscape(subgraph)
 
     elapsed_ms = (time.time() - start_time) * 1000
 
@@ -410,6 +401,7 @@ async def extract_subgraph(
         edges=subgraph.ecount(),
         components=len(subgraph.connected_components()),
         cytoscape_json=cytoscape_json,
+        unknown_gene_ids=full_graph["unknown_gene_ids"],
     )
 
 
@@ -475,7 +467,10 @@ async def enrich_hpo_batch(
     gene (the same test family as /enrich/hpo), not across every possible pair.
     """
     results, total_tests, excluded = await enrichment_service.enrich_hpo_terms_batch(
-        communities=body.communities, session=db, fdr_threshold=body.fdr_threshold
+        communities=body.communities,
+        session=db,
+        fdr_threshold=body.fdr_threshold,
+        background_genes=body.background_genes,
     )
     return HPOBatchEnrichmentResponse(
         results=results,
@@ -524,6 +519,7 @@ async def enrich_go(
         gene_set=body.gene_set,
         fdr_threshold=body.fdr_threshold,
         timeout_seconds=body.timeout_seconds,
+        background_genes=body.background_genes,
     )
 
     elapsed_ms = (time.time() - start_time) * 1000

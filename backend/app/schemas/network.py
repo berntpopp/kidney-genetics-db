@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.config import settings
 from app.core.datasource_config import get_config
 
 # Load network analysis configuration
@@ -14,6 +15,10 @@ _na_config = _config.network_analysis
 _enrichment_config = _config.enrichment
 _filtering_config = _na_config.get("filtering", {})
 _network_config = _na_config.get("network", {})
+_MIN_SCORE_DESCRIPTION = (
+    f"Minimum STRING confidence score ({settings.STRING_MIN_SCORE}-1000); interactions below "
+    f"{settings.STRING_MIN_SCORE} are not ingested, so lower values are rejected"
+)
 
 
 class NetworkBuildRequest(BaseModel):
@@ -27,9 +32,9 @@ class NetworkBuildRequest(BaseModel):
     )
     min_string_score: int = Field(
         default=_network_config.get("min_string_score", 400),
-        ge=0,
+        ge=settings.STRING_MIN_SCORE,
         le=1000,
-        description="Minimum STRING confidence score (0-1000)",
+        description=_MIN_SCORE_DESCRIPTION,
     )
     min_degree: int = Field(
         default=_filtering_config.get("default_min_degree", 0),
@@ -52,7 +57,7 @@ class NetworkBuildRequest(BaseModel):
         """Validate gene IDs and normalize to sorted order for cache consistency"""
         if not all(gid > 0 for gid in v):
             raise ValueError("All gene IDs must be positive integers")
-        return sorted(v)  # Ensures deterministic cache keys
+        return sorted(set(v))  # Dedupes and ensures deterministic cache keys
 
 
 class NetworkClusterRequest(BaseModel):
@@ -66,9 +71,9 @@ class NetworkClusterRequest(BaseModel):
     )
     min_string_score: int = Field(
         default=_network_config.get("min_string_score", 400),
-        ge=0,
+        ge=settings.STRING_MIN_SCORE,
         le=1000,
-        description="Minimum STRING confidence score (0-1000)",
+        description=_MIN_SCORE_DESCRIPTION,
     )
     algorithm: str = Field(
         default=_na_config.get("clustering", {}).get("default_algorithm", "leiden"),
@@ -107,7 +112,7 @@ class NetworkClusterRequest(BaseModel):
         """Validate gene IDs and normalize to sorted order for cache consistency"""
         if not all(gid > 0 for gid in v):
             raise ValueError("All gene IDs must be positive integers")
-        return sorted(v)  # Ensures deterministic cache keys
+        return sorted(set(v))  # Dedupes and ensures deterministic cache keys
 
     @field_validator("algorithm")
     @classmethod
@@ -136,9 +141,9 @@ class SubgraphRequest(BaseModel):
     )
     min_string_score: int = Field(
         default=_network_config.get("min_string_score", 400),
-        ge=0,
+        ge=settings.STRING_MIN_SCORE,
         le=1000,
-        description="Minimum STRING confidence score",
+        description=_MIN_SCORE_DESCRIPTION,
     )
     k: int = Field(
         default=_na_config.get("subgraph", {}).get("default_k_hops", 2),
@@ -153,7 +158,7 @@ class SubgraphRequest(BaseModel):
         """Validate gene IDs and normalize to sorted order for cache consistency"""
         if not all(gid > 0 for gid in v):
             raise ValueError("All gene IDs must be positive integers")
-        return sorted(v)  # Ensures deterministic cache keys
+        return sorted(set(v))  # Dedupes and ensures deterministic cache keys
 
 
 class HPOEnrichmentRequest(BaseModel):
@@ -194,6 +199,14 @@ class HPOBatchEnrichmentRequest(BaseModel):
         min_length=1,
         max_length=_enrichment_config.get("hpo", {}).get("max_communities", 200),
     )
+    background_genes: list[int] | None = Field(
+        default=None,
+        description=(
+            "Background gene IDs (e.g. the network's genes); default: all genes with "
+            "kidney HPO annotations"
+        ),
+        max_length=_network_config.get("max_nodes", 2000),
+    )
     fdr_threshold: float = Field(
         default=_enrichment_config.get("hpo", {}).get("default_fdr_threshold", 0.05),
         gt=0.0,
@@ -213,7 +226,17 @@ class HPOBatchEnrichmentRequest(BaseModel):
             raise ValueError(f"At most {max_total} gene IDs across all communities")
         if not all(gid > 0 for c in v for gid in c):
             raise ValueError("All gene IDs must be positive integers")
-        return [sorted(c) for c in v]  # Ensures deterministic cache keys
+        return [sorted(set(c)) for c in v]  # Dedupes and ensures deterministic cache keys
+
+    @field_validator("background_genes")
+    @classmethod
+    def validate_background_genes(cls, v: list[int] | None) -> list[int] | None:
+        """Validate and dedupe background gene IDs (sorted for cache consistency)"""
+        if v is None:
+            return v
+        if not all(gid > 0 for gid in v):
+            raise ValueError("All gene IDs must be positive integers")
+        return sorted(set(v))
 
 
 class GOEnrichmentRequest(BaseModel):
@@ -243,6 +266,21 @@ class GOEnrichmentRequest(BaseModel):
         le=_enrichment_config.get("go", {}).get("max_timeout_seconds", 300),
         description="API timeout (30-300 seconds)",
     )
+    background_genes: list[int] | None = Field(
+        default=None,
+        description="Background gene IDs (default: all genes in the Enrichr gene-set library)",
+        max_length=_network_config.get("max_nodes", 2000),
+    )
+
+    @field_validator("background_genes")
+    @classmethod
+    def validate_background_genes(cls, v: list[int] | None) -> list[int] | None:
+        """Validate and dedupe background gene IDs (sorted for cache consistency)"""
+        if v is None:
+            return v
+        if not all(gid > 0 for gid in v):
+            raise ValueError("All gene IDs must be positive integers")
+        return sorted(set(v))
 
     @field_validator("gene_set")
     @classmethod
@@ -268,6 +306,9 @@ class NetworkBuildResponse(BaseModel):
     edges: int = Field(..., description="Number of edges")
     components: int = Field(..., description="Number of connected components")
     cytoscape_json: dict[str, Any] = Field(..., description="Cytoscape.js format")
+    unknown_gene_ids: list[int] = Field(
+        default_factory=list, description="Submitted gene IDs not found in the database (no node)"
+    )
 
 
 class NetworkClusterResponse(BaseModel):
@@ -285,6 +326,9 @@ class NetworkClusterResponse(BaseModel):
         description="Clustering parameters used, e.g. objective, resolution, iterations, seed",
     )
     cytoscape_json: dict[str, Any] = Field(..., description="Cytoscape.js with cluster colors")
+    unknown_gene_ids: list[int] = Field(
+        default_factory=list, description="Submitted gene IDs not found in the database (no node)"
+    )
 
 
 class EnrichmentResult(BaseModel):

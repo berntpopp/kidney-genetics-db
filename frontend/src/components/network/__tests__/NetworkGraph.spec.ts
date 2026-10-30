@@ -4,12 +4,12 @@ import { mount, flushPromises } from '@vue/test-utils'
 // Chainable stand-in for Cytoscape: every property is a callable returning the stand-in
 vi.mock('cytoscape', () => {
   const fake: unknown = new Proxy(function () {}, {
-    get: (_t, key) => (key === 'then' ? undefined : fake),
+    get: (_t, key) => (key === 'then' ? undefined : key === 'length' ? 0 : fake),
     apply: () => fake
   })
   return { default: fake }
 })
-vi.mock('cytoscape-cose-bilkent', () => ({ default: {} }))
+vi.mock('cytoscape-fcose', () => ({ default: {} }))
 
 import NetworkGraph from '../NetworkGraph.vue'
 

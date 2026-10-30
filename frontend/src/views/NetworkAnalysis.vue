@@ -19,17 +19,27 @@
       </template>
       <template #actions>
         <Badge v-if="filteredGenes.length > 0" variant="secondary" class="tabular-nums">
-          {{ filteredGenes.length }} genes
+          {{ filteredGenes.length }} genes selected
         </Badge>
         <!-- Same network as the graph card: clustering drops clusters below the minimum size -->
         <Badge v-if="displayNetwork" variant="secondary" class="tabular-nums">
           Network: {{ displayNetwork.nodes }} genes &middot; {{ displayNetwork.edges }} interactions
         </Badge>
-        <Badge v-if="clusterStats" variant="secondary" class="tabular-nums">
-          {{ clusterStats.num_clusters }} clusters &middot; Q={{
-            clusterStats.modularity.toFixed(3)
-          }}
-        </Badge>
+        <HoverPopover v-if="clusterStats" content-class="w-72 p-3 text-xs leading-relaxed">
+          <Badge variant="secondary" class="tabular-nums cursor-help">
+            {{ clusterStats.num_clusters }} clusters &middot; Q={{
+              clusterStats.modularity.toFixed(3)
+            }}
+          </Badge>
+          <template #content>
+            <p>
+              <strong>Modularity Q = {{ clusterStats.modularity.toFixed(3) }}</strong>
+              measures how much denser the connections within clusters are than expected by chance.
+              Values above about 0.3 indicate clear community structure.
+            </p>
+            <p class="mt-1.5 text-muted-foreground">{{ clusteringSummary }}</p>
+          </template>
+        </HoverPopover>
       </template>
     </PageHeader>
 
@@ -37,16 +47,25 @@
     <Card class="mb-3">
       <CardContent class="p-3 overflow-hidden">
         <!-- Row 1: Parameter inputs -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-          <div class="space-y-1">
-            <label class="text-xs font-medium text-muted-foreground">Evidence Tiers</label>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 items-end">
+          <div class="col-span-2 md:col-span-1 space-y-1 min-w-0">
+            <div class="flex items-center gap-1">
+              <label for="na-tiers" class="text-xs font-medium text-muted-foreground">
+                Evidence Tiers
+              </label>
+              <HoverPopover :content-class="HELP_CLASS">
+                <CircleHelp class="size-3.5 text-muted-foreground" aria-hidden="true" />
+                <span class="sr-only">About Evidence Tiers</span>
+                <template #content>{{ HELP.tiers }}</template>
+              </HoverPopover>
+            </div>
             <Popover>
               <PopoverTrigger as-child>
-                <Button variant="outline" class="w-full justify-start h-9 text-xs">
+                <Button id="na-tiers" variant="outline" class="w-full justify-start h-9 text-xs">
                   <span v-if="selectedTiers.length === 0" class="text-muted-foreground">
-                    Select...
+                    Select tiers
                   </span>
-                  <span v-else>{{ selectedTiers.length }} tier(s) selected</span>
+                  <span v-else>{{ selectedTiers.length }} of {{ tierOptions.length }} tiers</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent class="w-[260px] p-2">
@@ -58,7 +77,7 @@
                   <Checkbox
                     :id="`tier-${opt.value}`"
                     :model-value="selectedTiers.includes(opt.value)"
-                    @update:model-value="toggleTier(opt.value, $event)"
+                    @update:model-value="toggleTier(opt.value, !!$event)"
                   />
                   <Label :for="`tier-${opt.value}`" class="text-sm cursor-pointer">
                     {{ opt.title }}
@@ -67,44 +86,80 @@
               </PopoverContent>
             </Popover>
           </div>
-          <div class="space-y-1">
-            <label class="text-xs font-medium text-muted-foreground">Min Score</label>
+          <div class="space-y-1 min-w-0">
+            <div class="flex items-center gap-1">
+              <label for="na-min-score" class="text-xs font-medium text-muted-foreground">
+                Min Score
+              </label>
+              <HoverPopover :content-class="HELP_CLASS">
+                <CircleHelp class="size-3.5 text-muted-foreground" aria-hidden="true" />
+                <span class="sr-only">About Min Score</span>
+                <template #content>{{ HELP.minScore }}</template>
+              </HoverPopover>
+            </div>
             <Input
+              id="na-min-score"
               v-model.number="minScore"
               type="number"
               min="0"
               max="100"
               class="h-9"
-              aria-label="Minimum evidence score"
             />
           </div>
-          <div class="space-y-1">
-            <label class="text-xs font-medium text-muted-foreground">Max Genes</label>
+          <div class="space-y-1 min-w-0">
+            <div class="flex items-center gap-1">
+              <label for="na-max-genes" class="text-xs font-medium text-muted-foreground">
+                Max Genes
+              </label>
+              <HoverPopover :content-class="HELP_CLASS">
+                <CircleHelp class="size-3.5 text-muted-foreground" aria-hidden="true" />
+                <span class="sr-only">About Max Genes</span>
+                <template #content>{{ HELP.maxGenes }}</template>
+              </HoverPopover>
+            </div>
             <Input
+              id="na-max-genes"
               v-model.number="maxGenes"
               type="number"
               :min="networkAnalysisConfig.geneSelection.minGenesLimit"
               :max="networkAnalysisConfig.geneSelection.maxGenesHardLimit"
               class="h-9"
-              aria-label="Maximum number of genes"
             />
           </div>
-          <div class="space-y-1">
-            <label class="text-xs font-medium text-muted-foreground">STRING</label>
+          <div class="space-y-1 min-w-0">
+            <div class="flex items-center gap-1">
+              <label for="na-string-score" class="text-xs font-medium text-muted-foreground">
+                STRING Score
+              </label>
+              <HoverPopover :content-class="HELP_CLASS">
+                <CircleHelp class="size-3.5 text-muted-foreground" aria-hidden="true" />
+                <span class="sr-only">About STRING Score</span>
+                <template #content>{{ HELP.stringScore }}</template>
+              </HoverPopover>
+            </div>
             <Input
+              id="na-string-score"
               v-model.number="minStringScore"
               type="number"
               :min="networkAnalysisConfig.networkConstruction.minStringScoreRange.min"
               :max="networkAnalysisConfig.networkConstruction.minStringScoreRange.max"
               :step="networkAnalysisConfig.networkConstruction.minStringScoreRange.step"
               class="h-9"
-              aria-label="Minimum STRING interaction score"
             />
           </div>
-          <div class="space-y-1">
-            <label class="text-xs font-medium text-muted-foreground">Algorithm</label>
+          <div class="space-y-1 min-w-0">
+            <div class="flex items-center gap-1">
+              <label for="na-algorithm" class="text-xs font-medium text-muted-foreground">
+                Clustering Algorithm
+              </label>
+              <HoverPopover :content-class="HELP_CLASS">
+                <CircleHelp class="size-3.5 text-muted-foreground" aria-hidden="true" />
+                <span class="sr-only">About Clustering Algorithm</span>
+                <template #content>{{ HELP.algorithm }}</template>
+              </HoverPopover>
+            </div>
             <Select v-model="clusterAlgorithm">
-              <SelectTrigger class="h-9" aria-label="Clustering algorithm">
+              <SelectTrigger id="na-algorithm" class="h-9 w-full">
                 <SelectValue placeholder="Algorithm" />
               </SelectTrigger>
               <SelectContent>
@@ -116,125 +171,52 @@
           </div>
         </div>
 
-        <!-- Row 2: Step buttons + enrichment controls + utility actions -->
-        <div class="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t">
-          <!-- Step 1: Filter -->
-          <Button :disabled="loadingGenes" size="sm" @click="fetchFilteredGenes">
-            <span
-              class="inline-flex items-center justify-center size-5 rounded-full bg-primary-foreground text-primary text-xs font-bold mr-1.5"
-            >
-              1
-            </span>
-            <Filter class="size-3.5 mr-1" />
-            <span v-if="loadingGenes">Loading...</span>
-            <span v-else>Filter Genes</span>
-          </Button>
-
-          <!-- Step 2: Build -->
-          <Button
-            :disabled="filteredGenes.length === 0 || buildingNetwork"
-            size="sm"
-            @click="buildNetwork"
-          >
-            <span
-              class="inline-flex items-center justify-center size-5 rounded-full bg-primary-foreground text-primary text-xs font-bold mr-1.5"
-            >
-              2
-            </span>
-            <NetworkIcon class="size-3.5 mr-1" />
-            <span v-if="buildingNetwork">Building...</span>
-            <span v-else>Build Network</span>
-          </Button>
-
-          <!-- Step 3: Cluster -->
-          <Button :disabled="!networkData || clustering" size="sm" @click="clusterNetwork">
-            <span
-              class="inline-flex items-center justify-center size-5 rounded-full bg-primary-foreground text-primary text-xs font-bold mr-1.5"
-            >
-              3
-            </span>
-            <ChartScatter class="size-3.5 mr-1" />
-            <span v-if="clustering">Clustering...</span>
-            <span v-else>Cluster</span>
-          </Button>
-
-          <!-- Step 4: Enrichment (appears after clustering) -->
-          <template v-if="clusterStats">
-            <Separator orientation="vertical" class="h-6 mx-1" />
-
-            <Popover>
-              <PopoverTrigger as-child>
-                <Button variant="outline" size="sm" class="text-xs min-w-[120px] justify-start">
-                  <span v-if="selectedClusters.length === 0" class="text-muted-foreground">
-                    Clusters...
-                  </span>
-                  <span v-else>{{ selectedClusters.length }} cluster(s)</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent class="w-[300px] p-2" align="start" side="bottom">
-                <div class="max-h-[300px] overflow-y-auto space-y-0.5">
-                  <button
-                    v-for="cluster in clusterList"
-                    :key="cluster.value"
-                    type="button"
-                    :aria-pressed="selectedClusters.includes(cluster.value)"
-                    class="flex w-full items-center space-x-2 py-1.5 px-1 rounded text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    :class="
-                      selectedClusters.includes(cluster.value) ? 'bg-muted' : 'hover:bg-muted/50'
-                    "
-                    @click="toggleCluster(cluster.value, !selectedClusters.includes(cluster.value))"
-                  >
-                    <div
-                      class="size-4 rounded-sm border flex items-center justify-center flex-shrink-0"
-                      :style="{ borderColor: cluster.color }"
-                    >
-                      <!-- Foreground check: white on grey/olive swatches fell below 3:1 -->
-                      <Check
-                        v-if="selectedClusters.includes(cluster.value)"
-                        class="size-3 text-foreground"
-                      />
-                    </div>
-                    <Circle
-                      class="size-3 flex-shrink-0"
-                      :style="{ color: cluster.color, fill: cluster.color }"
-                    />
-                    <span class="text-sm flex-1">{{ cluster.title }}</span>
-                    <Badge variant="outline" class="text-xs">{{ cluster.size }}</Badge>
-                  </button>
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Select v-model="enrichmentType">
-              <SelectTrigger aria-label="Enrichment type" class="h-8 w-44 text-xs">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="opt in enrichmentOptions" :key="opt.value" :value="opt.value">
-                  {{ opt.title }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-
+        <!-- Row 2: Step buttons + utility actions; enrichment controls wrap below as one group -->
+        <div class="flex flex-wrap items-end gap-x-2 gap-y-3 mt-3 pt-3 border-t">
+          <div class="grid grid-cols-3 gap-2 w-full sm:flex sm:w-auto">
+            <!-- Step 1: Filter -->
             <Button
+              :variant="stepVariant(1)"
+              :disabled="loadingGenes"
               size="sm"
-              :disabled="selectedClusters.length === 0 || runningEnrichment"
-              @click="runEnrichmentAndSwitch"
+              @click="fetchFilteredGenes"
             >
-              <span
-                class="inline-flex items-center justify-center size-5 rounded-full bg-primary-foreground text-primary text-xs font-bold mr-1.5"
-              >
-                4
-              </span>
-              <ChartBarBig class="size-3.5 mr-1" />
-              <span v-if="runningEnrichment">Running...</span>
-              <span v-else>Enrich</span>
+              <span :class="stepBadgeClass(1)">1</span>
+              <Filter class="size-3.5 mr-1 max-sm:hidden" aria-hidden="true" />
+              <span v-if="loadingGenes">Loading...</span>
+              <span v-else>Filter<span class="max-sm:hidden"> Genes</span></span>
             </Button>
-          </template>
 
-          <!-- Right side: utility actions -->
+            <!-- Step 2: Build -->
+            <Button
+              :variant="stepVariant(2)"
+              :disabled="filteredGenes.length === 0 || pipelineBusy"
+              size="sm"
+              @click="buildNetwork"
+            >
+              <span :class="stepBadgeClass(2)">2</span>
+              <NetworkIcon class="size-3.5 mr-1 max-sm:hidden" aria-hidden="true" />
+              <span v-if="buildingNetwork">Building...</span>
+              <span v-else>Build<span class="max-sm:hidden"> Network</span></span>
+            </Button>
+
+            <!-- Step 3: Cluster -->
+            <Button
+              :variant="stepVariant(3)"
+              :disabled="!networkData || pipelineBusy"
+              size="sm"
+              @click="clusterNetwork"
+            >
+              <span :class="stepBadgeClass(3)">3</span>
+              <ChartScatter class="size-3.5 mr-1 max-sm:hidden" aria-hidden="true" />
+              <span v-if="clustering">Clustering...</span>
+              <span v-else>Cluster</span>
+            </Button>
+          </div>
+
+          <!-- Utility actions, right of the step buttons -->
           <TooltipProvider>
-            <div class="ml-auto flex gap-1">
+            <div class="ml-auto flex gap-1 self-end">
               <Tooltip v-if="filteredGenes.length > 0">
                 <TooltipTrigger as-child>
                   <Button
@@ -245,7 +227,7 @@
                     aria-label="Share this analysis as a link"
                     @click="handleShareNetwork"
                   >
-                    <Share2 class="size-3.5" />
+                    <Share2 class="size-3.5" aria-hidden="true" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Share this analysis as a link</TooltipContent>
@@ -259,7 +241,7 @@
                     aria-label="Reset all"
                     @click="resetAll"
                   >
-                    <RotateCcw class="size-3.5" />
+                    <RotateCcw class="size-3.5" aria-hidden="true" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Reset all</TooltipContent>
@@ -270,26 +252,203 @@
                     variant="ghost"
                     size="icon"
                     class="size-8"
-                    aria-label="Advanced filters"
-                    :aria-pressed="showAdvanced"
+                    aria-label="Advanced settings"
+                    aria-controls="na-advanced"
+                    :aria-expanded="showAdvanced"
                     @click="showAdvanced = !showAdvanced"
                   >
                     <SlidersHorizontal class="size-3.5" :class="{ 'text-primary': showAdvanced }" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Advanced filters</TooltipContent>
+                <TooltipContent>Advanced settings</TooltipContent>
               </Tooltip>
             </div>
           </TooltipProvider>
+
+          <!-- Step 4: Enrichment (appears after clustering) -->
+          <div
+            v-if="clusterStats"
+            class="grid grid-cols-2 items-end gap-2 w-full sm:flex sm:flex-wrap"
+          >
+            <div class="col-span-2 space-y-1 min-w-0">
+              <div class="flex items-center gap-1">
+                <label for="na-clusters" class="text-xs font-medium text-muted-foreground">
+                  Clusters to enrich
+                </label>
+                <HoverPopover :content-class="HELP_CLASS">
+                  <CircleHelp class="size-3.5 text-muted-foreground" aria-hidden="true" />
+                  <span class="sr-only">About clusters to enrich</span>
+                  <template #content>{{ HELP.clusters }}</template>
+                </HoverPopover>
+              </div>
+              <Popover>
+                <PopoverTrigger as-child>
+                  <Button
+                    id="na-clusters"
+                    variant="outline"
+                    size="sm"
+                    class="text-xs w-full sm:w-auto sm:min-w-[140px] sm:max-w-[18rem] justify-start"
+                  >
+                    <span v-if="selectedClusters.length === 0" class="text-muted-foreground">
+                      None selected
+                    </span>
+                    <span v-else-if="selectedClusters.length === 1" class="truncate">
+                      {{ clusterTitle(selectedClusters[0]!) }}
+                    </span>
+                    <span v-else>
+                      {{ selectedClusters.length }} of {{ clusterList.length }} clusters
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent class="w-[300px] p-2" align="start" side="bottom">
+                  <p class="px-1 pb-2 text-xs text-muted-foreground">
+                    Genes of the selected clusters are pooled and tested against
+                    <template v-if="enrichmentBackground === 'network'">
+                      all {{ networkGeneIds.length }} network genes.
+                    </template>
+                    <template v-else>the background chosen under Background.</template>
+                  </p>
+                  <div class="max-h-[300px] overflow-y-auto space-y-0.5">
+                    <button
+                      v-for="cluster in clusterList"
+                      :key="cluster.value"
+                      type="button"
+                      :aria-pressed="selectedClusters.includes(cluster.value)"
+                      class="flex w-full items-center space-x-2 py-1.5 px-1 rounded text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      :class="
+                        selectedClusters.includes(cluster.value) ? 'bg-muted' : 'hover:bg-muted/50'
+                      "
+                      @click="
+                        toggleCluster(cluster.value, !selectedClusters.includes(cluster.value))
+                      "
+                    >
+                      <div
+                        class="size-4 rounded-sm border flex items-center justify-center flex-shrink-0"
+                        :style="{ borderColor: cluster.color }"
+                      >
+                        <!-- Foreground check: white on grey/olive swatches fell below 3:1 -->
+                        <Check
+                          v-if="selectedClusters.includes(cluster.value)"
+                          class="size-3 text-foreground"
+                        />
+                      </div>
+                      <Circle
+                        class="size-3 flex-shrink-0"
+                        :style="{ color: cluster.color, fill: cluster.color }"
+                      />
+                      <span
+                        class="text-sm flex-1 min-w-0"
+                        :title="cluster.labelTerm ? clusterLabelNote(cluster.labelTerm) : undefined"
+                      >
+                        {{ cluster.title }}
+                        <!-- title tooltips are mouse-only; screen readers get the note here -->
+                        <span v-if="cluster.labelTerm" class="sr-only">
+                          ({{ clusterLabelNote(cluster.labelTerm) }})
+                        </span>
+                      </span>
+                      <Badge variant="outline" class="text-xs">{{ cluster.size }}</Badge>
+                    </button>
+                  </div>
+                  <p
+                    v-if="selectsWholeNetwork"
+                    class="px-1 pt-2 text-xs text-muted-foreground"
+                    role="status"
+                  >
+                    Every cluster is selected, so the network is tested against itself and no term
+                    can be enriched. Select fewer clusters.
+                  </p>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div class="space-y-1 min-w-0">
+              <label for="na-enrich-type" class="text-xs font-medium text-muted-foreground">
+                Enrichment
+              </label>
+              <Select v-model="enrichmentType">
+                <SelectTrigger id="na-enrich-type" class="h-8 w-full sm:w-44 text-xs">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="opt in enrichmentOptions" :key="opt.value" :value="opt.value">
+                    {{ opt.title }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div class="space-y-1 min-w-0">
+              <div class="flex items-center gap-1">
+                <label for="na-enrich-bg" class="text-xs font-medium text-muted-foreground">
+                  Background
+                </label>
+                <HoverPopover :content-class="HELP_CLASS">
+                  <CircleHelp class="size-3.5 text-muted-foreground" aria-hidden="true" />
+                  <span class="sr-only">About the enrichment background</span>
+                  <template #content>{{ HELP.background }}</template>
+                </HoverPopover>
+              </div>
+              <Select v-model="enrichmentBackground">
+                <SelectTrigger id="na-enrich-bg" class="h-8 w-full sm:w-40 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reference">All genes</SelectItem>
+                  <SelectItem value="network">Network genes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              :variant="stepVariant(4)"
+              size="sm"
+              class="col-span-2 sm:col-auto"
+              :disabled="selectedClusters.length === 0 || runningEnrichment || pipelineBusy"
+              @click="runEnrichmentAndSwitch"
+            >
+              <span :class="stepBadgeClass(4)">4</span>
+              <ChartBarBig class="size-3.5 mr-1" aria-hidden="true" />
+              <span v-if="runningEnrichment">Running...</span>
+              <span v-else>Enrich</span>
+            </Button>
+          </div>
         </div>
 
-        <!-- Row 3: Advanced filters (collapsible) -->
-        <div v-if="showAdvanced" class="flex flex-wrap items-end gap-4 mt-3 pt-3 border-t">
+        <!-- What to do next, and why a step is unavailable -->
+        <p class="mt-2 text-xs text-muted-foreground" role="status" data-testid="next-step">
+          {{ nextStepText }}
+        </p>
+        <p
+          v-if="hiddenGenes"
+          class="mt-1 text-xs text-muted-foreground"
+          data-testid="hidden-genes-note"
+        >
+          <span class="tabular-nums">{{ hiddenGenes.hidden }}</span>
+          of
+          <span class="tabular-nums">{{ hiddenGenes.submitted }}</span>
+          genes hidden{{
+            hiddenGenes.reasons.length ? `: ${hiddenGenes.reasons.join(', or ')}` : ''
+          }}.
+          <button
+            type="button"
+            class="ml-1 font-medium text-foreground underline underline-offset-2 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+            @click="showAdvanced = true"
+          >
+            Adjust filters
+          </button>
+        </p>
+
+        <!-- Row 3: Advanced settings (collapsible) -->
+        <div
+          v-if="showAdvanced"
+          id="na-advanced"
+          class="flex flex-wrap items-end gap-4 mt-3 pt-3 border-t"
+        >
           <div class="flex items-center space-x-2">
             <Checkbox
               id="remove-isolated"
               :model-value="removeIsolated"
-              @update:model-value="removeIsolated = $event"
+              @update:model-value="removeIsolated = !!$event"
             />
             <Label for="remove-isolated" class="text-xs cursor-pointer">Remove Isolated</Label>
           </div>
@@ -297,61 +456,75 @@
             <Checkbox
               id="largest-component"
               :model-value="largestComponentOnly"
-              @update:model-value="largestComponentOnly = $event"
+              @update:model-value="largestComponentOnly = !!$event"
             />
             <Label for="largest-component" class="text-xs cursor-pointer">
               Largest Component Only
             </Label>
           </div>
-          <div class="space-y-1 w-20">
-            <label class="text-xs font-medium text-muted-foreground">Min Degree</label>
+          <div class="space-y-1 w-24">
+            <div class="flex items-center gap-1">
+              <label for="na-min-degree" class="text-xs font-medium text-muted-foreground">
+                Min Degree
+              </label>
+              <HoverPopover :content-class="HELP_CLASS">
+                <CircleHelp class="size-3.5 text-muted-foreground" aria-hidden="true" />
+                <span class="sr-only">About Min Degree</span>
+                <template #content>{{ HELP.minDegree }}</template>
+              </HoverPopover>
+            </div>
             <Input
+              id="na-min-degree"
               v-model.number="minDegree"
               type="number"
               min="0"
-              max="10"
+              :max="networkAnalysisConfig.filtering.maxMinDegree"
               class="h-8"
-              aria-label="Minimum node degree"
             />
           </div>
           <div class="space-y-1 w-24">
-            <label class="text-xs font-medium text-muted-foreground">Min Cluster</label>
+            <div class="flex items-center gap-1">
+              <label for="na-min-cluster" class="text-xs font-medium text-muted-foreground">
+                Min Cluster
+              </label>
+              <HoverPopover :content-class="HELP_CLASS">
+                <CircleHelp class="size-3.5 text-muted-foreground" aria-hidden="true" />
+                <span class="sr-only">About Min Cluster</span>
+                <template #content>{{ HELP.minCluster }}</template>
+              </HoverPopover>
+            </div>
             <Input
+              id="na-min-cluster"
               v-model.number="minClusterSize"
               type="number"
               min="1"
-              max="20"
+              :max="networkAnalysisConfig.filtering.maxMinClusterSize"
               class="h-8"
-              aria-label="Minimum cluster size"
             />
           </div>
-          <div class="space-y-1 w-20">
-            <label class="text-xs font-medium text-muted-foreground">FDR</label>
+          <div class="space-y-1 w-24">
+            <div class="flex items-center gap-1">
+              <label for="na-fdr" class="text-xs font-medium text-muted-foreground">FDR</label>
+              <HoverPopover :content-class="HELP_CLASS">
+                <CircleHelp class="size-3.5 text-muted-foreground" aria-hidden="true" />
+                <span class="sr-only">About FDR</span>
+                <template #content>{{ HELP.fdr }}</template>
+              </HoverPopover>
+            </div>
             <Input
-              v-model.number="fdrThreshold"
+              id="na-fdr"
+              :model-value="fdrThreshold"
               type="number"
               min="0.001"
               max="0.2"
               step="0.01"
               class="h-8"
-              aria-label="FDR threshold"
+              @update:model-value="onFdrChange"
             />
           </div>
         </div>
       </CardContent>
     </Card>
-
-    <!-- Large network warning -->
-    <Alert
-      v-if="filteredGenes.length > networkAnalysisConfig.geneSelection.largeNetworkThreshold"
-      class="mb-3"
-    >
-      <AlertTriangle class="size-4" />
-      <AlertTitle>{{ networkAnalysisConfig.ui.warningMessages.largeNetwork.title }}</AlertTitle>
-      <AlertDescription>
-        {{ networkAnalysisConfig.ui.warningMessages.largeNetwork.message(filteredGenes.length) }}
-      </AlertDescription>
-    </Alert>
 
     <!-- Main content: Tabs for Network / Enrichment -->
     <Tabs v-model="activeTab">
@@ -364,23 +537,24 @@
           <ChartBarBig class="size-4 mr-1.5" />
           Enrichment
           <Badge v-if="enrichmentResults" variant="secondary" class="ml-1.5 text-xs px-1.5 py-0">
-            {{ enrichmentResults.total_terms }}
+            {{ visibleEnrichmentTerms.length }}
           </Badge>
         </TabsTrigger>
       </TabsList>
 
       <TabsContent value="network" class="mt-0">
-        <!-- Network Visualization -->
+        <!-- Network Visualization: NetworkGraph re-initialises itself when networkData changes -->
         <div v-if="displayNetwork">
           <NetworkGraph
-            :key="networkGraphKey"
             v-model:color-mode="nodeColorMode"
             :network-data="displayNetwork"
             :loading="buildingNetwork || clustering"
-            :error="networkError"
+            :error="networkError ?? undefined"
             :cluster-id-mapping="clusterIdMapping"
             :cluster-colors-map="clusterColors"
-            :hpo-classifications="hpoClassifications"
+            :cluster-labels="clusterLabels"
+            :min-cluster-size="clusteredWith?.minClusterSize ?? 1"
+            :hpo-classifications="hpoClassifications ?? undefined"
             :hgnc-ids="hgncIds"
             :loading-h-p-o-data="loadingHPOClassifications"
             :height="networkAnalysisConfig.ui.defaultGraphHeight"
@@ -397,9 +571,9 @@
             <p class="text-lg font-medium text-muted-foreground">No network loaded</p>
             <p class="text-sm text-muted-foreground mt-1">
               Click
-              <strong>Filter</strong>
+              <strong>Filter Genes</strong>
               then
-              <strong>Build</strong>
+              <strong>Build Network</strong>
               to create a protein-protein interaction network
             </p>
           </CardContent>
@@ -407,33 +581,49 @@
       </TabsContent>
 
       <TabsContent value="enrichment" class="mt-0">
-        <Card v-if="!enrichmentResults && !runningEnrichment">
+        <Card v-if="!enrichmentRun">
           <CardContent class="flex flex-col items-center justify-center py-16 text-center">
             <ChartBarBig class="size-16 text-muted-foreground/30 mb-4" />
             <p class="text-lg font-medium text-muted-foreground">No enrichment results</p>
             <p class="text-sm text-muted-foreground mt-1">
-              Select clusters above and click
+              Choose clusters to enrich above and click
               <strong>Enrich</strong>
               to run functional enrichment analysis
             </p>
           </CardContent>
         </Card>
 
-        <EnrichmentTable
-          v-if="enrichmentResults || runningEnrichment"
-          :results="enrichmentResults?.results || []"
-          :loading="runningEnrichment"
-          :error="enrichmentError"
-          :enrichment-type="enrichmentType"
-          :fdr-threshold="fdrThreshold"
-          :gene-set="geneSet"
-          :excluded-genes="enrichmentResults?.excluded_genes || []"
-          @refresh="runEnrichment"
-          @update:enrichment-type="enrichmentType = $event"
-          @update:gene-set="geneSet = $event"
-          @update:fdr-threshold="fdrThreshold = $event"
-          @gene-click="handleGeneClick"
-        />
+        <template v-else>
+          <p class="mb-2 text-xs text-muted-foreground" data-testid="enrichment-background">
+            {{ enrichmentRun.clusterLabel }}:
+            <span class="tabular-nums">{{ enrichmentRun.geneCount }}</span>
+            genes tested &middot; background:
+            <template v-if="enrichmentRun.background === 'network'">
+              <span class="tabular-nums">{{ enrichmentBackgroundSize }}</span>
+              network genes<template v-if="enrichmentRun.type === 'hpo'">
+                (only those with kidney HPO annotations are tested)</template
+              >
+            </template>
+            <template v-else-if="enrichmentRun.type === 'hpo'">
+              all kidney genes with HPO annotations
+            </template>
+            <template v-else>whole genome (Enrichr library)</template>
+          </p>
+          <EnrichmentTable
+            :results="visibleEnrichmentTerms"
+            :loading="runningEnrichment"
+            :error="enrichmentError ?? undefined"
+            :enrichment-type="enrichmentType"
+            :fdr-threshold="fdrThreshold"
+            :gene-set="geneSet"
+            :excluded-genes="enrichmentResults?.excluded_genes || []"
+            @refresh="runEnrichment"
+            @update:enrichment-type="enrichmentType = $event"
+            @update:gene-set="geneSet = $event"
+            @update:fdr-threshold="onFdrChange"
+            @gene-click="handleGeneClick"
+          />
+        </template>
       </TabsContent>
     </Tabs>
 
@@ -447,9 +637,9 @@
         <div class="space-y-3 py-2">
           <div v-if="hgncIds.get(selectedGene.gene_id)">
             <strong>HGNC:</strong>
-            <OntologyTerm :id="hgncIds.get(selectedGene.gene_id)" :name="selectedGene.label" />
+            <OntologyTerm :id="hgncIds.get(selectedGene.gene_id)!" :name="selectedGene.label" />
           </div>
-          <div v-if="selectedGene.cluster_id !== undefined">
+          <div v-if="selectedGene.cluster_id !== undefined && selectedGene.cluster_id !== null">
             <strong>Cluster:</strong>
             <Badge
               variant="outline"
@@ -458,8 +648,7 @@
                 tintedChipStyle(clusterColors.get(selectedGene.cluster_id) ?? OTHER_CLUSTER_COLOR)
               "
             >
-              Cluster
-              {{ (clusterIdMapping.get(selectedGene.cluster_id) ?? selectedGene.cluster_id) + 1 }}
+              {{ clusterTitle(selectedGene.cluster_id) }}
             </Badge>
           </div>
           <Button class="w-full" as-child>
@@ -475,16 +664,17 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, watch, nextTick, onMounted, defineAsyncComponent } from 'vue'
+<script setup lang="ts">
+import { ref, computed, watch, onMounted, defineAsyncComponent } from 'vue'
 import ComponentSkeleton from '@/components/ui/ComponentSkeleton.vue'
 import ComponentError from '@/components/ui/ComponentError.vue'
+import HoverPopover from '@/components/ui/HoverPopover.vue'
 import {
-  AlertTriangle,
   ChartBarBig,
   ChartScatter,
   Check,
   Circle,
+  CircleHelp,
   Filter,
   Network as NetworkIcon,
   RotateCcw,
@@ -506,7 +696,6 @@ import {
   SelectItem
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import {
@@ -529,26 +718,31 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { OntologyTerm, PageHeader, PAGE_CONTAINER } from '@/components/shared'
 
-import { geneApi } from '../api/genes'
-import { networkApi } from '../api/network'
+import { geneApi } from '@/api/genes'
+import EnrichmentTable from '@/components/network/EnrichmentTable.vue'
+import { networkAnalysisConfig, OTHER_CLUSTER_COLOR } from '@/config/networkAnalysis'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
+import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
+import useNetworkUrlState from '@/composables/useNetworkUrlState'
+import useNetworkAnalysis, { clusterLabelNote } from '@/composables/useNetworkAnalysis'
+import type { NetworkState } from '@/utils/networkStateCodec'
+import { useSeoMeta } from '@/composables/useSeoMeta'
+import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
+
 const NetworkGraph = defineAsyncComponent({
-  loader: () => import('../components/network/NetworkGraph.vue'),
+  loader: () => import('@/components/network/NetworkGraph.vue'),
   loadingComponent: ComponentSkeleton,
   errorComponent: ComponentError,
   delay: 200,
   timeout: 10000
 })
-import EnrichmentTable from '../components/network/EnrichmentTable.vue'
-import {
-  networkAnalysisConfig,
-  clusterColorByRank,
-  OTHER_CLUSTER_COLOR
-} from '../config/networkAnalysis'
-import { tintedChipStyle } from '@/utils/evidenceTiers'
-import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
-import useNetworkUrlState from '../composables/useNetworkUrlState'
-import { useSeoMeta } from '@/composables/useSeoMeta'
-import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
+
+/** Node payload emitted by NetworkGraph's nodeClick */
+interface SelectedGene {
+  label: string
+  gene_id: number
+  cluster_id?: number | null
+}
 
 // Breadcrumbs
 const breadcrumbs = PUBLIC_BREADCRUMBS.networkAnalysis
@@ -562,43 +756,81 @@ useSeoMeta({
   canonicalPath: '/network-analysis'
 })
 
+const HELP_CLASS = 'w-72 p-3 text-xs leading-relaxed'
+const HELP = {
+  tiers:
+    'Only genes in the selected evidence tiers are included. The default keeps the three strongest tiers.',
+  minScore: 'Minimum evidence score (0–100). Genes scoring lower are left out.',
+  maxGenes: `Maximum number of genes in the network (${networkAnalysisConfig.geneSelection.minGenesLimit}–${networkAnalysisConfig.geneSelection.maxGenesHardLimit}). The highest-scoring genes are kept.`,
+  stringScore: `Minimum STRING combined score for an interaction (${networkAnalysisConfig.networkConstruction.minStringScoreRange.min}–1000): 400 medium, 700 high, 900 highest confidence. Interactions come from the STRING physical subnetwork.`,
+  algorithm:
+    'How genes are grouped into clusters. Leiden (recommended) and Louvain use a fixed seed, so the same network always gives the same clusters; the resolution sets how fine the clusters are. Walktrap groups genes by short random walks.',
+  minDegree:
+    'Hide genes with fewer interactions than this when the network is built (0 keeps every gene).',
+  minCluster: 'After clustering, drop clusters with fewer genes than this (1 keeps every cluster).',
+  fdr: 'False discovery rate cut-off for significant terms. Lowering it filters the current results; raising it re-runs the analysis.',
+  clusters:
+    'Genes of the selected clusters are pooled and tested for enrichment against the chosen background. The largest cluster is selected after clustering.',
+  background:
+    'All genes: GO terms are tested against the whole genome (Enrichr library) and HPO terms against every kidney gene with HPO annotations; this describes what a cluster does. Network genes: tested against the genes in this network only; this shows what sets a cluster apart from the rest of the network, but has less power on small networks.'
+}
+
 // UI State
 const showAdvanced = ref(false)
 const activeTab = ref('network')
 const geneDialog = ref(false)
-const selectedGene = ref(null)
+const selectedGene = ref<SelectedGene | null>(null)
 
-// Gene Selection (config-driven defaults)
-const selectedTiers = ref(['comprehensive_support', 'multi_source_support', 'established_support'])
-const minScore = ref(networkAnalysisConfig.geneSelection.defaultMinScore)
-const maxGenes = ref(networkAnalysisConfig.geneSelection.defaultMaxGenes)
-const filteredGenes = ref([])
-const loadingGenes = ref(false)
-
-// Network Construction (config-driven defaults)
-const minStringScore = ref(networkAnalysisConfig.networkConstruction.defaultMinStringScore)
-const clusterAlgorithm = ref(networkAnalysisConfig.networkConstruction.defaultClusteringAlgorithm)
-const buildingNetwork = ref(false)
-const clustering = ref(false)
-const networkData = ref(null)
-const clusterData = ref(null)
-const clusterStats = ref(null)
-const networkError = ref(null)
-
-// Network Filtering (config-driven defaults)
-const removeIsolated = ref(networkAnalysisConfig.filtering.defaultRemoveIsolated)
-const minDegree = ref(networkAnalysisConfig.filtering.defaultMinDegree)
-const minClusterSize = ref(networkAnalysisConfig.filtering.defaultMinClusterSize)
-const largestComponentOnly = ref(networkAnalysisConfig.filtering.defaultLargestComponentOnly)
-
-// Enrichment Analysis (config-driven defaults)
-const selectedClusters = ref([])
-const enrichmentType = ref(networkAnalysisConfig.enrichment.defaultEnrichmentType)
-const geneSet = ref(networkAnalysisConfig.enrichment.goGeneSets[0])
-const fdrThreshold = ref(networkAnalysisConfig.enrichment.defaultFdrThreshold)
-const runningEnrichment = ref(false)
-const enrichmentResults = ref(null)
-const enrichmentError = ref(null)
+const {
+  selectedTiers,
+  minScore,
+  maxGenes,
+  filteredGenes,
+  loadingGenes,
+  minStringScore,
+  clusterAlgorithm,
+  removeIsolated,
+  minDegree,
+  minClusterSize,
+  clusteredWith,
+  largestComponentOnly,
+  buildingNetwork,
+  clustering,
+  networkData,
+  clusterData,
+  clusterStats,
+  networkError,
+  networkGenes,
+  builtParams,
+  displayNetwork,
+  networkGeneIds,
+  clusterList,
+  clusterIdMapping,
+  clusterColors,
+  clusterLabels,
+  hgncIds,
+  hiddenGenes,
+  nextStep,
+  selectedClusters,
+  enrichmentType,
+  enrichmentBackground,
+  geneSet,
+  fdrThreshold,
+  runningEnrichment,
+  enrichmentResults,
+  enrichmentError,
+  enrichmentRun,
+  visibleEnrichmentTerms,
+  hpoClassifications,
+  loadingHPOClassifications,
+  fetchFilteredGenes,
+  buildNetwork,
+  clusterNetwork,
+  runEnrichment,
+  fetchHPOClassifications,
+  onFdrChange,
+  reset
+} = useNetworkAnalysis()
 
 // URL State Management
 const router = useRouter()
@@ -610,11 +842,6 @@ const { syncStateToUrl, restoreStateFromUrl, copyShareableUrl, isEncoding } = us
 
 // Node Coloring State (config-driven defaults)
 const nodeColorMode = ref(networkAnalysisConfig.nodeColoring.defaultMode)
-const hpoClassifications = ref(null)
-const loadingHPOClassifications = ref(false)
-
-// Key for forcing NetworkGraph re-creation (fixes Cytoscape null style error)
-const networkGraphKey = ref(0)
 
 // Options
 const tierOptions = [
@@ -637,68 +864,67 @@ const enrichmentOptions = [
 ]
 
 // Computed
-const displayNetwork = computed(() => clusterData.value || networkData.value)
-
 const hasAnyState = computed(
-  () => filteredGenes.value.length > 0 || networkData.value || clusterData.value
+  () => filteredGenes.value.length > 0 || !!networkData.value || !!clusterData.value
 )
 
-const clusterIdMapping = computed(() => {
-  if (!clusterStats.value) return new Map()
-  const clusterMap = {}
-  for (const [, clusterId] of Object.entries(clusterStats.value.clusters)) {
-    if (!clusterMap[clusterId]) {
-      clusterMap[clusterId] = { count: 0, backendId: parseInt(clusterId) }
-    }
-    clusterMap[clusterId].count++
-  }
-  const sorted = Object.values(clusterMap).sort((a, b) => b.count - a.count)
-  const mapping = new Map()
-  sorted.forEach((cluster, displayIndex) => {
-    mapping.set(cluster.backendId, displayIndex)
-  })
-  return mapping
-})
+const pipelineBusy = computed(() => buildingNetwork.value || clustering.value)
 
-// gene_id -> HGNC ID, so genes are named by their identifier, never by internal ids
-const hgncIds = computed(
-  () => new Map(filteredGenes.value.filter(g => g.hgnc_id).map(g => [parseInt(g.id), g.hgnc_id]))
-)
-
-// Backend cluster id -> colour by size rank; colours the graph, legend and list alike
-const clusterColors = computed(
+const selectsWholeNetwork = computed(
   () =>
-    new Map(
-      [...clusterIdMapping.value].map(([backendId, rank]) => [backendId, clusterColorByRank(rank)])
-    )
+    enrichmentBackground.value === 'network' &&
+    clusterList.value.length > 1 &&
+    selectedClusters.value.length === clusterList.value.length
 )
 
-const clusterList = computed(() => {
-  if (!clusterStats.value) return []
-  const clusterMap = {}
-  for (const [geneId, clusterId] of Object.entries(clusterStats.value.clusters)) {
-    if (!clusterMap[clusterId]) {
-      clusterMap[clusterId] = []
-    }
-    clusterMap[clusterId].push(parseInt(geneId))
-  }
-  const clusters = Object.entries(clusterMap).map(([backendId, geneIds]) => {
-    const displayId = clusterIdMapping.value.get(parseInt(backendId)) ?? parseInt(backendId)
-    return {
-      title: `Cluster ${displayId + 1}`,
-      value: parseInt(backendId),
-      displayId,
-      backendId: parseInt(backendId),
-      size: geneIds.length,
-      genes: geneIds,
-      color: clusterColorByRank(displayId)
-    }
-  })
-  return clusters.sort((a, b) => b.size - a.size)
+const clusteringSummary = computed(() => {
+  const stats = clusterStats.value
+  if (!stats) return ''
+  const name =
+    algorithmOptions.find(o => o.value === stats.algorithm)?.title.replace(' (Recommended)', '') ??
+    stats.algorithm ??
+    'unknown'
+  const parts = [`Algorithm: ${name}`]
+  if (stats.resolution != null) parts.push(`resolution ${stats.resolution}`)
+  if (stats.modularityResolution != null)
+    parts.push(`Q computed at resolution ${stats.modularityResolution}`)
+  return parts.join(' · ')
 })
+
+const enrichmentBackgroundSize = computed(() => enrichmentRun.value?.backgroundSize ?? 0)
+
+const nextStepText = computed(() => {
+  switch (nextStep.value) {
+    case 1:
+      return 'Step 1: choose evidence tiers and a minimum score, then click Filter Genes.'
+    case 2:
+      return networkData.value
+        ? 'Gene selection or network settings changed. Click Build Network to apply them.'
+        : `Next: click Build Network to connect the ${filteredGenes.value.length} selected genes.`
+    case 3:
+      return clusterData.value
+        ? 'Clustering settings changed. Click Cluster to apply them.'
+        : 'Next: click Cluster to find functional modules in the network.'
+    case 4:
+      return selectedClusters.value.length === 0
+        ? 'Next: choose clusters to enrich, then click Enrich.'
+        : 'Next: click Enrich to test the selected clusters for GO or HPO terms.'
+    default:
+      return 'Analysis is up to date. Change any setting to run a step again.'
+  }
+})
+
+const stepVariant = (step: number) => (nextStep.value === step ? 'default' : 'outline')
+const stepBadgeClass = (step: number) => [
+  'inline-flex items-center justify-center size-5 rounded-full text-xs font-bold mr-1.5',
+  nextStep.value === step ? 'bg-primary-foreground text-primary' : 'bg-muted text-foreground'
+]
+
+const clusterTitle = (backendId: number) =>
+  clusterList.value.find(c => c.backendId === backendId)?.title ?? `Cluster ${backendId + 1}`
 
 // Utility Functions
-const toggleTier = (tier, checked) => {
+const toggleTier = (tier: string, checked: boolean) => {
   if (checked) {
     if (!selectedTiers.value.includes(tier)) {
       selectedTiers.value = [...selectedTiers.value, tier]
@@ -708,7 +934,7 @@ const toggleTier = (tier, checked) => {
   }
 }
 
-const toggleCluster = (clusterId, checked) => {
+const toggleCluster = (clusterId: number, checked: boolean) => {
   if (checked) {
     if (!selectedClusters.value.includes(clusterId)) {
       selectedClusters.value = [...selectedClusters.value, clusterId]
@@ -719,184 +945,10 @@ const toggleCluster = (clusterId, checked) => {
 }
 
 const resetAll = () => {
-  // Reset all state to defaults
-  filteredGenes.value = []
-  networkData.value = null
-  clusterData.value = null
-  clusterStats.value = null
-  networkError.value = null
-  selectedClusters.value = []
-  enrichmentResults.value = null
-  enrichmentError.value = null
-  hpoClassifications.value = null
+  reset()
   activeTab.value = 'network'
-  networkGraphKey.value++
-
-  // Reset controls to defaults
-  selectedTiers.value = ['comprehensive_support', 'multi_source_support', 'established_support']
-  minScore.value = networkAnalysisConfig.geneSelection.defaultMinScore
-  maxGenes.value = networkAnalysisConfig.geneSelection.defaultMaxGenes
-  minStringScore.value = networkAnalysisConfig.networkConstruction.defaultMinStringScore
-  clusterAlgorithm.value = networkAnalysisConfig.networkConstruction.defaultClusteringAlgorithm
-  removeIsolated.value = networkAnalysisConfig.filtering.defaultRemoveIsolated
-  minDegree.value = networkAnalysisConfig.filtering.defaultMinDegree
-  minClusterSize.value = networkAnalysisConfig.filtering.defaultMinClusterSize
-  largestComponentOnly.value = networkAnalysisConfig.filtering.defaultLargestComponentOnly
   nodeColorMode.value = networkAnalysisConfig.nodeColoring.defaultMode
-  enrichmentType.value = networkAnalysisConfig.enrichment.defaultEnrichmentType
-  fdrThreshold.value = networkAnalysisConfig.enrichment.defaultFdrThreshold
-
-  // Clear URL params
   router.replace({ path: route.path })
-}
-
-// Methods
-const fetchFilteredGenes = async () => {
-  loadingGenes.value = true
-  try {
-    const effectiveMaxGenes = Math.min(
-      maxGenes.value,
-      networkAnalysisConfig.geneSelection.maxGenesHardLimit
-    )
-    const allGenes = []
-    let page = 1
-    const perPage = 100
-
-    while (allGenes.length < effectiveMaxGenes) {
-      const response = await geneApi.getGenes({
-        page,
-        perPage,
-        tiers: selectedTiers.value,
-        minScore: minScore.value,
-        hideZeroScores: true
-      })
-      if (!response.items || response.items.length === 0) break
-      allGenes.push(...response.items)
-      if (allGenes.length >= response.total || response.items.length < perPage) break
-      page++
-    }
-
-    filteredGenes.value = allGenes.slice(0, effectiveMaxGenes)
-    window.logService?.info(
-      `Filtered ${filteredGenes.value.length} genes (fetched ${page} page(s))`
-    )
-  } catch (error) {
-    window.logService?.error('Failed to fetch genes:', error)
-    filteredGenes.value = []
-  } finally {
-    loadingGenes.value = false
-  }
-}
-
-const buildNetwork = async () => {
-  if (filteredGenes.value.length === 0) {
-    window.logService?.warn('No genes selected')
-    return
-  }
-  buildingNetwork.value = true
-  networkError.value = null
-  try {
-    const geneIds = filteredGenes.value.map(g => parseInt(g.id))
-    const response = await networkApi.buildNetwork({
-      gene_ids: geneIds,
-      min_string_score: minStringScore.value,
-      remove_isolated: removeIsolated.value,
-      min_degree: minDegree.value,
-      largest_component_only: largestComponentOnly.value
-    })
-    networkGraphKey.value++
-    await nextTick()
-    networkData.value = response
-    clusterData.value = null
-    clusterStats.value = null
-    activeTab.value = 'network'
-    window.logService?.info('Network built successfully')
-  } catch (error) {
-    window.logService?.error('Failed to build network:', error)
-    networkError.value = error.message || 'Failed to build network'
-  } finally {
-    buildingNetwork.value = false
-    fetchHPOClassifications()
-  }
-}
-
-const clusterNetwork = async () => {
-  if (!networkData.value) return
-  clustering.value = true
-  networkError.value = null
-  try {
-    const geneIds = filteredGenes.value.map(g => parseInt(g.id))
-    const response = await networkApi.clusterNetwork({
-      gene_ids: geneIds,
-      min_string_score: minStringScore.value,
-      algorithm: clusterAlgorithm.value,
-      remove_isolated: removeIsolated.value,
-      min_degree: minDegree.value,
-      min_cluster_size: minClusterSize.value,
-      largest_component_only: largestComponentOnly.value
-    })
-    networkGraphKey.value++
-    await nextTick()
-    clusterData.value = {
-      ...response,
-      nodes: response.nodes,
-      edges: response.edges,
-      components: response.components
-    }
-    clusterStats.value = {
-      clusters: response.clusters,
-      num_clusters: response.num_clusters,
-      modularity: response.modularity
-    }
-    window.logService?.info(
-      `Detected ${response.num_clusters} clusters (modularity: ${response.modularity.toFixed(3)})`
-    )
-  } catch (error) {
-    window.logService?.error('Failed to cluster network:', error)
-    networkError.value = error.message || 'Failed to cluster network'
-  } finally {
-    clustering.value = false
-    fetchHPOClassifications()
-  }
-}
-
-const runEnrichment = async () => {
-  if (selectedClusters.value.length === 0) return
-  const selectedClusterData = clusterList.value.filter(c =>
-    selectedClusters.value.includes(c.value)
-  )
-  const allGenes = [...new Set(selectedClusterData.flatMap(c => c.genes))]
-  if (allGenes.length === 0) return
-  runningEnrichment.value = true
-  enrichmentError.value = null
-  try {
-    let response
-    if (enrichmentType.value === 'hpo') {
-      response = await networkApi.enrichHPO({
-        cluster_genes: allGenes,
-        fdr_threshold: fdrThreshold.value
-      })
-    } else {
-      response = await networkApi.enrichGO({
-        cluster_genes: allGenes,
-        gene_set: geneSet.value,
-        fdr_threshold: fdrThreshold.value
-      })
-    }
-    enrichmentResults.value = response
-    const clusterText =
-      selectedClusters.value.length === 1
-        ? `cluster ${selectedClusters.value[0] + 1}`
-        : `${selectedClusters.value.length} clusters`
-    window.logService?.info(
-      `Found ${response.total_terms} significant terms in ${clusterText} (${allGenes.length} genes)`
-    )
-  } catch (error) {
-    window.logService?.error('Failed to run enrichment:', error)
-    enrichmentError.value = error.message || 'Failed to run enrichment analysis'
-  } finally {
-    runningEnrichment.value = false
-  }
 }
 
 const runEnrichmentAndSwitch = async () => {
@@ -906,64 +958,43 @@ const runEnrichmentAndSwitch = async () => {
   }
 }
 
-const fetchHPOClassifications = async () => {
-  if (!networkData.value) return
-  if (!networkData.value.cytoscape_json?.elements) return
-
-  const geneIds = networkData.value.cytoscape_json.elements
-    .filter(el => el.data?.id && !el.data?.source)
-    .map(el => el.data?.gene_id)
-    .filter(id => id)
-
-  if (geneIds.length === 0) return
-  loadingHPOClassifications.value = true
-  try {
-    const response = await geneApi.getHPOClassifications(geneIds)
-    hpoClassifications.value = response
-  } catch (error) {
-    window.logService?.error('[HPO] Failed to fetch HPO classifications:', error)
-    hpoClassifications.value = null
-  } finally {
-    loadingHPOClassifications.value = false
-  }
-}
-
-const handleNodeClick = nodeData => {
+const handleNodeClick = (nodeData: SelectedGene) => {
   selectedGene.value = nodeData
   geneDialog.value = true
 }
 
-const handleClusterSelection = clusterId => {
-  if (!selectedClusters.value.includes(clusterId)) {
-    selectedClusters.value.push(clusterId)
-  }
-}
+const handleClusterSelection = (clusterId: number) => toggleCluster(clusterId, true)
 
-const handleGeneClick = geneSymbol => {
+const handleGeneClick = (geneSymbol: string) => {
   router.push(`/genes/${geneSymbol}`)
 }
 
-// URL State Management
-const getStateSnapshot = () => ({
-  geneIds: filteredGenes.value.map(g => parseInt(g.id)),
-  selectedTiers: selectedTiers.value,
-  minScore: minScore.value,
-  maxGenes: maxGenes.value,
-  minStringScore: minStringScore.value,
-  clusterAlgorithm: clusterAlgorithm.value,
-  removeIsolated: removeIsolated.value,
-  minDegree: minDegree.value,
-  minClusterSize: minClusterSize.value,
-  largestComponentOnly: largestComponentOnly.value,
-  nodeColorMode: nodeColorMode.value,
-  enrichmentType: enrichmentType.value,
-  fdrThreshold: fdrThreshold.value,
-  selectedClusters: selectedClusters.value,
-  highlightedCluster: null,
-  isClustered: !!clusterStats.value
-})
+// URL state describes the network on screen: the genes and parameters it was built from
+const getStateSnapshot = (): NetworkState => {
+  const built = builtParams.value
+  const genes = networkGenes.value.length ? networkGenes.value : filteredGenes.value
+  return {
+    geneIds: genes.map(g => Number(g.id)),
+    selectedTiers: selectedTiers.value,
+    minScore: minScore.value,
+    maxGenes: maxGenes.value,
+    minStringScore: built?.min_string_score ?? minStringScore.value,
+    clusterAlgorithm: clusterStats.value?.algorithm ?? clusterAlgorithm.value,
+    removeIsolated: built?.remove_isolated ?? removeIsolated.value,
+    minDegree: built?.min_degree ?? minDegree.value,
+    minClusterSize: minClusterSize.value,
+    largestComponentOnly: built?.largest_component_only ?? largestComponentOnly.value,
+    nodeColorMode: nodeColorMode.value,
+    enrichmentType: enrichmentType.value,
+    enrichmentBackground: enrichmentBackground.value,
+    fdrThreshold: fdrThreshold.value,
+    selectedClusters: selectedClusters.value,
+    highlightedCluster: null,
+    isClustered: !!clusterStats.value
+  }
+}
 
-const applyRestoredState = async urlState => {
+const applyRestoredState = async (urlState: NetworkState) => {
   isRestoringFromUrl.value = true
   try {
     if (urlState.selectedTiers) selectedTiers.value = urlState.selectedTiers
@@ -978,38 +1009,38 @@ const applyRestoredState = async urlState => {
       largestComponentOnly.value = urlState.largestComponentOnly
     if (urlState.nodeColorMode) nodeColorMode.value = urlState.nodeColorMode
     if (urlState.enrichmentType) enrichmentType.value = urlState.enrichmentType
+    if (urlState.enrichmentBackground === 'network') enrichmentBackground.value = 'network'
     if (urlState.fdrThreshold !== undefined) fdrThreshold.value = urlState.fdrThreshold
-    if (urlState.selectedClusters) selectedClusters.value = urlState.selectedClusters
 
     if (urlState.geneIds && urlState.geneIds.length > 0) {
       loadingGenes.value = true
       try {
         const response = await geneApi.getGenesByIds(urlState.geneIds)
         filteredGenes.value = response.items
-        await nextTick()
-        await buildNetwork()
-        if (urlState.isClustered) {
-          await nextTick()
-          await clusterNetwork()
-        }
-      } catch (error) {
-        window.logService?.error('[NetworkAnalysis] Failed to restore genes:', error)
-        toast.error(`Failed to restore genes from URL: ${error.message}`, { duration: Infinity })
       } finally {
         loadingGenes.value = false
+      }
+      await buildNetwork()
+      if (urlState.isClustered && networkData.value) {
+        await clusterNetwork()
+        // Clustering selects the largest cluster; the link's selection wins when it still exists
+        const known = new Set(clusterList.value.map(c => c.value))
+        const restored = (urlState.selectedClusters ?? []).filter(id => known.has(id))
+        if (restored.length) selectedClusters.value = restored
       }
     }
   } catch (error) {
     window.logService?.error('[NetworkAnalysis] Failed to apply restored state:', error)
-    toast.error('Failed to restore network state from URL', { duration: Infinity })
+    toast.error(`Could not restore the shared analysis: ${(error as Error).message}`, {
+      duration: Infinity
+    })
   } finally {
     isRestoringFromUrl.value = false
   }
 }
 
 const handleShareNetwork = async () => {
-  const state = getStateSnapshot()
-  await copyShareableUrl(state)
+  await copyShareableUrl(getStateSnapshot())
 }
 
 // Lifecycle
@@ -1030,23 +1061,7 @@ watch(nodeColorMode, async () => {
 })
 
 watch(
-  () => ({
-    geneIds: filteredGenes.value.map(g => parseInt(g.id)),
-    selectedTiers: selectedTiers.value,
-    minScore: minScore.value,
-    maxGenes: maxGenes.value,
-    minStringScore: minStringScore.value,
-    clusterAlgorithm: clusterAlgorithm.value,
-    removeIsolated: removeIsolated.value,
-    minDegree: minDegree.value,
-    minClusterSize: minClusterSize.value,
-    largestComponentOnly: largestComponentOnly.value,
-    nodeColorMode: nodeColorMode.value,
-    enrichmentType: enrichmentType.value,
-    fdrThreshold: fdrThreshold.value,
-    selectedClusters: selectedClusters.value,
-    isClustered: !!clusterStats.value
-  }),
+  getStateSnapshot,
   state => {
     if (isRestoringFromUrl.value) return
     if (state.geneIds && state.geneIds.length > 0) {

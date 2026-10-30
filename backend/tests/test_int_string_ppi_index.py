@@ -40,11 +40,11 @@ def _source() -> StringPPIAnnotationSource:
     source = StringPPIAnnotationSource.__new__(StringPPIAnnotationSource)
     source.session = SimpleNamespace(commit=lambda: None)
     source.min_string_score = 500
-    source.max_interactions_stored = 2
     source.version = "test"
     source._protein_to_gene = None
     source._kidney_genes = set(KIDNEY)
     source._gene_evidence_scores = dict(KIDNEY)
+    source._gene_ids = {g: i for i, g in enumerate(["GENE1", "GENE2", "GENE3", "GENE4", "GENE5"])}
     info = pd.DataFrame(
         {
             "#string_protein_id": [f"9606.{p}" for p in GENE_OF],

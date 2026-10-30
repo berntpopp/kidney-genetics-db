@@ -11,7 +11,8 @@ if (typeof window !== 'undefined') {
   const origWarn = console.warn
   console.warn = (...args: unknown[]) => {
     const msg = typeof args[0] === 'string' ? args[0] : ''
-    if (msg.includes('[Vue Router warn]')) {
+    // vue-router 4.6+ prefixes warnings with a code, e.g. [VUE_ROUTER_R0025]
+    if (msg.includes('[Vue Router warn]') || msg.includes('[VUE_ROUTER_')) {
       // Route to our logging system once available, suppress from console
       window.logService?.warn(msg)
       return

@@ -11,6 +11,7 @@ vi.mock('cytoscape', () => {
   const fake: unknown = new Proxy(function () {}, {
     get: (_t, key) => {
       if (key === 'then') return undefined
+      if (key === 'length') return 0
       if (key === 'destroyed') return () => false
       if (key === 'style') return (...args: unknown[]) => (styleSpy(...args), fake)
       return fake
@@ -19,7 +20,7 @@ vi.mock('cytoscape', () => {
   })
   return { default: fake }
 })
-vi.mock('cytoscape-cose-bilkent', () => ({ default: {} }))
+vi.mock('cytoscape-fcose', () => ({ default: {} }))
 // Resolved colour follows the DOM class, as getComputedStyle would
 vi.mock('../canvasColor', () => ({
   canvasColor: () => (document.documentElement.classList.contains('dark') ? 'dark' : 'light'),

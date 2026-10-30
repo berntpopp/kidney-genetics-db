@@ -10,6 +10,14 @@ import { h } from 'vue'
 import ClusterDetailsDialog from '../ClusterDetailsDialog.vue'
 
 vi.stubGlobal('logService', { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })
+vi.stubGlobal(
+  'ResizeObserver',
+  class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+)
 
 describe('ClusterDetailsDialog', () => {
   it('shows HGNC identifiers and tinted HPO chips', async () => {
@@ -17,7 +25,7 @@ describe('ClusterDetailsDialog', () => {
       history: createMemoryHistory(),
       routes: [{ path: '/:p(.*)*', component: { render: () => null } }]
     })
-    mount(
+    const wrapper = mount(
       {
         render: () =>
           h(TooltipProvider, () =>
@@ -41,6 +49,40 @@ describe('ClusterDetailsDialog', () => {
     expect(link?.textContent).toContain('HGNC:9008')
     expect(document.body.textContent).not.toContain('6735')
     expect(document.body.innerHTML).not.toMatch(/color:\s*(#fff|white)/i)
-    document.body.innerHTML = ''
+    wrapper.unmount()
+  })
+
+  it('names each gene once, shows intra-cluster degree and links the cluster to STRING', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/:p(.*)*', component: { render: () => null } }]
+    })
+    const wrapper = mount(
+      {
+        render: () =>
+          h(TooltipProvider, () =>
+            h(ClusterDetailsDialog, {
+              modelValue: true,
+              clusterId: 0,
+              genes: [
+                { gene_id: 1, hgnc_id: 'HGNC:9008', symbol: 'PKD1', cluster_id: 0, degree: 5 },
+                { gene_id: 2, hgnc_id: null, symbol: 'PKD2', cluster_id: 0, degree: 1 }
+              ]
+            })
+          )
+      },
+      { global: { plugins: [router] }, attachTo: document.body }
+    )
+    await flushPromises()
+
+    const rows = [...document.querySelectorAll('tbody tr')].map(r => r.textContent ?? '')
+    expect(rows[0]).toContain('5')
+    expect(rows[0]!.match(/PKD1/g)).toHaveLength(1)
+    expect(document.body.textContent).toContain('Links in cluster')
+    const string = document.querySelector('a[href^="https://string-db.org"]')
+    expect(string?.getAttribute('href')).toBe(
+      'https://string-db.org/cgi/network?identifiers=PKD1%0dPKD2&species=9606'
+    )
+    wrapper.unmount()
   })
 })

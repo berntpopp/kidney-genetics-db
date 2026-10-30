@@ -3,15 +3,24 @@
   "interactions": [
    {
     "partner_evidence": 80.0,
+    "partner_gene_id": 0,
     "partner_symbol": "GENE1",
     "string_score": 999,
     "weighted_score": 79.92
    },
    {
     "partner_evidence": 60.0,
+    "partner_gene_id": 1,
     "partner_symbol": "GENE2",
     "string_score": 900,
     "weighted_score": 54.0
+   },
+   {
+    "partner_evidence": 40.0,
+    "partner_gene_id": 2,
+    "partner_symbol": "GENE3",
+    "string_score": 750,
+    "weighted_score": 30.0
    }
   ],
   "ppi_degree": 3,
@@ -29,12 +38,14 @@
   "interactions": [
    {
     "partner_evidence": 80.0,
+    "partner_gene_id": 0,
     "partner_symbol": "GENE1",
     "string_score": 900,
     "weighted_score": 72.0
    },
    {
     "partner_evidence": 40.0,
+    "partner_gene_id": 2,
     "partner_symbol": "GENE3",
     "string_score": 820,
     "weighted_score": 32.8
@@ -54,16 +65,18 @@
  "2": {
   "interactions": [
    {
-    "partner_evidence": 80.0,
-    "partner_symbol": "GENE1",
-    "string_score": 750,
-    "weighted_score": 60.0
-   },
-   {
     "partner_evidence": 60.0,
+    "partner_gene_id": 1,
     "partner_symbol": "GENE2",
     "string_score": 820,
     "weighted_score": 49.2
+   },
+   {
+    "partner_evidence": 80.0,
+    "partner_gene_id": 0,
+    "partner_symbol": "GENE1",
+    "string_score": 750,
+    "weighted_score": 60.0
    }
   ],
   "ppi_degree": 2,

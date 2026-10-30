@@ -18,6 +18,8 @@ def _make_test_graph(gene_ids: list[int], edges: list[tuple[int, int]] | None = 
     g = ig.Graph()
     g.add_vertices(len(gene_ids))
     g.vs["gene_id"] = gene_ids
+    g.vs["symbol"] = [f"GENE{gid}" for gid in gene_ids]
+    g["unknown_gene_ids"] = []
 
     if edges:
         g.add_edges(edges)
@@ -276,12 +278,10 @@ class TestBuildNetworkEndpoint:
     @pytest.mark.asyncio
     async def test_build_404_when_no_genes_found(self, async_client: AsyncClient, db_session):
         """Build endpoint must return 404 when gene IDs don't match any DB records."""
-        with patch.object(
-            db_session,
-            "query",
-            return_value=MagicMock(
-                filter=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
-            ),
+        with patch(
+            "app.api.endpoints.network_analysis.network_service.build_network_from_string_data",
+            new_callable=AsyncMock,
+            return_value=_make_test_graph([]),
         ):
             resp = await async_client.post(
                 "/api/network/build",
@@ -370,9 +370,9 @@ class TestHelperFunctions:
         from app.api.endpoints.network_analysis import igraph_to_cytoscape
 
         graph = _make_test_graph([10, 20], edges=[(0, 1)])
-        symbol_map = {10: "PKD1", 20: "PKD2"}
+        graph.vs["symbol"] = ["PKD1", "PKD2"]
 
-        result = igraph_to_cytoscape(graph, symbol_map)
+        result = igraph_to_cytoscape(graph)
 
         assert "elements" in result
         elements = result["elements"]
@@ -392,10 +392,9 @@ class TestHelperFunctions:
 
         graph = _make_test_graph([10, 20], edges=[(0, 1)])
         graph.vs["cluster_id"] = [0, 1]
-        symbol_map = {10: "PKD1", 20: "PKD2"}
         colors = {0: "#ff0000", 1: "#00ff00"}
 
-        result = igraph_to_cytoscape(graph, symbol_map, cluster_colors=colors)
+        result = igraph_to_cytoscape(graph, cluster_colors=colors)
         nodes = [e for e in result["elements"] if "label" in e.get("data", {})]
 
         for node in nodes:

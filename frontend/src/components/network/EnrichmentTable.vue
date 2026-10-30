@@ -26,6 +26,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { downloadFile, fileSlug, isoDate, toCsv } from '@/utils/csv'
+import { ontologyUrl } from '@/utils/ontology'
 
 // Props
 const props = defineProps({
@@ -74,6 +76,9 @@ const selectedTerm = ref<any>(null)
 
 // Computed
 const enrichmentStats = computed(() => {
+  // Never show the previous run's count while a new one is running
+  if (props.loading) return 'Running enrichment analysis…'
+  if (props.error) return 'Enrichment analysis failed'
   if (!props.results || props.results.length === 0) {
     return 'No significant terms'
   }
@@ -100,32 +105,45 @@ const columns: ColumnDef<DataTableFeatures, any>[] = [
   {
     accessorKey: 'term_name',
     header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Term' }),
+    // CSS truncation keeps the full name in the DOM (screen readers, copy) and in the title
     cell: ({ row }) => {
       const name = row.getValue('term_name') as string
-      const id = row.original.term_id
-      return h(TooltipProvider, null, () =>
-        h(Tooltip, null, {
-          default: () => [
-            h(TooltipTrigger, { asChild: true }, () =>
-              h(
-                'span',
-                { class: 'text-sm max-w-[300px] truncate block cursor-help' },
-                truncateTerm(name)
-              )
-            ),
-            h(TooltipContent, { side: 'bottom', class: 'max-w-[400px]' }, () =>
-              h('div', null, [h('strong', null, id), h('br'), name])
-            )
-          ]
-        })
-      )
+      return h('span', { class: 'block max-w-[320px] truncate text-sm', title: name }, name)
     }
+  },
+  {
+    accessorKey: 'term_id',
+    header: 'ID',
+    cell: ({ row }) => {
+      const id = row.getValue('term_id') as string
+      const url = termUrl(id)
+      const cls = 'font-mono text-xs whitespace-nowrap'
+      return url
+        ? h(
+            'a',
+            {
+              href: url,
+              target: '_blank',
+              rel: 'noopener noreferrer',
+              class: `${cls} rounded-sm text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none`,
+              'aria-label': `${id} (opens in a new tab)`
+            },
+            id
+          )
+        : h('span', { class: `${cls} text-muted-foreground` }, id)
+    },
+    enableSorting: false,
+    size: 110
   },
   {
     accessorKey: 'p_value',
     header: ({ column }) => h(DataTableColumnHeader, { column, title: 'P-value' }),
     cell: ({ row }) =>
-      h('span', { class: 'font-mono text-sm' }, formatPValue(row.getValue('p_value') as number)),
+      h(
+        'span',
+        { class: 'font-mono text-sm tabular-nums' },
+        formatPValue(row.getValue('p_value') as number)
+      ),
     size: 100
   },
   {
@@ -150,7 +168,11 @@ const columns: ColumnDef<DataTableFeatures, any>[] = [
     accessorKey: 'odds_ratio',
     header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Odds Ratio' }),
     cell: ({ row }) =>
-      h('span', { class: 'text-sm' }, (row.getValue('odds_ratio') as number).toFixed(2)),
+      h(
+        'span',
+        { class: 'font-mono text-sm tabular-nums' },
+        (row.getValue('odds_ratio') as number).toFixed(2)
+      ),
     size: 90
   },
   {
@@ -164,6 +186,19 @@ const columns: ColumnDef<DataTableFeatures, any>[] = [
       ),
     enableSorting: false,
     size: 70
+  },
+  {
+    accessorKey: 'background_count',
+    header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Background' }),
+    cell: ({ row }) => {
+      const n = row.original.background_count
+      return h(
+        'span',
+        { class: 'text-sm tabular-nums', title: 'Background genes annotated with this term' },
+        n === null || n === undefined ? '—' : n.toLocaleString()
+      )
+    },
+    size: 90
   },
   {
     accessorKey: 'genes',
@@ -199,17 +234,16 @@ const table = useTable({
 })
 
 // Methods
-const truncateTerm = (term: string) => {
-  const maxLength = 60
-  if (term.length <= maxLength) return term
-  return term.substring(0, maxLength) + '...'
-}
+// HPO via the shared ontology helper; GO terms go to AmiGO. Other gene-set IDs stay plain text
+const termUrl = (id: string) =>
+  /^GO:\d{7}$/.test(id)
+    ? `https://amigo.geneontology.org/amigo/term/${id}`
+    : /^HP:\d{7}$/.test(id)
+      ? ontologyUrl(id)
+      : null
 
-const formatPValue = (value: number) => {
-  if (value < 0.0001) return value.toExponential(2)
-  if (value < 0.01) return value.toFixed(4)
-  return value.toFixed(3)
-}
+// p-values and FDR always in scientific notation, so columns compare at a glance
+const formatPValue = (value: number) => value.toExponential(2)
 
 const showGenes = (term: any) => {
   selectedTerm.value = term
@@ -218,8 +252,7 @@ const showGenes = (term: any) => {
 
 const exportResults = () => {
   if (!props.results || props.results.length === 0) return
-
-  const csvHeaders = [
+  const headers = [
     'Term ID',
     'Term Name',
     'P-value',
@@ -228,6 +261,7 @@ const exportResults = () => {
     'Odds Ratio',
     'Gene Count',
     'Cluster Size',
+    'Background Count',
     'Genes'
   ]
   const rows = props.results.map((r: any) => [
@@ -239,19 +273,15 @@ const exportResults = () => {
     r.odds_ratio,
     r.gene_count,
     r.cluster_size,
+    r.background_count,
     r.genes.join('; ')
   ])
-
-  const csv = [
-    csvHeaders.join(','),
-    ...rows.map((row: any[]) => row.map((cell: any) => `"${cell}"`).join(','))
-  ].join('\n')
-
-  const blob = new Blob([csv], { type: 'text/csv' })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = `enrichment_${props.enrichmentType}_${Date.now()}.csv`
-  link.click()
+  const kind = props.enrichmentType === 'go' ? fileSlug(props.geneSet) : props.enrichmentType
+  downloadFile(
+    toCsv(headers, rows),
+    `kgdb_enrichment_${kind}_${props.results.length}terms_${isoDate()}.csv`,
+    'text/csv'
+  )
 }
 </script>
 
@@ -277,7 +307,7 @@ const exportResults = () => {
                   aria-label="Export results as CSV"
                   variant="ghost"
                   size="icon-sm"
-                  :disabled="!results || results.length === 0"
+                  :disabled="loading || !results || results.length === 0"
                   @click="exportResults"
                 >
                   <Download class="h-4 w-4" />
@@ -311,12 +341,12 @@ const exportResults = () => {
     <CardContent class="py-3">
       <div class="flex flex-col sm:flex-row gap-3">
         <div class="flex-1">
-          <Label class="text-xs mb-1 block">Enrichment Type</Label>
+          <Label for="et-type" class="text-xs mb-1 block">Enrichment Type</Label>
           <Select
             :model-value="enrichmentType"
             @update:model-value="$emit('update:enrichmentType', $event)"
           >
-            <SelectTrigger aria-label="Enrichment Type">
+            <SelectTrigger id="et-type" class="w-full">
               <SelectValue placeholder="Select type..." />
             </SelectTrigger>
             <SelectContent>
@@ -328,9 +358,9 @@ const exportResults = () => {
         </div>
 
         <div v-if="enrichmentType === 'go'" class="flex-1">
-          <Label class="text-xs mb-1 block">Gene Set</Label>
+          <Label for="et-gene-set" class="text-xs mb-1 block">Gene Set</Label>
           <Select :model-value="geneSet" @update:model-value="$emit('update:geneSet', $event)">
-            <SelectTrigger aria-label="Gene Set">
+            <SelectTrigger id="et-gene-set" class="w-full">
               <SelectValue placeholder="Select gene set..." />
             </SelectTrigger>
             <SelectContent>
@@ -342,8 +372,9 @@ const exportResults = () => {
         </div>
 
         <div class="w-full sm:w-[160px]">
-          <Label class="text-xs mb-1 block">FDR Threshold</Label>
+          <Label for="et-fdr" class="text-xs mb-1 block">FDR Threshold</Label>
           <Input
+            id="et-fdr"
             type="number"
             :model-value="fdrThreshold"
             min="0.001"

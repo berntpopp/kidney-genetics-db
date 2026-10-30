@@ -55,3 +55,40 @@ describe('EnrichmentTable client-side sorting and paging', () => {
     document.body.innerHTML = ''
   })
 })
+
+describe('EnrichmentTable identifiers and status', () => {
+  const result = (term_id: string) => ({
+    term_id,
+    term_name: 'A very long term name that the table truncates with CSS only',
+    p_value: 0.00012,
+    fdr: 0.034,
+    enrichment_score: 2,
+    odds_ratio: 3,
+    gene_count: 2,
+    cluster_size: 10,
+    background_count: 40,
+    genes: ['PKD1', 'PKD2']
+  })
+
+  it('links HPO and GO term IDs and keeps the full name', () => {
+    const wrapper = mount(EnrichmentTable, {
+      props: { results: [result('HP:0000107'), result('GO:0001822'), result('KEGG_1')] }
+    })
+    const hrefs = wrapper.findAll('a').map(a => a.attributes('href'))
+    expect(hrefs).toContain('https://hpo.jax.org/browse/term/HP:0000107')
+    expect(hrefs).toContain('https://amigo.geneontology.org/amigo/term/GO:0001822')
+    expect(wrapper.text()).toContain('KEGG_1')
+    const name = wrapper.find('span[title^="A very long"]')
+    expect(name.text()).toBe(result('x').term_name)
+    expect(wrapper.text()).toContain('1.20e-4')
+    expect(wrapper.text()).toContain('3.40e-2')
+  })
+
+  it('does not show the previous count while a new run is loading', () => {
+    const wrapper = mount(EnrichmentTable, {
+      props: { results: [result('HP:0000107')], loading: true }
+    })
+    expect(wrapper.text()).toContain('Running enrichment analysis')
+    expect(wrapper.text()).not.toContain('significant term')
+  })
+})

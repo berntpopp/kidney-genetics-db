@@ -8,14 +8,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import NetworkAnalysis from '@/views/NetworkAnalysis.vue'
-import {
-  networkAnalysisConfig,
-  CLUSTER_PALETTE,
-  OTHER_CLUSTER_COLOR
-} from '@/config/networkAnalysis'
+import { networkApi } from '@/api/network'
+import { networkAnalysisConfig } from '@/config/networkAnalysis'
+import { CLUSTER_PALETTE } from '@/components/network/clusterPalette'
+import { pickClusterLabel } from '@/composables/useNetworkAnalysis'
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -63,16 +62,18 @@ vi.mock('@/api/network', () => ({
       cytoscape_json: { elements: [] }
     }),
     enrichGO: vi.fn().mockResolvedValue({ results: [], total_terms: 0 }),
-    enrichHPO: vi.fn().mockResolvedValue({ results: [], total_terms: 0 })
+    enrichHPO: vi.fn().mockResolvedValue({ results: [], total_terms: 0 }),
+    enrichHPOBatch: vi.fn().mockResolvedValue({ results: [], total_tests: 0, fdr_threshold: 0.05 })
   }
 }))
 
 // Mock composables
+const mockCopyShareableUrl = vi.hoisted(() => vi.fn())
 vi.mock('@/composables/useNetworkUrlState', () => ({
   default: () => ({
     syncStateToUrl: vi.fn(),
     restoreStateFromUrl: vi.fn().mockReturnValue(null),
-    copyShareableUrl: vi.fn(),
+    copyShareableUrl: mockCopyShareableUrl,
     isEncoding: { value: false }
   })
 }))
@@ -88,7 +89,7 @@ vi.mock('@/composables/useJsonLd', () => ({
 
 // Mock vue-sonner
 vi.mock('vue-sonner', () => ({
-  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() }
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() }
 }))
 
 // Mock breadcrumbs utility
@@ -288,17 +289,6 @@ describe('NetworkAnalysis.vue', () => {
 
       // Verify router.replace was called to clear URL params
       expect(mockRouterReplace).toHaveBeenCalledWith({ path: '/network-analysis' })
-    })
-
-    it('increments networkGraphKey to force re-creation', async () => {
-      const wrapper = mountComponent()
-      const vm = wrapper.vm as any
-
-      const initialKey = vm.networkGraphKey
-      vm.resetAll()
-      await nextTick()
-
-      expect(vm.networkGraphKey).toBe(initialKey + 1)
     })
   })
 
@@ -533,18 +523,16 @@ describe('NetworkAnalysis.vue', () => {
       return { clusters, num_clusters: 12, modularity: 0.5 }
     }
 
-    it('colours only the 7 largest clusters, each distinctly, and greys the rest', async () => {
+    it('gives the 12 largest clusters the graph palette, each distinct', async () => {
       const vm = mountComponent().vm as any
       vm.clusterStats = twelveClusters()
       vm.clusterData = { nodes: 1, edges: 0, cytoscape_json: { elements: [] } }
       await nextTick()
       const colors = vm.clusterList.map((c: any) => c.color)
-      expect(colors.slice(0, 7)).toEqual(CLUSTER_PALETTE)
-      expect(new Set(colors.slice(0, 7)).size).toBe(7)
-      expect(colors.slice(7)).toEqual(Array(5).fill(OTHER_CLUSTER_COLOR))
+      expect(colors).toEqual([...CLUSTER_PALETTE])
       // The graph gets the same colours
       expect(vm.clusterColors.get(0)).toBe(CLUSTER_PALETTE[0])
-      expect(vm.clusterColors.get(11)).toBe(OTHER_CLUSTER_COLOR)
+      expect(vm.clusterColors.get(11)).toBe(CLUSTER_PALETTE[11])
     })
 
     it('renders cluster rows as toggle buttons with aria-pressed', async () => {
@@ -642,6 +630,299 @@ describe('NetworkAnalysis.vue', () => {
       await nextTick()
       expect(wrapper.text()).toContain('Network: 434 genes · 2428 interactions')
       expect(wrapper.text()).not.toContain('458')
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // Pipeline state: stale results, races, share URL, enrichment background
+  // -------------------------------------------------------------------------
+  describe('pipeline state', () => {
+    const genes = (ids: number[]) => ids.map(id => ({ id: String(id), hgnc_id: `HGNC:${id}` }))
+    const built = (nodes: number) => ({
+      nodes,
+      edges: 3,
+      components: 1,
+      cytoscape_json: { elements: [] }
+    })
+    const clustered = (clusters: Record<string, number>, algorithm = 'leiden') => ({
+      ...built(Object.keys(clusters).length),
+      clusters,
+      num_clusters: new Set(Object.values(clusters)).size,
+      modularity: 0.5,
+      algorithm,
+      parameters: { resolution: 0.8 }
+    })
+    const deferred = <T>() => {
+      let resolve!: (_v: T) => void
+      const promise = new Promise<T>(r => (resolve = r))
+      return { promise, resolve }
+    }
+    const twoClusters = { '1': 0, '2': 0, '3': 1, '4': 1, '5': 1 }
+
+    async function buildAndCluster(vm: any, clusters: Record<string, number>) {
+      vm.filteredGenes = genes([1, 2, 3, 4, 5])
+      await vm.buildNetwork()
+      vi.mocked(networkApi.clusterNetwork).mockResolvedValueOnce(clustered(clusters) as any)
+      await vm.clusterNetwork()
+    }
+
+    it('re-clustering clears enrichment and the old cluster selection', async () => {
+      const vm = mountComponent().vm as any
+      await buildAndCluster(vm, twoClusters)
+      expect(vm.selectedClusters).toEqual([1]) // largest cluster by default
+      vm.selectedClusters = [0, 1]
+      vm.enrichmentResults = { results: [{ term_id: 'GO:1', fdr: 0.01 }], total_terms: 1 }
+      vm.enrichmentError = 'old error'
+
+      vm.clusterAlgorithm = 'walktrap'
+      vi.mocked(networkApi.clusterNetwork).mockResolvedValueOnce(
+        clustered({ '1': 7, '2': 7, '3': 7, '4': 8, '5': 8 }, 'walktrap') as any
+      )
+      await vm.clusterNetwork()
+
+      expect(vm.enrichmentResults).toBeNull()
+      expect(vm.enrichmentError).toBeNull()
+      expect(vm.enrichmentRun).toBeNull()
+      expect(vm.selectedClusters).toEqual([7])
+    })
+
+    it('ignores a superseded build response that lands last', async () => {
+      const vm = mountComponent().vm as any
+      const first = deferred<any>()
+      const second = deferred<any>()
+      vi.mocked(networkApi.buildNetwork)
+        .mockReturnValueOnce(first.promise)
+        .mockReturnValueOnce(second.promise)
+      vm.filteredGenes = genes([1, 2])
+      const run1 = vm.buildNetwork()
+      vm.filteredGenes = genes([1, 2, 3])
+      const run2 = vm.buildNetwork()
+
+      // The first request is aborted as soon as the second starts
+      const firstSignal = vi.mocked(networkApi.buildNetwork).mock.calls[0]![1]
+      expect(firstSignal.aborted).toBe(true)
+
+      second.resolve(built(3))
+      await run2
+      first.resolve(built(2))
+      await run1
+
+      expect(vm.networkData.nodes).toBe(3)
+      expect(vm.networkGenes.map((g: any) => g.id)).toEqual(['1', '2', '3'])
+      expect(vm.buildingNetwork).toBe(false)
+    })
+
+    it('share URL encodes the genes the network was built from, not a later filter', async () => {
+      const vm = mountComponent().vm as any
+      vm.filteredGenes = genes([1, 2, 3])
+      vm.minStringScore = 700
+      await vm.buildNetwork()
+      vm.filteredGenes = genes([9])
+      vm.minStringScore = 900
+
+      await vm.handleShareNetwork()
+
+      const state = mockCopyShareableUrl.mock.calls[0]![0]
+      expect(state.geneIds).toEqual([1, 2, 3])
+      expect(state.minStringScore).toBe(700)
+    })
+
+    it('uses the reference background by default and the network genes on request', async () => {
+      const slot = { template: '<div><slot /></div>' }
+      const wrapper = mountComponent({ Tabs: slot, TabsContent: slot })
+      const vm = wrapper.vm as any
+      await buildAndCluster(vm, twoClusters)
+
+      await vm.runEnrichment()
+      expect(networkApi.enrichGO).toHaveBeenLastCalledWith(
+        expect.objectContaining({ cluster_genes: [3, 4, 5], background_genes: null }),
+        expect.anything()
+      )
+      expect(wrapper.find('[data-testid="enrichment-background"]').text()).toMatch(/whole genome/)
+
+      // Switching the background re-runs against the network genes
+      vm.enrichmentBackground = 'network'
+      await flushPromises()
+      expect(networkApi.enrichGO).toHaveBeenLastCalledWith(
+        expect.objectContaining({ background_genes: [1, 2, 3, 4, 5] }),
+        expect.anything()
+      )
+
+      // Changing the type re-runs instead of showing GO results as HPO
+      vm.enrichmentType = 'hpo'
+      await flushPromises()
+      expect(networkApi.enrichHPO).toHaveBeenCalledWith(
+        expect.objectContaining({ background_genes: [1, 2, 3, 4, 5] }),
+        expect.anything()
+      )
+      expect(wrapper.find('[data-testid="enrichment-background"]').text()).toMatch(
+        /3\s+genes tested · background:\s+5\s+network genes/
+      )
+    })
+
+    it('a stricter FDR filters client-side; a looser one re-runs', async () => {
+      const vm = mountComponent().vm as any
+      await buildAndCluster(vm, twoClusters)
+      vi.mocked(networkApi.enrichGO).mockResolvedValueOnce({
+        results: [{ fdr: 0.001 }, { fdr: 0.04 }],
+        total_terms: 2
+      } as any)
+      await vm.runEnrichment()
+      vm.onFdrChange('0.01')
+      expect(vm.visibleEnrichmentTerms).toHaveLength(1)
+      expect(networkApi.enrichGO).toHaveBeenCalledTimes(1)
+      vm.onFdrChange('0.1')
+      expect(networkApi.enrichGO).toHaveBeenCalledTimes(2)
+    })
+
+    it('says how many genes the network filters hid and why', async () => {
+      const slot = { template: '<div><slot /></div>' }
+      const wrapper = mountComponent({ Card: slot, CardContent: slot })
+      const vm = wrapper.vm as any
+      vi.mocked(networkApi.buildNetwork).mockResolvedValueOnce(built(4) as any)
+      vm.filteredGenes = genes([1, 2, 3, 4, 5, 6])
+      await vm.buildNetwork()
+      await nextTick()
+
+      const note = wrapper.find('[data-testid="hidden-genes-note"]')
+      expect(note.text()).toMatch(/2\s+of\s+6\s+genes hidden: fewer than 2 interactions/)
+      await note.find('button').trigger('click')
+      expect(vm.showAdvanced).toBe(true)
+    })
+
+    it('rejects an empty Max Genes instead of fetching zero genes', async () => {
+      const vm = mountComponent().vm as any
+      vm.maxGenes = ''
+      await vm.fetchFilteredGenes()
+      expect(vm.maxGenes).toBe(networkAnalysisConfig.geneSelection.defaultMaxGenes)
+    })
+  })
+
+  describe('functional cluster labels', () => {
+    const term = (o: Record<string, unknown>) => ({
+      term_id: 'HP:1',
+      term_name: 'Term',
+      p_value: 1e-3,
+      fdr: 0.01,
+      gene_count: 3,
+      cluster_size: 10,
+      background_count: 30,
+      genes: [],
+      enrichment_score: 3,
+      odds_ratio: 10,
+      ...o
+    })
+    // A broad ancestor: every cluster gene carries it, so p is lowest and the odds ratio is capped
+    const broad = term({
+      term_id: 'HP:0000077',
+      term_name: 'Abnormality of the kidney',
+      p_value: 1e-12,
+      fdr: 1e-10,
+      gene_count: 10,
+      background_count: 1500,
+      odds_ratio: 1000
+    })
+    const cyst = term({
+      term_id: 'HP:0000107',
+      term_name: 'Renal cyst',
+      gene_count: 6,
+      background_count: 12
+    })
+
+    it('picks the lowest-p term that is neither broad nor niche', () => {
+      // broad (1500 of 1500 genes) is excluded by the 10% term-size cap despite the lowest p
+      expect(pickClusterLabel([broad, cyst], 0, 1500)?.term_name).toBe('Renal cyst')
+      const strong = term({ term_name: 'Strong', p_value: 1e-9, background_count: 100 })
+      expect(pickClusterLabel([cyst, strong], 0, 1500)?.term_name).toBe('Strong')
+      // without a universe there is no size cap
+      expect(pickClusterLabel([broad, cyst])).toBe(broad)
+      // a term already naming a larger cluster is skipped
+      expect(pickClusterLabel([strong, cyst], 0, 1500, new Set(['HP:1']))?.term_name).toBe(
+        'Renal cyst'
+      )
+    })
+
+    it('requires FDR < 0.05, enough cluster genes and a resolved name', () => {
+      expect(pickClusterLabel([term({ fdr: 0.05 })])).toBeNull()
+      // A 3-gene term cannot name a 60-gene cluster (needs >= 6 genes = 10%)
+      const niche = term({ term_name: 'Niche', gene_count: 3, background_count: 3 })
+      expect(pickClusterLabel([niche], 60)).toBeNull()
+      expect(pickClusterLabel([niche], 20)).toBe(niche)
+      expect(pickClusterLabel([term({ gene_count: 2 })])).toBeNull()
+      expect(pickClusterLabel([term({ term_name: 'HP:1' })])).toBeNull()
+    })
+
+    // cluster 0: genes 1-4; cluster 1: genes 5-7; cluster 2: gene 8 (too small to label)
+    const clusters = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1, '7': 1, '8': 2 }
+    const clusterResponse = {
+      nodes: 8,
+      edges: 3,
+      components: 1,
+      cytoscape_json: { elements: [] },
+      clusters,
+      num_clusters: 3,
+      modularity: 0.5,
+      algorithm: 'leiden',
+      parameters: {}
+    }
+    async function cluster(vm: any) {
+      vm.filteredGenes = [1, 2, 3, 4, 5, 6, 7, 8].map(id => ({ id: String(id) }))
+      await vm.buildNetwork()
+      vi.mocked(networkApi.clusterNetwork).mockResolvedValueOnce(clusterResponse as any)
+      return vm.clusterNetwork()
+    }
+
+    it('labels clusters of >= 3 genes in one pooled batch call after clustering', async () => {
+      vi.mocked(networkApi.enrichHPOBatch).mockResolvedValueOnce({
+        results: [[broad, cyst], [broad]],
+        total_tests: 3,
+        fdr_threshold: 0.05
+      })
+      const vm = mountComponent().vm as any
+      await cluster(vm)
+      await flushPromises()
+
+      const [params] = vi.mocked(networkApi.enrichHPOBatch).mock.calls[0]!
+      expect(params.communities).toEqual([
+        [1, 2, 3, 4],
+        [5, 6, 7]
+      ])
+      expect(params.background_genes).toBeUndefined() // reference background
+      expect(vm.clusterLabels.get(0)).toBe('Renal cyst')
+      // only the broad root term: too unspecific to name the cluster
+      expect(vm.clusterLabels.has(1)).toBe(false)
+      expect(vm.clusterList.map((c: any) => c.title)).toEqual([
+        'Cluster 1 · Renal cyst',
+        'Cluster 2',
+        'Cluster 3'
+      ])
+    })
+
+    it('keeps numbered clusters when labelling fails', async () => {
+      vi.mocked(networkApi.enrichHPOBatch).mockRejectedValueOnce(new Error('boom'))
+      const vm = mountComponent().vm as any
+      await cluster(vm)
+      await flushPromises()
+      expect(vm.clusterLabels.size).toBe(0)
+      expect(vm.clusterList[0].title).toBe('Cluster 1')
+      expect(vm.networkError).toBeNull()
+    })
+
+    it('ignores a labelling response that lands after a new clustering', async () => {
+      let resolveStale!: (_v: any) => void
+      vi.mocked(networkApi.enrichHPOBatch)
+        .mockReturnValueOnce(new Promise(r => (resolveStale = r)))
+        .mockResolvedValueOnce({ results: [[cyst], [broad]], total_tests: 2, fdr_threshold: 0.05 })
+      const vm = mountComponent().vm as any
+      await cluster(vm)
+      const staleSignal = vi.mocked(networkApi.enrichHPOBatch).mock.calls[0]![1]!
+      vi.mocked(networkApi.clusterNetwork).mockResolvedValueOnce(clusterResponse as any)
+      await vm.clusterNetwork()
+      expect(staleSignal.aborted).toBe(true)
+      await flushPromises()
+      resolveStale({ results: [[broad], [broad]], total_tests: 2, fdr_threshold: 0.05 })
+      await flushPromises()
+      expect([...vm.clusterLabels]).toEqual([[0, 'Renal cyst']])
     })
   })
 })

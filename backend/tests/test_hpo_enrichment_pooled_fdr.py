@@ -198,3 +198,20 @@ async def test_batch_endpoint_returns_results_per_community(async_client: AsyncC
 
     bad = await async_client.post("/api/network/enrich/hpo/batch", json={"communities": [[]]})
     assert bad.status_code in (400, 422)  # app maps validation errors to 400
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_term_names_come_from_loaded_ontology_without_http():
+    service = EnrichmentService()
+    service._get_hpo_annotations = AsyncMock(return_value=ANNOTATIONS)  # type: ignore[method-assign]
+    service.hpo_client.get_term = AsyncMock(return_value=None)  # type: ignore[method-assign]
+    service._term_names = {t: f"name of {t}" for genes in [ANNOTATIONS] for t in genes}
+
+    per_community, _, _ = await service.enrich_hpo_terms_batch(
+        [list(ids) for ids in COMMUNITIES], _session(), fdr_threshold=0.5
+    )
+
+    results = [r for rs in per_community for r in rs]
+    assert results and all(r["term_name"] == f"name of {r['term_id']}" for r in results)
+    service.hpo_client.get_term.assert_not_awaited()
