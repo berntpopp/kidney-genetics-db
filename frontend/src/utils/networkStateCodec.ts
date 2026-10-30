@@ -124,7 +124,9 @@ function encodeNetworkStateV1(state: NetworkState): QueryParams {
     params.tiers = state.selectedTiers.join(',')
   }
 
-  if (state.minScore !== undefined && state.minScore !== 0) {
+  // minScore/minDegree/minCluster are always written: their UI defaults (20/2/3) differ from
+  // the legacy "absent" meaning (0/0/1), so omitting them would not round-trip
+  if (state.minScore !== undefined) {
     params.minScore = state.minScore.toString()
   }
 
@@ -146,11 +148,11 @@ function encodeNetworkStateV1(state: NetworkState): QueryParams {
     params.isolated = '1'
   }
 
-  if (state.minDegree !== undefined && state.minDegree !== 0) {
+  if (state.minDegree !== undefined) {
     params.minDegree = state.minDegree.toString()
   }
 
-  if (state.minClusterSize !== undefined && state.minClusterSize !== 1) {
+  if (state.minClusterSize !== undefined) {
     params.minCluster = state.minClusterSize.toString()
   }
 
@@ -200,16 +202,58 @@ export function decodeNetworkState(query: QueryParams): NetworkState {
   const version = parseInt(query['v'] ?? '1') || 1
 
   if (version === 2) {
-    return decodeNetworkStateV2(query)
+    return sanitizeNetworkState(decodeNetworkStateV2(query))
   } else if (version === 1) {
-    return decodeNetworkStateV1(query)
+    return sanitizeNetworkState(decodeNetworkStateV1(query))
   } else {
     if (window.logService) {
       // Fix (Rule 1 - Bug): was logService.warning() which does not exist; correct method is warn()
       window.logService.warn(`[NetworkStateCodec] Unsupported schema version: ${version}, using v1`)
     }
-    return decodeNetworkStateV1(query)
+    return sanitizeNetworkState(decodeNetworkStateV1(query))
   }
+}
+
+const isNumber = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v)
+const isBoolean = (v: unknown): boolean => typeof v === 'boolean'
+const isIntList = (v: unknown): boolean => Array.isArray(v) && v.every(n => Number.isInteger(n))
+const oneOf =
+  (...allowed: string[]) =>
+  (v: unknown): boolean =>
+    typeof v === 'string' && allowed.includes(v)
+
+/** Accepted type per field; URL state is untrusted, so anything else is dropped */
+const STATE_FIELDS: Record<string, (_v: unknown) => boolean> = {
+  geneIds: v => isIntList(v) && (v as number[]).every(n => n > 0),
+  selectedTiers: v => Array.isArray(v) && v.every(t => typeof t === 'string'),
+  minScore: isNumber,
+  maxGenes: isNumber,
+  minStringScore: isNumber,
+  clusterAlgorithm: oneOf('leiden', 'louvain', 'walktrap'),
+  removeIsolated: isBoolean,
+  minDegree: isNumber,
+  minClusterSize: isNumber,
+  largestComponentOnly: isBoolean,
+  nodeColorMode: oneOf('cluster', 'clinical_group', 'onset_group', 'syndromic'),
+  enrichmentType: oneOf('go', 'hpo'),
+  fdrThreshold: isNumber,
+  selectedClusters: isIntList,
+  highlightedCluster: v => v === null || isNumber(v),
+  isClustered: isBoolean
+}
+
+/**
+ * Keep only known fields with the expected type. Invalid fields are dropped (the view then
+ * uses its defaults); a non-object payload yields an empty state, which fails validation.
+ */
+export function sanitizeNetworkState(raw: unknown): NetworkState {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const state: NetworkState = {}
+  for (const [key, isValid] of Object.entries(STATE_FIELDS)) {
+    const value = (raw as Record<string, unknown>)[key]
+    if (value !== undefined && isValid(value)) state[key] = value
+  }
+  return state
 }
 
 /**
@@ -225,6 +269,9 @@ function decodeNetworkStateV2(query: QueryParams): NetworkState {
     }
 
     const state = decompressState(query.c!) as NetworkState
+    if (!state || typeof state !== 'object' || Array.isArray(state)) {
+      throw new Error('Compressed state is not an object')
+    }
 
     if (window.logService) {
       window.logService.info('[NetworkStateCodec] Decoded from v2 (compressed)', {
@@ -232,8 +279,7 @@ function decodeNetworkStateV2(query: QueryParams): NetworkState {
         geneCount: state.geneIds?.length ?? 0,
         maxGenes: state.maxGenes,
         minClusterSize: state.minClusterSize,
-        isClustered: state.isClustered,
-        firstFiveGeneIds: state.geneIds?.slice(0, 5)
+        isClustered: state.isClustered
       })
     }
 
@@ -269,9 +315,8 @@ function decodeNetworkStateV1(query: QueryParams): NetworkState {
     state.selectedTiers = query.tiers.split(',')
   }
 
-  if (query.minScore) {
-    state.minScore = parseInt(query.minScore, 10) || 0
-  }
+  // Legacy v1 links omitted these when 0/0/1; absence keeps that meaning
+  state.minScore = parseInt(query.minScore ?? '', 10) || 0
 
   if (query.maxGenes) {
     state.maxGenes = parseInt(query.maxGenes, 10) || 200
@@ -289,13 +334,8 @@ function decodeNetworkStateV1(query: QueryParams): NetworkState {
   // Network filtering
   state.removeIsolated = query.isolated === '1'
 
-  if (query.minDegree) {
-    state.minDegree = parseInt(query.minDegree, 10) || 0
-  }
-
-  if (query.minCluster) {
-    state.minClusterSize = parseInt(query.minCluster, 10) || 1
-  }
+  state.minDegree = parseInt(query.minDegree ?? '', 10) || 0
+  state.minClusterSize = parseInt(query.minCluster ?? '', 10) || 1
 
   state.largestComponentOnly = query.largestComp === '1'
 
@@ -352,5 +392,6 @@ export function validateNetworkState(state: NetworkState): NetworkStateValidatio
 export default {
   encodeNetworkState,
   decodeNetworkState,
-  validateNetworkState
+  validateNetworkState,
+  sanitizeNetworkState
 }
