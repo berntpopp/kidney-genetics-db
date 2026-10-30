@@ -27,7 +27,7 @@ const linkClass =
     class="whitespace-normal [overflow-wrap:anywhere] space-y-2 text-xs"
     aria-label="Diagnostics and resources"
   >
-    <h3 class="text-sm font-medium">Diagnostics &amp; resources</h3>
+    <p class="text-sm font-medium">Diagnostics &amp; resources</p>
 
     <Alert v-if="warn" class="py-2">
       <AlertTriangle aria-hidden="true" />

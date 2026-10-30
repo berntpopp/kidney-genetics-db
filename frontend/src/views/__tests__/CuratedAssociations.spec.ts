@@ -64,7 +64,7 @@ async function mountAs(role: 'curator' | 'public' | null) {
 
 const labels = (w: Awaited<ReturnType<typeof mountAs>>, id: number) =>
   w
-    .find(`[data-testid="wf-${id}"]`)
+    .find(`[data-testid="wf-${id}"] [data-testid="wf-actions"]`)
     .findAll('button')
     .map(b => b.text())
 
@@ -95,7 +95,7 @@ describe('CuratedAssociations', () => {
   it('publishes through the store', async () => {
     api.transition.mockResolvedValue(RECORDS[2]!)
     const w = await mountAs('curator')
-    await w.find('[data-testid="wf-3"]').findAll('button')[0]!.trigger('click')
+    await w.find('[data-testid="wf-3"] [data-testid="wf-actions"] button').trigger('click')
     await flushPromises()
     expect(api.transition).toHaveBeenCalledWith(RECORDS[2], 'publish')
   })
@@ -120,7 +120,7 @@ describe('CuratedAssociations', () => {
     })
     const w = await mountAs('curator')
     api.listWorkflow.mockClear()
-    await w.find('[data-testid="wf-3"]').findAll('button')[0]!.trigger('click')
+    await w.find('[data-testid="wf-3"] [data-testid="wf-actions"] button').trigger('click')
     await flushPromises()
     expect(api.listWorkflow).toHaveBeenCalled()
     expect(w.find('[role="alert"]').text()).toContain('changed since you loaded it')
@@ -156,16 +156,23 @@ describe('CuratedAssociations', () => {
     const w = await mountAs('curator')
     const row = w.find('[data-testid="wf-3"]')
     expect(row.text()).toContain('Gene Curator import')
-    expect(row.text()).toContain('Autosomal dominant inheritance')
-    expect(row.find('a[href="https://example.org/c/7"]').exists()).toBe(true)
+    expect(row.find('[data-testid="moi"]').text()).toContain('AD')
+    expect(row.find('[data-testid="moi"]').text()).toContain('Autosomal dominant inheritance')
+    // Provenance sits behind the row's Details toggle
+    const toggle = row.findAll('button').find(b => b.text().includes('Details'))!
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    await toggle.trigger('click')
+    const details = w.find('[data-testid="wf-3-details"]')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    expect(details.find('a[href="https://example.org/c/7"]').exists()).toBe(true)
   })
 
   it('lets long evidence and disease cells wrap instead of widening the table', async () => {
     // TableCell defaults to whitespace-nowrap; long diagnostics pushed Actions off-screen
     const w = await mountAs('curator')
     const cells = w.find('[data-testid="wf-3"]').findAll('td')
-    // MOI, Evidence, Status, Updated, Actions (gene and disease are in the pair header)
-    for (const i of [0, 1]) expect(cells[i]!.classes()).toContain('whitespace-normal')
+    // MOI, Classification, Evidence, Status, Actions (gene and disease are in the pair header)
+    expect(cells[2]!.classes()).toContain('whitespace-normal')
     expect(cells[4]!.classes()).not.toContain('whitespace-nowrap')
   })
 
@@ -192,10 +199,11 @@ describe('CuratedAssociations', () => {
     expect(headers[0]!.text()).toContain('PKD1')
     expect(headers[0]!.text()).toContain('autosomal dominant polycystic kidney disease')
     const rows = table.findAll('[data-testid="gda-row"]')
-    expect(rows.map(r => r.find('td').text())).toEqual([
-      'Autosomal dominant inheritance',
-      'Autosomal recessive inheritance'
+    expect(rows.map(r => r.find('[data-testid="moi"] [aria-hidden="true"]').text())).toEqual([
+      'AD',
+      'AR'
     ])
+    expect(headers[0]!.text()).toContain('2 records')
   })
 
   it('says when a list is truncated at the server maximum', async () => {

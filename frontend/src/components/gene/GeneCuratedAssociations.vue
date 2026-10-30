@@ -19,6 +19,7 @@
             <div class="flex flex-wrap items-center gap-2">
               <Chip v-if="group.type === 'mendelian'" :classification="r.evidence_strength" />
               <Chip v-else kind="neutral" :label="r.evidence_strength" />
+              <MoiChip :moi="r.moi" />
               <OntologyTerm
                 :id="r.disease_id"
                 :name="r.disease_name"
@@ -28,12 +29,10 @@
             <p v-if="r.evidence_summary" class="text-muted-foreground [overflow-wrap:anywhere]">
               {{ r.evidence_summary }}
             </p>
-            <AssociationProvenance :record="r" />
+            <AssociationProvenance :record="r" :show-moi="false" />
             <p class="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
               <OntologyTerm v-for="c in r.citations" :id="c" :key="c" source="PubMed" />
-              <span v-if="r.published_at">
-                Published {{ new Date(r.published_at).toLocaleDateString() }}</span
-              >
+              <span v-if="r.published_at"> Published {{ r.published_at.slice(0, 10) }}</span>
             </p>
             <AssociationDiagnostics :diagnostics="r.diagnostics" />
           </li>
@@ -61,6 +60,7 @@ import {
 } from '@/api/curation'
 import AssociationDiagnostics from '@/components/curation/AssociationDiagnostics.vue'
 import AssociationProvenance from '@/components/curation/AssociationProvenance.vue'
+import MoiChip from '@/components/curation/MoiChip.vue'
 import { Chip, OntologyTerm } from '@/components/shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 

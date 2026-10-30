@@ -46,6 +46,24 @@ export const MOI_TERMS: Record<string, string> = {
   'HP:0001426': 'Non-Mendelian inheritance'
 }
 
+/** Conventional short forms for the MOI chip (full HPO label in the tooltip) */
+export const MOI_ABBREVIATIONS: Record<string, string> = {
+  'HP:0000006': 'AD',
+  'HP:0000007': 'AR',
+  'HP:0001417': 'XL',
+  'HP:0001419': 'XLR',
+  'HP:0001423': 'XLD',
+  'HP:0032113': 'SD',
+  'HP:0001427': 'MT',
+  'HP:0001450': 'YL',
+  'HP:0010984': 'DG',
+  'HP:0001426': 'NM'
+}
+
+/** A negative short-read result does not exclude a variant in this gene (issue 439) */
+export const hasShortReadLimit = (d: Diagnostics | null | undefined): boolean =>
+  !!d?.detectability?.some(x => x.negative_report_does_not_exclude)
+
 export type AssociationSource = 'kgdb' | 'gene_curator'
 export const MANE_STATUSES = ['select', 'plus_clinical', 'none', 'not_checked'] as const
 export const RESOURCE_TYPES = [
