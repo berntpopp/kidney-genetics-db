@@ -147,3 +147,15 @@ async def test_go_background_is_sent_to_enrichr_with_request_timeout():
     assert kwargs["background"] == ["G1", "G3", "G4"]
     assert enrichr.return_value._session.request.keywords == {"timeout": (10, 30)}
     enrichr.return_value.run.assert_called_once()
+
+
+@pytest.mark.unit
+def test_split_enrichr_term_extracts_go_id():
+    from app.services.enrichment_service import split_enrichr_term
+
+    assert split_enrichr_term("Podocyte Development (GO:0072015)") == (
+        "GO:0072015",
+        "Podocyte Development",
+    )
+    # KEGG-style terms carry no ID
+    assert split_enrichr_term("Renin secretion") == ("Renin secretion", "Renin secretion")

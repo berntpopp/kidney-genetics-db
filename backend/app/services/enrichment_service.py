@@ -13,6 +13,7 @@ CRITICAL DESIGN PATTERNS:
 
 import asyncio
 import functools
+import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -51,6 +52,16 @@ try:
 except ImportError:
     GSEAPY_AVAILABLE = False
     logger.sync_warning("GSEApy not available - GO/KEGG enrichment disabled")
+
+
+_ENRICHR_GO_TERM = re.compile(r"^(?P<name>.+) \((?P<id>GO:\d{7})\)$")
+
+
+def split_enrichr_term(term: str) -> tuple[str, str]:
+    """Enrichr GO terms read "Name (GO:0000000)"; return (id, name). Other libraries
+    (e.g. KEGG) carry no ID, so the term doubles as its ID."""
+    match = _ENRICHR_GO_TERM.match(term)
+    return (match["id"], match["name"]) if match else (term, term)
 
 
 class EnrichmentService:
@@ -408,6 +419,7 @@ class EnrichmentService:
                 continue
 
             gene_list = row["Genes"].split(";") if isinstance(row["Genes"], str) else []
+            term_id, term_name = split_enrichr_term(row["Term"])
 
             # Cap infinite values for JSON serialization
             odds_ratio = float(row.get("Odds Ratio", 0))
@@ -420,8 +432,8 @@ class EnrichmentService:
 
             results.append(
                 {
-                    "term_id": row["Term"],
-                    "term_name": row["Term"],  # GSEApy uses same for both
+                    "term_id": term_id,
+                    "term_name": term_name,
                     "p_value": float(row["P-value"]),
                     "fdr": float(row["Adjusted P-value"]),
                     "gene_count": len(gene_list),
