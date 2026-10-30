@@ -1,0 +1,33 @@
+{
+  "total_cap": 18,
+  "sections": [
+    {
+      "key": "genetic",
+      "cap": 12,
+      "categories": [
+        {"key": "probands", "cap": 10, "types": [{"path": "probands", "default": 1}]},
+        {"key": "segregation", "cap": 3, "types": [{"path": "segregation", "default": 1}]},
+        {"key": "cohort", "cap": 4, "types": [{"path": "cohort", "default": 2}]}
+      ]
+    },
+    {
+      "key": "experimental",
+      "cap": 6,
+      "categories": [
+        {"key": "models", "cap": 4, "types": [{"path": "models", "default": 2}]},
+        {"key": "functional", "cap": 2, "types": [{"path": "functional", "default": 1}]}
+      ]
+    }
+  ],
+  "overrides": [
+    {"when": "contradictory_evidence", "field": "impact", "in": ["refuted"], "class": "refuted"},
+    {"when": "contradictory_evidence", "field": "impact", "in": ["disputed"], "class": "disputed"}
+  ],
+  "bands": [
+    {"class": "definitive", "min": 12, "requires": "replicated_over_time"},
+    {"class": "strong", "min": 12},
+    {"class": "moderate", "min": 7},
+    {"class": "limited", "min": 0.1},
+    {"class": "no_known", "min": 0}
+  ]
+}
