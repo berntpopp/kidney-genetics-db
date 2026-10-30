@@ -44,6 +44,7 @@ async def test_leiden_parameters_are_echoed():
         "resolution": service.config["leiden_resolution"],
         "iterations": service.config["leiden_iterations"],
         "seed": 11,
+        "modularity_resolution": service.config["leiden_resolution"],
     }
 
 
