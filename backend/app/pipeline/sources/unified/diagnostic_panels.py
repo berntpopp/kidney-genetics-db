@@ -7,7 +7,8 @@ diagnostic panel data and properly aggregates evidence across multiple providers
 
 import asyncio
 import json
-from collections import defaultdict
+import re
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
@@ -165,6 +166,12 @@ class DiagnosticPanelsSource(UnifiedDataSource):
 
         # Handle different JSON structures
         if isinstance(data, dict):
+            if "providers" in data and "genes" not in data:
+                # The literal "any list" fallback below would read the provider list as genes
+                raise ValueError(
+                    "Batch files with a 'providers' list are not supported; "
+                    "upload one provider file at a time"
+                )
             # Scraper output format
             if "genes" in data:
                 gene_list = data["genes"]
@@ -212,8 +219,13 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             has_provider=("provider" in df.columns),
         )
 
-        gene_data: dict[str, dict[str, set[str]]] = defaultdict(
-            lambda: {"panels": set(), "providers": set(), "hgnc_ids": set()}
+        gene_data: dict[str, dict[str, Any]] = defaultdict(
+            lambda: {
+                "panels": set(),
+                "providers": set(),
+                "hgnc_ids": set(),
+                "provider_panels": defaultdict(set),
+            }
         )
 
         for idx, row in df.iterrows():
@@ -235,12 +247,14 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                     provider_val = row["provider"]
                     if provider_val is not None and not isinstance(provider_val, list | dict):
                         gene_data[symbol]["providers"].add(str(provider_val))
+                        gene_data[symbol]["provider_panels"][str(provider_val)].update(panels)
 
                 # Track HGNC ID if available - check for scalar value
                 if "hgnc_id" in row.index:
                     hgnc_val = row["hgnc_id"]
                     if hgnc_val is not None and not isinstance(hgnc_val, list | dict):
-                        gene_data[symbol]["hgnc_ids"].add(str(hgnc_val))
+                        if pd.notna(hgnc_val):  # an empty CSV cell is NaN, not an ID
+                            gene_data[symbol]["hgnc_ids"].add(str(hgnc_val))
 
             except Exception as e:
                 logger.sync_warning("Error processing row", row_index=idx, error_detail=str(e))
@@ -255,6 +269,10 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 "panel_count": len(data["panels"]),
                 "provider_count": len(data["providers"]),
                 "hgnc_ids": sorted(data["hgnc_ids"]),  # Keep for reference
+                "provider_panels": {
+                    provider: sorted(panels)
+                    for provider, panels in sorted(data["provider_panels"].items())
+                },
             }
 
         total_panels = 0
@@ -311,7 +329,68 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                     return value
         return None
 
-    def _get_source_detail(self, evidence_data: dict[str, Any]) -> str:
+    @staticmethod
+    def merge_provider_panels(data: dict[str, Any], changes: dict[str, Any]) -> dict[str, Any]:
+        """Add panels to ({provider: panels}) or remove (None) providers, then recount.
+
+        panels, providers and their counts are derived from provider_panels. A legacy row
+        (no provider_panels) keeps its unattributed panels while an unattributed provider
+        remains; with exactly one such provider the panels are certainly its own.
+        """
+        per_provider = {k: set(v) for k, v in (data.get("provider_panels") or {}).items()}
+        legacy = set(data.get("providers") or []) - set(per_provider)
+        legacy_panels = set(data.get("panels") or []).difference(*per_provider.values())
+        if len(legacy) == 1:
+            per_provider[legacy.pop()] = legacy_panels
+        for provider, panels in changes.items():
+            legacy.discard(provider)
+            if panels is None:
+                per_provider.pop(provider, None)
+            else:
+                per_provider[provider] = per_provider.get(provider, set()) | set(panels)
+        panels = set().union(*per_provider.values()) | (legacy_panels if legacy else set())
+        providers = sorted(set(per_provider) | legacy)
+        return {
+            **data,
+            "provider_panels": {k: sorted(v) for k, v in sorted(per_provider.items())},
+            "panels": sorted(panels),
+            "providers": providers,
+            "panel_count": len(panels),
+            "provider_count": len(providers),
+        }
+
+    @staticmethod
+    def upload_provenance(
+        doc: Any, provider_name: str, gene_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Per-upload provenance from the scraper JSON's top-level fields.
+
+        Without sub_panels the panels are the distinct panel names of the uploaded genes.
+        """
+        doc = doc if isinstance(doc, dict) else {}
+        meta = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+        sub_panels = doc.get("sub_panels")
+        if isinstance(sub_panels, list) and sub_panels:
+            panels = [
+                {"name": p.get("name"), "url": p.get("url"), "gene_count": p.get("gene_count")}
+                for p in sub_panels
+                if isinstance(p, dict) and p.get("name")
+            ]
+        else:
+            counts = Counter(p for d in gene_data.values() for p in d.get("panels", []))
+            panels = [
+                {"name": name, "url": None, "gene_count": n} for name, n in sorted(counts.items())
+            ]
+        return {
+            "provider_name": provider_name,
+            "main_url": doc.get("main_url"),
+            "scraped_at": doc.get("scraped_at"),
+            "scraper_version": meta.get("scraper_version"),
+            "panels": panels,
+        }
+
+    @staticmethod
+    def _get_source_detail(evidence_data: dict[str, Any]) -> str:
         """Generate source detail string for diagnostic panels evidence."""
         panel_count = evidence_data.get("panel_count", 0)
         provider_count = evidence_data.get("provider_count", 0)
@@ -335,6 +414,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         uploaded_by: int | None = None,
         mode: str = "merge",
         gene_ids: dict[str, int] | None = None,
+        upload_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Store evidence with MERGE semantics and filtering for diagnostic panels."""
 
@@ -370,7 +450,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                     original_filename=original_filename,
                     upload_status="processing",
                     uploaded_by=uploaded_by,
-                    upload_metadata={"mode": mode},
+                    upload_metadata={"mode": mode, **(upload_metadata or {})},
                 )
                 db.add(upload_record)
                 db.flush()  # Get upload.id
@@ -444,64 +524,19 @@ class DiagnosticPanelsSource(UnifiedDataSource):
 
             # Two source symbols can resolve to one gene: merge onto the earlier one (#366)
             prev = merged_gene_data.get(gene_id)
-            if prev or gene_id in existing_map:
-                # MERGE: Prepare merged data
-                record = prev["record"] if prev else existing_map[gene_id]
-                current_data = prev["data"] if prev else (record.evidence_data or {})
-
-                # Merge panels and providers
-                existing_panels = set(current_data.get("panels", []))
-                new_panels = set(data["panels"])
-                merged_panels = sorted(existing_panels | new_panels)
-
-                existing_providers = set(current_data.get("providers", []))
-                new_providers = set(gene_providers)
-                merged_providers = sorted(existing_providers | new_providers)
-
-                existing_hgnc = set(current_data.get("hgnc_ids", []))
-                new_hgnc = set(data.get("hgnc_ids", []))
-                merged_hgnc = sorted(existing_hgnc | new_hgnc)
-
-                merged_data = {
-                    "panels": merged_panels,
-                    "providers": merged_providers,
-                    "hgnc_ids": merged_hgnc,
-                    "panel_count": len(merged_panels),
-                    "provider_count": len(merged_providers),
-                }
-
-                merged_gene_data[gene_id] = {
-                    "gene_id": gene_id,
-                    "data": merged_data,
-                    "record": record,
-                    "is_new": prev["is_new"] if prev else False,
-                }
-
-                logger.sync_debug(
-                    "Merged existing gene",
-                    symbol=symbol,
-                    old_panels=len(existing_panels),
-                    new_panels=len(new_panels),
-                    total_panels=len(merged_panels),
-                )
-            else:
-                # NEW: Prepare new data
-                new_data = {
-                    "panels": data["panels"],
-                    "providers": gene_providers,
-                    "hgnc_ids": data.get("hgnc_ids", []),
-                    "panel_count": data["panel_count"],
-                    "provider_count": len(gene_providers),
-                }
-
-                merged_gene_data[gene_id] = {
-                    "gene_id": gene_id,
-                    "data": new_data,
-                    "record": None,
-                    "is_new": True,
-                }
-
-                logger.sync_debug("Added new gene", symbol=symbol, panel_count=data["panel_count"])
+            record = prev["record"] if prev else existing_map.get(gene_id)
+            current_data = prev["data"] if prev else (record.evidence_data if record else {})
+            changes = data.get("provider_panels") or dict.fromkeys(gene_providers, data["panels"])
+            merged_data = self.merge_provider_panels(current_data or {}, changes)
+            merged_data["hgnc_ids"] = sorted(
+                set(merged_data.get("hgnc_ids") or []) | set(data.get("hgnc_ids") or [])
+            )
+            merged_gene_data[gene_id] = {
+                "gene_id": gene_id,
+                "data": merged_data,
+                "record": record,
+                "is_new": prev["is_new"] if prev else record is None,
+            }
 
         logger.sync_info(
             "Memory merge complete",
@@ -634,15 +669,15 @@ class DiagnosticPanelsSource(UnifiedDataSource):
 
             # Handle different panel data formats
             if isinstance(panel_data, str):
-                # Single panel or comma-separated
-                panels.update(p.strip() for p in panel_data.split(",") if p.strip())
+                # Panel names contain commas ("Alport syndrome, TBMN"): split on ; or | only
+                panels.update(p.strip() for p in re.split(r"[;|]", panel_data) if p.strip())
             elif isinstance(panel_data, list):
                 panels.update(str(p).strip() for p in panel_data if p)
             elif pd.notna(panel_data):  # Check for non-null scalar values
                 panels.add(str(panel_data).strip())
 
         # Also check for panel_name field
-        if "panel_name" in row.index and row["panel_name"] is not None:
+        if "panel_name" in row.index and pd.notna(row["panel_name"]):
             panels.add(str(row["panel_name"]).strip())
 
         return panels

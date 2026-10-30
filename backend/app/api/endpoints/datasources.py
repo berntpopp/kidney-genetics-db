@@ -400,6 +400,15 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     )
 
 
+@router.get("/DiagnosticPanels/providers")
+async def get_diagnostic_panel_providers(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Scraper provenance (URLs, scrape date, panels) for each diagnostic panel provider."""
+    from app.services.hybrid_source_manager import list_diagnostic_panel_providers
+
+    providers = list_diagnostic_panel_providers(db)
+    return ResponseBuilder.build_success_response(data=providers, meta={"count": len(providers)})
+
+
 @router.get("/{source_name}")
 async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """

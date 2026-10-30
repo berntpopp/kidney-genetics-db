@@ -6,7 +6,9 @@ loads seed data from backend/app/data/seed/. Mirrors the ingestion endpoint:
 parse all files → merge into one dataset → normalize/create genes → store evidence.
 """
 
+import hashlib
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -86,6 +88,8 @@ async def _seed_source(db: Session, source_name: str, config: dict[str, Any]) ->
     # Step 1: Parse all files and merge processed data across files
     all_processed: dict[str, Any] = {}
     files_loaded = 0
+    # DiagnosticPanels files are stored one by one, like uploads (provenance per provider)
+    dp_files: list[tuple[Path, bytes, Any, str, dict[str, Any]]] = []
 
     for json_file in json_files:
         try:
@@ -99,28 +103,18 @@ async def _seed_source(db: Session, source_name: str, config: dict[str, Any]) ->
             if not processed:
                 continue
 
+            if source_name == "DiagnosticPanels":
+                dp_files.append((json_file, file_content, file_data, identifier, processed))
+
             # Merge this file's processed data into the combined dataset
             # Each file's process_data returns {symbol: {...}} — we need to
-            # merge panels/providers or publications across files
+            # merge publications across files (DiagnosticPanels only needs the symbols)
             for symbol, data in processed.items():
                 if symbol not in all_processed:
                     all_processed[symbol] = data
                 else:
                     existing = all_processed[symbol]
-                    if source_name == "DiagnosticPanels":
-                        # Merge panels and providers
-                        existing_panels = set(existing.get("panels", []))
-                        new_panels = set(data.get("panels", []))
-                        existing["panels"] = sorted(existing_panels | new_panels)
-                        existing_providers = set(existing.get("providers", []))
-                        new_providers = set(data.get("providers", []))
-                        existing["providers"] = sorted(existing_providers | new_providers)
-                        existing_hgnc = set(existing.get("hgnc_ids", []))
-                        new_hgnc = set(data.get("hgnc_ids", []))
-                        existing["hgnc_ids"] = sorted(existing_hgnc | new_hgnc)
-                        existing["panel_count"] = len(existing["panels"])
-                        existing["provider_count"] = len(existing["providers"])
-                    elif source_name == "Literature":
+                    if source_name == "Literature":
                         # Merge publications
                         existing_pubs = set(existing.get("publications", []))
                         new_pubs = set(data.get("publications", []))
@@ -186,14 +180,31 @@ async def _seed_source(db: Session, source_name: str, config: dict[str, Any]) ->
         total_symbols=len(gene_symbols),
     )
 
-    # Step 3: Store merged evidence in one call
-    evidence_stats = await source.store_evidence(
-        db,
-        all_processed,
-        source_detail=f"Seeded from {files_loaded} files",
-        mode="merge",
-        gene_ids=gene_ids,
-    )
+    # Step 3: Store evidence; per DiagnosticPanels file, as an upload of that provider would
+    if dp_files:
+        totals: Counter[str] = Counter()
+        for json_file, file_content, file_data, provider, processed in dp_files:
+            totals.update(
+                await source.store_evidence(
+                    db,
+                    processed,
+                    source_detail=provider,
+                    file_hash=hashlib.sha256(file_content).hexdigest(),
+                    original_filename=json_file.name,
+                    mode="merge",
+                    gene_ids=gene_ids,
+                    upload_metadata=source.upload_provenance(file_data, provider, processed),
+                )
+            )
+        evidence_stats: dict[str, Any] = dict(totals)
+    else:
+        evidence_stats = await source.store_evidence(
+            db,
+            all_processed,
+            source_detail=f"Seeded from {files_loaded} files",
+            mode="merge",
+            gene_ids=gene_ids,
+        )
     db.commit()
 
     total_stored = evidence_stats.get("created", 0) + evidence_stats.get("merged", 0)

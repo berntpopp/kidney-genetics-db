@@ -9,15 +9,16 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.cache_service import get_cache_service
 from app.core.logging import get_logger
 from app.models.gene import GeneEvidence
-from app.models.static_sources import StaticSource, StaticSourceAudit
+from app.models.static_sources import StaticEvidenceUpload, StaticSource, StaticSourceAudit
 from app.models.user import User
+from app.pipeline.sources.unified.diagnostic_panels import DiagnosticPanelsSource
 
 logger = get_logger(__name__)
 
@@ -119,10 +120,11 @@ class DiagnosticPanelsManager(HybridSourceManager):
             if provider_name not in providers:
                 continue
 
-            providers.discard(provider_name)
             affected_gene_ids.append(evidence.gene_id)
+            # Panels, counts and source_detail follow the remaining providers
+            data = DiagnosticPanelsSource.merge_provider_panels(data, {provider_name: None})
 
-            if not providers:
+            if not data["providers"]:
                 # No providers left - delete entire evidence record
                 self.db.delete(evidence)
                 genes_fully_removed += 1
@@ -132,17 +134,14 @@ class DiagnosticPanelsManager(HybridSourceManager):
                     symbol=evidence.gene.approved_symbol if evidence.gene else "unknown",
                 )
             else:
-                # Update without this provider
-                data["providers"] = sorted(providers)
-                data["provider_count"] = len(providers)
                 evidence.evidence_data = data
-                flag_modified(evidence, "evidence_data")
+                evidence.source_detail = DiagnosticPanelsSource._get_source_detail(data)
                 genes_with_evidence_removed += 1
 
                 await logger.debug(
                     "Updated evidence record",
                     gene_id=evidence.gene_id,
-                    remaining_providers=len(providers),
+                    remaining_providers=data["provider_count"],
                 )
 
         # Create audit log
@@ -269,6 +268,48 @@ class LiteratureManager(HybridSourceManager):
 
         await logger.info("Publication deletion complete", stats=stats)
         return stats
+
+
+def list_diagnostic_panel_providers(db: Session) -> list[dict[str, Any]]:
+    """Public provenance per provider present in the evidence, from its latest completed upload.
+
+    Only scraper provenance is returned: no uploader, user id or file hash.
+    """
+    providers = db.execute(
+        text("SELECT provider_name, gene_count FROM v_diagnostic_panel_providers")
+    ).all()
+    uploads = (
+        db.execute(
+            select(StaticEvidenceUpload)
+            .join(StaticSource, StaticSource.id == StaticEvidenceUpload.source_id)
+            .where(
+                StaticSource.source_name == "DiagnosticPanels",
+                StaticEvidenceUpload.upload_status == "completed",
+            )
+            .order_by(StaticEvidenceUpload.id)
+        )
+        .scalars()
+        .all()
+    )
+    # Upload rows are named after their provider; the last one per provider wins
+    latest = {u.evidence_name: u for u in uploads}
+    result = []
+    for name, gene_count in sorted(providers):
+        upload = latest.get(name)
+        meta = (upload.upload_metadata if upload else None) or {}
+        uploaded = upload and (upload.processed_at or upload.created_at)
+        result.append(
+            {
+                "provider_name": name,
+                "main_url": meta.get("main_url"),
+                "scraped_at": meta.get("scraped_at"),
+                "scraper_version": meta.get("scraper_version"),
+                "panels": meta.get("panels") or [],
+                "gene_count": gene_count,
+                "uploaded_at": uploaded.isoformat() if uploaded else None,
+            }
+        )
+    return result
 
 
 def get_source_manager(source_name: str, db: Session) -> HybridSourceManager:
