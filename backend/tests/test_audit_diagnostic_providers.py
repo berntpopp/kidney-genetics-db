@@ -5,6 +5,7 @@ Runs against real PostgreSQL via the rolled-back ``db_session`` fixture.
 
 import json
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
@@ -87,6 +88,8 @@ async def test_legacy_seed_label_is_repaired_by_upload_then_identifier_delete(db
     """
     from app.services.hybrid_source_manager import get_source_manager
 
+    # Real seeded rows carry the same legacy label; a unique one keeps this test to its rows
+    label = f"Seeded from 9 files {uuid4().hex[:8]}"
     legacy, orphan = "KGTLEGACY", "KGTORPHAN"
     for i, symbol in enumerate((legacy, orphan)):
         gene = Gene(approved_symbol=symbol, hgnc_id=f"HGNC:9938{i}")
@@ -96,10 +99,10 @@ async def test_legacy_seed_label_is_repaired_by_upload_then_identifier_delete(db
             GeneEvidence(
                 gene_id=gene.id,
                 source_name="DiagnosticPanels",
-                source_detail="Seeded from 9 files",
+                source_detail=label,
                 evidence_data={
                     "panels": ["Kidney Panel"],
-                    "providers": ["Seeded from 9 files"],
+                    "providers": [label],
                     "panel_count": 1,
                     "provider_count": 1,
                 },
@@ -117,7 +120,7 @@ async def test_legacy_seed_label_is_repaired_by_upload_then_identifier_delete(db
     db_session.flush()
 
     stats = await get_source_manager("DiagnosticPanels", db_session).delete_by_identifier(
-        "Seeded from 9 files", "test"
+        label, "test"
     )
     assert stats["evidence_updated"] == 1
     assert stats["evidence_deleted"] == 1  # no real provider lists the orphan: no provenance

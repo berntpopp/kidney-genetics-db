@@ -13,7 +13,9 @@ class TestParallelSessionIsolation:
     """Verify each parallel source gets its own database session."""
 
     def _make_pipeline(self, db_session: Session) -> AnnotationPipeline:
-        return AnnotationPipeline(db_session)
+        pipeline = AnnotationPipeline(db_session)
+        pipeline._pause_requested = lambda: False  # the DB may hold a paused pipeline run
+        return pipeline
 
     @pytest.mark.asyncio
     async def test_parallel_sources_get_separate_sessions(self, db_session: Session):
