@@ -35,7 +35,7 @@ from app.models.gene import Gene
 from app.pipeline.sources.annotations.hpo import (
     ClinicalGroupClassifier,
     download_pinned_hp_json,
-    load_hpo_parents,
+    load_hpo_ontology,
 )
 
 logger = get_logger(__name__)
@@ -90,6 +90,7 @@ class EnrichmentService:
         # Pinned HPO is_a graph + kidney subtree, loaded once per process for true-path
         self._ontology: tuple[ClinicalGroupClassifier, frozenset[str]] | None = None
         self._ontology_lock = asyncio.Lock()
+        self._term_names: dict[str, str] = {}
 
         # Enrichr calls get their own pool: a timed-out call must not occupy the shared DB pool
         self._enrichr_executor = ThreadPoolExecutor(
@@ -308,11 +309,15 @@ class EnrichmentService:
             result["enrichment_score"] = -np.log10(fdr_val) if fdr_val > 0 else 100.0
 
     async def _fill_term_names(self, results: list[dict[str, Any]]) -> None:
-        """Get term names from HPO API (call after filtering: significant rows only)."""
+        """Term names from the pinned ontology loaded for propagation (_get_hpo_annotations);
+        the HPO API only for IDs missing from it (call after filtering: significant rows only)."""
         semaphore = asyncio.Semaphore(TERM_NAME_CONCURRENCY)
 
         async def fill(result: dict[str, Any]) -> None:
             hpo_term_id = str(result["term_id"])
+            if hpo_term_id in self._term_names:
+                result["term_name"] = self._term_names[hpo_term_id]
+                return
             try:
                 async with semaphore:
                     term = await self.hpo_client.get_term(hpo_term_id)
@@ -512,7 +517,9 @@ class EnrichmentService:
         """Pinned HPO is_a graph and the configured kidney subtree (loaded once)."""
         async with self._ontology_lock:
             if self._ontology is None:
-                parents = await asyncio.to_thread(load_hpo_parents, await download_pinned_hp_json())
+                parents, self._term_names = await asyncio.to_thread(
+                    load_hpo_ontology, await download_pinned_hp_json()
+                )
                 ontology = ClinicalGroupClassifier(
                     parents, {}, str(get_source_parameter("HPO", "hpo_release"))
                 )

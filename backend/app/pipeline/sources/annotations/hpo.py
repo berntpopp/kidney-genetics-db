@@ -91,8 +91,8 @@ def verify_sha256(path: Path, expected: str) -> Path:
     return path
 
 
-def load_hpo_parents(path: Path) -> dict[str, set[str]]:
-    """Read is_a parents from an HPO hp.json (obographs); raise if the file is unusable."""
+def load_hpo_ontology(path: Path) -> tuple[dict[str, set[str]], dict[str, str]]:
+    """Read is_a parents and term labels from an HPO hp.json (obographs); raise if unusable."""
     try:
         with open(path) as f:
             graph = json.load(f)["graphs"][0]
@@ -108,7 +108,13 @@ def load_hpo_parents(path: Path) -> dict[str, set[str]]:
             parents.setdefault(curie(edge["sub"]), set()).add(curie(edge["obj"]))
     if not parents:
         raise ValueError(f"No is_a relations in HPO ontology file {path}")
-    return parents
+    names = {curie(n["id"]): n["lbl"] for n in graph.get("nodes", []) if n.get("lbl")}
+    return parents, names
+
+
+def load_hpo_parents(path: Path) -> dict[str, set[str]]:
+    """Read is_a parents from an HPO hp.json (obographs); raise if the file is unusable."""
+    return load_hpo_ontology(path)[0]
 
 
 async def download_pinned_hp_json(
