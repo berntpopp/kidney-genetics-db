@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "scrapers/diagnostics/tests/fixtures/cegat/kidney_diseases.html"
+        ],
+        "createdAt": "2026-10-30T17:08:51.472Z",
+        "reason": "Claude: captured third-party CeGaT page used as a scraper test fixture, not KGDB UI"
+      }
+    ]
+  }
+}
