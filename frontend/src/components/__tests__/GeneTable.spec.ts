@@ -156,6 +156,28 @@ describe('GeneTable', () => {
     expect(wrapper!.text()).toContain('1 gene')
     expect(wrapper!.text()).not.toMatch(/row\(s\)|\d+\/\d+ genes/)
   })
+
+  it('badges only renal-neoplasia genes (#447)', async () => {
+    getGenes.mockResolvedValue(
+      listResult([
+        { id: 1, approved_symbol: 'MLH1', hgnc_id: 'x', renal_neoplasia: true },
+        { id: 2, approved_symbol: 'PKD1', hgnc_id: 'y', renal_neoplasia: false }
+      ])
+    )
+    await mountAt()
+    const rows = wrapper!.findAll('tbody tr')
+    expect(rows[0].text()).toContain('Renal neoplasia')
+    expect(rows[1].text()).not.toContain('Renal neoplasia')
+  })
+
+  it.each([
+    ['/genes', null],
+    ['/genes?neoplasia=only', true],
+    ['/genes?neoplasia=exclude', false]
+  ])('%s requests renalNeoplasia=%s (#447)', async (path, expected) => {
+    await mountAt(path)
+    expect(getGenes).toHaveBeenLastCalledWith(expect.objectContaining({ renalNeoplasia: expected }))
+  })
 })
 
 describe('GeneTable load states (#316)', () => {

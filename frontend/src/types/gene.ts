@@ -11,6 +11,8 @@ export interface Gene {
   gene_score: number | null
   evidence_count: number | null
   tier: string | null
+  /** HPO renal-neoplasia clinical group (#447) */
+  renal_neoplasia?: boolean
   created_at: string
   updated_at: string
 }
@@ -39,4 +41,6 @@ export interface GeneListParams {
   sortBy?: string | null
   sortDesc?: boolean
   hideZeroScores?: boolean
+  /** true: only renal-neoplasia genes; false: exclude them; null: all (#447) */
+  renalNeoplasia?: boolean | null
 }
