@@ -3,8 +3,16 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useCurationStore } from '@/stores/curation'
-import { type Association, type AssociationInput, type WorkflowAction } from '@/api/curation'
+import {
+  RELATIONSHIP_LABELS,
+  RELATIONSHIP_TYPES,
+  type Association,
+  type AssociationInput,
+  type WorkflowAction
+} from '@/api/curation'
+import AssociationDiagnostics from '@/components/curation/AssociationDiagnostics.vue'
 import AssociationForm from '@/components/curation/AssociationForm.vue'
+import AssociationProvenance from '@/components/curation/AssociationProvenance.vue'
 import { Button } from '@/components/ui/button'
 import {
   Breadcrumb,
@@ -48,6 +56,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
+const isSusceptibility = (r: Association) => r.relationship_type === 'susceptibility'
 
 const auth = useAuthStore()
 const store = useCurationStore()
@@ -57,6 +66,14 @@ const editing = ref<Association | null>(null)
 const formKey = ref(0)
 
 const canCurate = computed(() => auth.isCurator)
+
+/** Susceptibility gets its own table so it is never read as a Mendelian class (#437) */
+const publishedGroups = computed(() =>
+  RELATIONSHIP_TYPES.map(type => ({
+    type,
+    records: store.published.filter(r => (r.relationship_type ?? 'mendelian') === type)
+  })).filter(g => g.type === 'mendelian' || g.records.length)
+)
 
 /** Which workflow buttons the server will accept for this user (author vs. reviewer) */
 function actionsFor(r: Association): { action: WorkflowAction | 'edit'; label: string }[] {
@@ -145,53 +162,77 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
               </div>
               <Button type="submit" variant="outline">Filter</Button>
             </form>
-            <div class="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Gene</TableHead>
-                    <TableHead>Disease</TableHead>
-                    <TableHead>Strength</TableHead>
-                    <TableHead>Citations</TableHead>
-                    <TableHead>Published</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody :aria-busy="store.loading">
-                  <TableRow v-for="r in store.published" :key="r.id">
-                    <TableCell>
-                      <RouterLink
-                        :to="`/genes/${r.gene_symbol}`"
-                        class="font-medium underline-offset-4 hover:underline"
-                      >
-                        {{ r.gene_symbol }}
-                      </RouterLink>
-                    </TableCell>
-                    <TableCell>
-                      <OntologyTerm :id="r.disease_id" :name="r.disease_name" />
-                    </TableCell>
-                    <TableCell><Chip :classification="r.evidence_strength" /></TableCell>
-                    <TableCell>
-                      <OntologyTermList :terms="citationTerms(r)" source="PubMed" />
-                    </TableCell>
-                    <TableCell class="whitespace-nowrap tabular-nums">
-                      {{ fmtDate(r.published_at) }}
-                    </TableCell>
-                  </TableRow>
-                  <template v-if="store.loading && !store.published.length">
-                    <TableRow v-for="n in 3" :key="`skeleton-${n}`" aria-hidden="true">
-                      <TableCell v-for="c in 5" :key="c">
-                        <div class="h-4 rounded-md bg-muted motion-safe:animate-pulse" />
+            <section
+              v-for="group in publishedGroups"
+              :key="group.type"
+              :data-testid="`published-${group.type}`"
+              class="space-y-2"
+            >
+              <h3 class="text-sm font-medium">{{ RELATIONSHIP_LABELS[group.type] }}</h3>
+              <div class="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Gene</TableHead>
+                      <TableHead>Disease</TableHead>
+                      <TableHead>{{
+                        group.type === 'mendelian' ? 'Strength' : 'Risk association'
+                      }}</TableHead>
+                      <TableHead>Details</TableHead>
+                      <TableHead>Citations</TableHead>
+                      <TableHead>Published</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody :aria-busy="store.loading">
+                    <TableRow v-for="r in group.records" :key="r.id">
+                      <TableCell>
+                        <RouterLink
+                          :to="`/genes/${r.gene_symbol}`"
+                          class="font-medium underline-offset-4 hover:underline"
+                        >
+                          {{ r.gene_symbol }}
+                        </RouterLink>
+                      </TableCell>
+                      <TableCell>
+                        <OntologyTerm :id="r.disease_id" :name="r.disease_name" />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          v-if="isSusceptibility(r)"
+                          kind="neutral"
+                          :label="r.evidence_strength"
+                        />
+                        <Chip v-else :classification="r.evidence_strength" />
+                      </TableCell>
+                      <TableCell class="max-w-md space-y-2">
+                        <AssociationProvenance :record="r" />
+                        <AssociationDiagnostics :diagnostics="r.diagnostics" />
+                      </TableCell>
+                      <TableCell>
+                        <OntologyTermList :terms="citationTerms(r)" source="PubMed" />
+                      </TableCell>
+                      <TableCell class="whitespace-nowrap tabular-nums">
+                        {{ fmtDate(r.published_at) }}
                       </TableCell>
                     </TableRow>
-                  </template>
-                  <TableRow v-else-if="!store.published.length">
-                    <TableCell colspan="5" class="py-8 text-center text-muted-foreground">
-                      No published associations yet.
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+                    <template v-if="group.type === 'mendelian'">
+                      <template v-if="store.loading && !store.published.length">
+                        <TableRow v-for="n in 3" :key="`skeleton-${n}`" aria-hidden="true">
+                          <TableCell v-for="c in 6" :key="c">
+                            <div class="h-4 rounded-md bg-muted motion-safe:animate-pulse" />
+                          </TableCell>
+                        </TableRow>
+                      </template>
+                      <TableRow v-else-if="!group.records.length">
+                        <TableCell colspan="6" class="py-8 text-center text-muted-foreground">
+                          No published associations yet.
+                        </TableCell>
+                      </TableRow>
+                    </template>
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
             <p
               v-if="store.publishedTotal > store.published.length"
               class="text-sm text-muted-foreground"
@@ -243,17 +284,31 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
                         <OntologyTerm :id="r.disease_id" :name="r.disease_name" />
                       </TableCell>
                       <!-- What the reviewer approves: strength, citations and summary (issue 376) -->
-                      <TableCell class="max-w-sm space-y-1">
-                        <Chip :classification="r.evidence_strength" />
+                      <TableCell class="max-w-md space-y-1">
+                        <Chip
+                          v-if="isSusceptibility(r)"
+                          kind="neutral"
+                          :label="r.evidence_strength"
+                        />
+                        <Chip v-else :classification="r.evidence_strength" />
                         <OntologyTermList :terms="citationTerms(r)" source="PubMed" />
                         <p v-if="r.evidence_summary" class="text-xs text-muted-foreground">
                           {{ r.evidence_summary }}
                         </p>
+                        <AssociationProvenance :record="r" />
+                        <AssociationDiagnostics :diagnostics="r.diagnostics" />
                       </TableCell>
-                      <TableCell>
+                      <TableCell class="space-y-1">
                         <StatusBadge
                           :status="STATUS_KEYS[r.status] ?? r.status"
                           :label="STATUS_LABELS[r.status] ?? r.status"
+                        />
+                        <!-- Imported records still need a KGDB curator other than the author -->
+                        <Chip
+                          v-if="r.source === 'gene_curator'"
+                          kind="neutral"
+                          label="Gene Curator import"
+                          tooltip="Curated in Gene Curator; publishing needs a KGDB curator other than the author"
                         />
                       </TableCell>
                       <TableCell class="whitespace-nowrap tabular-nums">

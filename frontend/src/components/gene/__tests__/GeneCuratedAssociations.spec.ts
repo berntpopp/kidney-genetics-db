@@ -64,6 +64,26 @@ describe('GeneCuratedAssociations', () => {
     expect(hrefs).toContain('https://pubmed.ncbi.nlm.nih.gov/8004675/')
   })
 
+  it('lists susceptibility records separately and never as a Mendelian strength', async () => {
+    const risk = {
+      ...RECORD,
+      id: 2,
+      relationship_type: 'susceptibility',
+      evidence_strength: 'Likely association'
+    } as Association
+    api.listPublished.mockResolvedValue({
+      data: [{ ...RECORD, relationship_type: 'mendelian' } as Association, risk],
+      meta: { total: 2, limit: 100, offset: 0 }
+    })
+    const w = await mountFor('PKD1')
+    const mendelian = w.find('[data-testid="gda-mendelian"]')
+    const susceptibility = w.find('[data-testid="gda-susceptibility"]')
+    expect(mendelian.text()).toContain('Definitive')
+    expect(mendelian.text()).not.toContain('Likely association')
+    expect(susceptibility.text()).toContain('Susceptibility')
+    expect(susceptibility.text()).toContain('Likely association')
+  })
+
   it('renders nothing when there are no records or the request fails', async () => {
     api.listPublished.mockResolvedValue({ data: [], meta: { total: 0, limit: 100, offset: 0 } })
     expect((await mountFor('PKD1')).html()).not.toContain('Expert-reviewed')

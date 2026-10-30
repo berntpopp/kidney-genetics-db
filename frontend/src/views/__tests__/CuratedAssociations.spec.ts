@@ -126,6 +126,40 @@ describe('CuratedAssociations', () => {
     expect(w.find('[role="alert"]').text()).toContain('changed since you loaded it')
   })
 
+  it('lists susceptibility records in their own table, not as a Mendelian class', async () => {
+    const risk = {
+      ...RECORDS[3]!,
+      id: 5,
+      disease_id: 'MONDO:0000005',
+      relationship_type: 'susceptibility',
+      evidence_strength: 'Likely association'
+    } as Association
+    api.listPublished.mockResolvedValue(page([RECORDS[3]!, risk]))
+    const w = await mountAs(null)
+    const mendelian = w.find('[data-testid="published-mendelian"]')
+    const susceptibility = w.find('[data-testid="published-susceptibility"]')
+    expect(mendelian.text()).toContain('OMIM:173900')
+    expect(mendelian.text()).not.toContain('Likely association')
+    expect(susceptibility.text()).toContain('Likely association')
+  })
+
+  it('marks Gene Curator imports in the workflow and shows their provenance', async () => {
+    const imported = {
+      ...RECORDS[2]!,
+      source: 'gene_curator',
+      external_id: 'GC-7',
+      external_url: 'https://example.org/c/7',
+      moi: 'HP:0000006',
+      moi_label: 'Autosomal dominant inheritance'
+    } as Association
+    api.listWorkflow.mockResolvedValue(page([imported]))
+    const w = await mountAs('curator')
+    const row = w.find('[data-testid="wf-3"]')
+    expect(row.text()).toContain('Gene Curator import')
+    expect(row.text()).toContain('Autosomal dominant inheritance')
+    expect(row.find('a[href="https://example.org/c/7"]').exists()).toBe(true)
+  })
+
   it('says when a list is truncated at the server maximum', async () => {
     api.listPublished.mockResolvedValue({
       data: [RECORDS[3]!],
