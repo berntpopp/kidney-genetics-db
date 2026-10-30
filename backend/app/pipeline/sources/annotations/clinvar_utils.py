@@ -359,7 +359,8 @@ class GeneAccumulator:
 
         # --- Classification counting (pathogenic / likely pathogenic) ---
         is_pathogenic = False
-        if "pathogenic" in classification:
+        # "Conflicting classifications of pathogenicity" is not pathogenic (#440)
+        if "pathogenic" in classification and "conflicting" not in classification:
             is_pathogenic = True
             if "likely" in classification:
                 self.likely_pathogenic_count += 1
