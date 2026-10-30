@@ -56,6 +56,8 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
+/** Below lg each table row is a stacked card: a 6-column table cannot fit a phone */
+const STACK = 'max-lg:block max-lg:min-w-0 max-lg:max-w-none max-lg:px-0 max-lg:py-1'
 const isSusceptibility = (r: Association) => r.relationship_type === 'susceptibility'
 
 const auth = useAuthStore()
@@ -170,8 +172,8 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
             >
               <h3 class="text-sm font-medium">{{ RELATIONSHIP_LABELS[group.type] }}</h3>
               <div class="overflow-x-auto">
-                <Table>
-                  <TableHeader>
+                <Table class="max-lg:block">
+                  <TableHeader class="max-lg:sr-only">
                     <TableRow>
                       <TableHead>Gene</TableHead>
                       <TableHead>Disease</TableHead>
@@ -183,9 +185,13 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
                       <TableHead>Published</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody :aria-busy="store.loading">
-                    <TableRow v-for="r in group.records" :key="r.id">
-                      <TableCell>
+                  <TableBody class="max-lg:block" :aria-busy="store.loading">
+                    <TableRow
+                      v-for="r in group.records"
+                      :key="r.id"
+                      class="max-lg:block max-lg:py-2"
+                    >
+                      <TableCell :class="STACK">
                         <RouterLink
                           :to="`/genes/${r.gene_symbol}`"
                           class="font-medium underline-offset-4 hover:underline"
@@ -193,10 +199,12 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
                           {{ r.gene_symbol }}
                         </RouterLink>
                       </TableCell>
-                      <TableCell>
+                      <TableCell
+                        :class="[STACK, 'min-w-48 whitespace-normal [overflow-wrap:anywhere]']"
+                      >
                         <OntologyTerm :id="r.disease_id" :name="r.disease_name" />
                       </TableCell>
-                      <TableCell>
+                      <TableCell :class="STACK">
                         <Chip
                           v-if="isSusceptibility(r)"
                           kind="neutral"
@@ -204,15 +212,20 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
                         />
                         <Chip v-else :classification="r.evidence_strength" />
                       </TableCell>
-                      <TableCell class="max-w-md space-y-2">
+                      <TableCell
+                        :class="[
+                          STACK,
+                          'max-w-md min-w-64 space-y-2 whitespace-normal [overflow-wrap:anywhere]'
+                        ]"
+                      >
                         <AssociationProvenance :record="r" />
                         <AssociationDiagnostics :diagnostics="r.diagnostics" />
                       </TableCell>
-                      <TableCell>
+                      <TableCell :class="[STACK, 'min-w-32 whitespace-normal']">
                         <OntologyTermList :terms="citationTerms(r)" source="PubMed" />
                       </TableCell>
-                      <TableCell class="whitespace-nowrap tabular-nums">
-                        {{ fmtDate(r.published_at) }}
+                      <TableCell :class="[STACK, 'whitespace-nowrap tabular-nums']">
+                        <span class="lg:hidden">Published </span>{{ fmtDate(r.published_at) }}
                       </TableCell>
                     </TableRow>
                     <template v-if="group.type === 'mendelian'">
@@ -266,8 +279,8 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
             </CardHeader>
             <CardContent>
               <div class="overflow-x-auto">
-                <Table>
-                  <TableHeader>
+                <Table class="max-lg:block">
+                  <TableHeader class="max-lg:sr-only">
                     <TableRow>
                       <TableHead>Gene</TableHead>
                       <TableHead>Disease</TableHead>
@@ -277,14 +290,26 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
-                    <TableRow v-for="r in store.workflow" :key="r.id" :data-testid="`wf-${r.id}`">
-                      <TableCell class="font-medium">{{ r.gene_symbol }}</TableCell>
-                      <TableCell>
+                  <TableBody class="max-lg:block">
+                    <TableRow
+                      v-for="r in store.workflow"
+                      :key="r.id"
+                      class="max-lg:block max-lg:py-2"
+                      :data-testid="`wf-${r.id}`"
+                    >
+                      <TableCell :class="[STACK, 'font-medium']">{{ r.gene_symbol }}</TableCell>
+                      <TableCell
+                        :class="[STACK, 'min-w-48 whitespace-normal [overflow-wrap:anywhere]']"
+                      >
                         <OntologyTerm :id="r.disease_id" :name="r.disease_name" />
                       </TableCell>
                       <!-- What the reviewer approves: strength, citations and summary (issue 376) -->
-                      <TableCell class="max-w-md space-y-1">
+                      <TableCell
+                        :class="[
+                          STACK,
+                          'max-w-md min-w-64 space-y-1 whitespace-normal [overflow-wrap:anywhere]'
+                        ]"
+                      >
                         <Chip
                           v-if="isSusceptibility(r)"
                           kind="neutral"
@@ -298,7 +323,7 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
                         <AssociationProvenance :record="r" />
                         <AssociationDiagnostics :diagnostics="r.diagnostics" />
                       </TableCell>
-                      <TableCell class="space-y-1">
+                      <TableCell :class="[STACK, 'space-y-1']">
                         <StatusBadge
                           :status="STATUS_KEYS[r.status] ?? r.status"
                           :label="STATUS_LABELS[r.status] ?? r.status"
@@ -311,20 +336,22 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
                           tooltip="Curated in Gene Curator; publishing needs a KGDB curator other than the author"
                         />
                       </TableCell>
-                      <TableCell class="whitespace-nowrap tabular-nums">
-                        {{ fmtDate(r.updated_at) }}
+                      <TableCell :class="[STACK, 'whitespace-nowrap tabular-nums']">
+                        <span class="lg:hidden">Updated </span>{{ fmtDate(r.updated_at) }}
                       </TableCell>
-                      <TableCell class="space-x-2 whitespace-nowrap">
-                        <Button
-                          v-for="a in actionsFor(r)"
-                          :key="a.action"
-                          size="sm"
-                          variant="outline"
-                          :disabled="store.loading"
-                          @click="onAction(r, a.action)"
-                        >
-                          {{ a.label }}
-                        </Button>
+                      <TableCell :class="[STACK, 'whitespace-normal']">
+                        <div class="flex min-w-36 flex-wrap gap-2">
+                          <Button
+                            v-for="a in actionsFor(r)"
+                            :key="a.action"
+                            size="sm"
+                            variant="outline"
+                            :disabled="store.loading"
+                            @click="onAction(r, a.action)"
+                          >
+                            {{ a.label }}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                     <TableRow v-if="!store.workflow.length && !store.loading">

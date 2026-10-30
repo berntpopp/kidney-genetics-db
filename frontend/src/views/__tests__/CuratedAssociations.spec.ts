@@ -160,6 +160,14 @@ describe('CuratedAssociations', () => {
     expect(row.find('a[href="https://example.org/c/7"]').exists()).toBe(true)
   })
 
+  it('lets long evidence and disease cells wrap instead of widening the table', async () => {
+    // TableCell defaults to whitespace-nowrap; long diagnostics pushed Actions off-screen
+    const w = await mountAs('curator')
+    const cells = w.find('[data-testid="wf-3"]').findAll('td')
+    for (const i of [1, 2]) expect(cells[i]!.classes()).toContain('whitespace-normal')
+    expect(cells[5]!.classes()).not.toContain('whitespace-nowrap')
+  })
+
   it('says when a list is truncated at the server maximum', async () => {
     api.listPublished.mockResolvedValue({
       data: [RECORDS[3]!],

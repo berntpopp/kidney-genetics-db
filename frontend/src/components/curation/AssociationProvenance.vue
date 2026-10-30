@@ -27,7 +27,7 @@ const points = computed(() => {
 <template>
   <dl
     v-if="record.moi || methodology || fromGeneCurator || points"
-    class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs"
+    class="whitespace-normal [overflow-wrap:anywhere] grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs"
   >
     <template v-if="record.moi">
       <dt class="text-muted-foreground">Inheritance</dt>

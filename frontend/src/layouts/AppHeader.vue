@@ -110,7 +110,7 @@ const drawerItem =
           :to="link.to"
           :data-label="link.label"
           :aria-current="isActive(link.to) ? 'page' : undefined"
-          class="inline-flex flex-col items-center justify-center border-b-2 px-3 pt-0.5 text-sm whitespace-nowrap transition-colors after:invisible after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-label)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+          class="inline-flex flex-col items-center justify-center border-b-2 px-2 pt-0.5 text-sm whitespace-nowrap xl:px-3 transition-colors after:invisible after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-label)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
           :class="
             isActive(link.to)
               ? 'border-primary font-semibold text-foreground'

@@ -25,7 +25,9 @@
                 :href="diseaseUrl(r.disease_id)"
               />
             </div>
-            <p v-if="r.evidence_summary" class="text-muted-foreground">{{ r.evidence_summary }}</p>
+            <p v-if="r.evidence_summary" class="text-muted-foreground [overflow-wrap:anywhere]">
+              {{ r.evidence_summary }}
+            </p>
             <AssociationProvenance :record="r" />
             <p class="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
               <OntologyTerm v-for="c in r.citations" :id="c" :key="c" source="PubMed" />

@@ -22,7 +22,11 @@ const linkClass =
 </script>
 
 <template>
-  <section v-if="hasContent" class="space-y-2 text-xs" aria-label="Diagnostics and resources">
+  <section
+    v-if="hasContent"
+    class="whitespace-normal [overflow-wrap:anywhere] space-y-2 text-xs"
+    aria-label="Diagnostics and resources"
+  >
     <h3 class="text-sm font-medium">Diagnostics &amp; resources</h3>
 
     <Alert v-if="warn" class="py-2">
