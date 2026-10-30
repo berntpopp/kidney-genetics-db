@@ -14,6 +14,7 @@ import NetworkAnalysis from '@/views/NetworkAnalysis.vue'
 import { networkApi } from '@/api/network'
 import { networkAnalysisConfig } from '@/config/networkAnalysis'
 import { CLUSTER_PALETTE } from '@/components/network/clusterPalette'
+import { pickClusterLabel } from '@/composables/useNetworkAnalysis'
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -61,7 +62,8 @@ vi.mock('@/api/network', () => ({
       cytoscape_json: { elements: [] }
     }),
     enrichGO: vi.fn().mockResolvedValue({ results: [], total_terms: 0 }),
-    enrichHPO: vi.fn().mockResolvedValue({ results: [], total_terms: 0 })
+    enrichHPO: vi.fn().mockResolvedValue({ results: [], total_terms: 0 }),
+    enrichHPOBatch: vi.fn().mockResolvedValue({ results: [], total_tests: 0, fdr_threshold: 0.05 })
   }
 }))
 
@@ -793,6 +795,133 @@ describe('NetworkAnalysis.vue', () => {
       vm.maxGenes = ''
       await vm.fetchFilteredGenes()
       expect(vm.maxGenes).toBe(networkAnalysisConfig.geneSelection.defaultMaxGenes)
+    })
+  })
+
+  describe('functional cluster labels', () => {
+    const term = (o: Record<string, unknown>) => ({
+      term_id: 'HP:1',
+      term_name: 'Term',
+      p_value: 1e-3,
+      fdr: 0.01,
+      gene_count: 3,
+      cluster_size: 10,
+      background_count: 30,
+      genes: [],
+      enrichment_score: 3,
+      odds_ratio: 10,
+      ...o
+    })
+    // A broad ancestor: every cluster gene carries it, so p is lowest and the odds ratio is capped
+    const broad = term({
+      term_id: 'HP:0000077',
+      term_name: 'Abnormality of the kidney',
+      p_value: 1e-12,
+      fdr: 1e-10,
+      gene_count: 10,
+      background_count: 1500,
+      odds_ratio: 1000
+    })
+    const cyst = term({
+      term_id: 'HP:0000107',
+      term_name: 'Renal cyst',
+      gene_count: 6,
+      background_count: 12
+    })
+
+    it('picks the most specific term, not the lowest p or the capped odds ratio', () => {
+      expect(pickClusterLabel([broad, cyst])?.term_name).toBe('Renal cyst')
+    })
+
+    it('requires FDR < 0.05, at least 3 genes and a resolved name', () => {
+      expect(pickClusterLabel([term({ fdr: 0.05, background_count: 3 }), broad])).toBe(broad)
+      // A 3-gene niche term cannot name a 60-gene cluster (needs >= 6 genes = 10%)
+      const niche = term({ term_name: 'Niche', gene_count: 3, background_count: 3 })
+      expect(pickClusterLabel([niche, broad], 60)).toBe(broad)
+      expect(pickClusterLabel([niche, broad], 20)).toBe(niche)
+      expect(pickClusterLabel([term({ gene_count: 2, background_count: 2 }), broad])).toBe(broad)
+      expect(pickClusterLabel([term({ term_name: 'HP:1', background_count: 3 }), broad])).toBe(
+        broad
+      )
+      expect(pickClusterLabel([term({ fdr: 0.2 })])).toBeNull()
+    })
+
+    it('breaks ties by lowest p', () => {
+      const a = term({ term_name: 'A', p_value: 1e-3 })
+      const b = term({ term_name: 'B', p_value: 1e-5 })
+      expect(pickClusterLabel([a, b])?.term_name).toBe('B')
+    })
+
+    // cluster 0: genes 1-4; cluster 1: genes 5-7; cluster 2: gene 8 (too small to label)
+    const clusters = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1, '7': 1, '8': 2 }
+    const clusterResponse = {
+      nodes: 8,
+      edges: 3,
+      components: 1,
+      cytoscape_json: { elements: [] },
+      clusters,
+      num_clusters: 3,
+      modularity: 0.5,
+      algorithm: 'leiden',
+      parameters: {}
+    }
+    async function cluster(vm: any) {
+      vm.filteredGenes = [1, 2, 3, 4, 5, 6, 7, 8].map(id => ({ id: String(id) }))
+      await vm.buildNetwork()
+      vi.mocked(networkApi.clusterNetwork).mockResolvedValueOnce(clusterResponse as any)
+      return vm.clusterNetwork()
+    }
+
+    it('labels clusters of >= 3 genes in one pooled batch call after clustering', async () => {
+      vi.mocked(networkApi.enrichHPOBatch).mockResolvedValueOnce({
+        results: [[broad, cyst], [broad]],
+        total_tests: 3,
+        fdr_threshold: 0.05
+      })
+      const vm = mountComponent().vm as any
+      await cluster(vm)
+      await flushPromises()
+
+      const [params] = vi.mocked(networkApi.enrichHPOBatch).mock.calls[0]!
+      expect(params.communities).toEqual([
+        [1, 2, 3, 4],
+        [5, 6, 7]
+      ])
+      expect(params.background_genes).toBeUndefined() // reference background
+      expect(vm.clusterLabels.get(0)).toBe('Renal cyst')
+      expect(vm.clusterLabels.get(1)).toBe('Abnormality of the kidney')
+      expect(vm.clusterList.map((c: any) => c.title)).toEqual([
+        'Cluster 1 · Renal cyst',
+        'Cluster 2 · Abnormality of the kidney',
+        'Cluster 3'
+      ])
+    })
+
+    it('keeps numbered clusters when labelling fails', async () => {
+      vi.mocked(networkApi.enrichHPOBatch).mockRejectedValueOnce(new Error('boom'))
+      const vm = mountComponent().vm as any
+      await cluster(vm)
+      await flushPromises()
+      expect(vm.clusterLabels.size).toBe(0)
+      expect(vm.clusterList[0].title).toBe('Cluster 1')
+      expect(vm.networkError).toBeNull()
+    })
+
+    it('ignores a labelling response that lands after a new clustering', async () => {
+      let resolveStale!: (_v: any) => void
+      vi.mocked(networkApi.enrichHPOBatch)
+        .mockReturnValueOnce(new Promise(r => (resolveStale = r)))
+        .mockResolvedValueOnce({ results: [[cyst], []], total_tests: 2, fdr_threshold: 0.05 })
+      const vm = mountComponent().vm as any
+      await cluster(vm)
+      const staleSignal = vi.mocked(networkApi.enrichHPOBatch).mock.calls[0]![1]!
+      vi.mocked(networkApi.clusterNetwork).mockResolvedValueOnce(clusterResponse as any)
+      await vm.clusterNetwork()
+      expect(staleSignal.aborted).toBe(true)
+      await flushPromises()
+      resolveStale({ results: [[broad], [broad]], total_tests: 2, fdr_threshold: 0.05 })
+      await flushPromises()
+      expect([...vm.clusterLabels]).toEqual([[0, 'Renal cyst']])
     })
   })
 })

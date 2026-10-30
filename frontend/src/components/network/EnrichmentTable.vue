@@ -341,12 +341,12 @@ const exportResults = () => {
     <CardContent class="py-3">
       <div class="flex flex-col sm:flex-row gap-3">
         <div class="flex-1">
-          <Label class="text-xs mb-1 block">Enrichment Type</Label>
+          <Label for="et-type" class="text-xs mb-1 block">Enrichment Type</Label>
           <Select
             :model-value="enrichmentType"
             @update:model-value="$emit('update:enrichmentType', $event)"
           >
-            <SelectTrigger aria-label="Enrichment Type">
+            <SelectTrigger id="et-type" class="w-full">
               <SelectValue placeholder="Select type..." />
             </SelectTrigger>
             <SelectContent>
@@ -358,9 +358,9 @@ const exportResults = () => {
         </div>
 
         <div v-if="enrichmentType === 'go'" class="flex-1">
-          <Label class="text-xs mb-1 block">Gene Set</Label>
+          <Label for="et-gene-set" class="text-xs mb-1 block">Gene Set</Label>
           <Select :model-value="geneSet" @update:model-value="$emit('update:geneSet', $event)">
-            <SelectTrigger aria-label="Gene Set">
+            <SelectTrigger id="et-gene-set" class="w-full">
               <SelectValue placeholder="Select gene set..." />
             </SelectTrigger>
             <SelectContent>
@@ -372,8 +372,9 @@ const exportResults = () => {
         </div>
 
         <div class="w-full sm:w-[160px]">
-          <Label class="text-xs mb-1 block">FDR Threshold</Label>
+          <Label for="et-fdr" class="text-xs mb-1 block">FDR Threshold</Label>
           <Input
+            id="et-fdr"
             type="number"
             :model-value="fdrThreshold"
             min="0.001"

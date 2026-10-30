@@ -14,6 +14,7 @@ import { geneApi } from '@/api/genes'
 import { networkApi } from '@/api/network'
 import type {
   EnrichmentResponse,
+  EnrichmentTerm,
   NetworkBuildResponse,
   NetworkClusterResponse
 } from '@/api/network'
@@ -56,6 +57,8 @@ export interface ClusterListItem {
   size: number
   genes: number[]
   color: string
+  /** Most specific enriched HPO term, once the background labelling has finished */
+  labelTerm?: EnrichmentTerm
 }
 
 /** What an enrichment result was computed from, so the UI can label it truthfully */
@@ -72,14 +75,48 @@ export interface EnrichmentRun {
 
 export type EnrichmentBackground = 'reference' | 'network'
 
-type Pipeline = 'genes' | 'build' | 'cluster' | 'enrich' | 'hpo'
+type Pipeline = 'genes' | 'build' | 'cluster' | 'enrich' | 'hpo' | 'labels'
 /** Downstream pipelines a new run of the key invalidates */
 const DOWNSTREAM: Record<Pipeline, Pipeline[]> = {
   genes: [],
-  build: ['cluster', 'enrich', 'hpo'],
-  cluster: ['enrich'],
+  build: ['cluster', 'enrich', 'hpo', 'labels'],
+  cluster: ['enrich', 'labels'],
   enrich: [],
-  hpo: []
+  hpo: [],
+  labels: []
+}
+
+/** Tooltip for a cluster label: what it is and how strongly it is supported */
+export const clusterLabelNote = (t: EnrichmentTerm): string =>
+  `Most specific enriched HPO term (FDR ${t.fdr.toExponential(1)}, ${t.gene_count} genes)`
+
+/** Labelling thresholds: a label must be significant and carried by several cluster genes */
+export const LABEL_MAX_FDR = 0.05
+export const LABEL_MIN_GENES = 3
+/** ...and representative: carried by at least this share of the cluster's genes */
+export const LABEL_MIN_COVERAGE = 0.1
+
+/**
+ * The most specific informative term of one cluster, or null.
+ *
+ * Ranks qualifying terms by the share of the term's background genes that fall in the cluster
+ * (gene_count / background_count, proportional to fold enrichment within one cluster), ties by
+ * lowest p. Not by p (true-path propagation makes broad ancestors win on p) and not by odds ratio
+ * (the backend caps it at 1000 when every annotated cluster gene carries the term, which again
+ * is exactly the broad ancestors). A label must cover >= 10% of the cluster, so a 3-gene niche
+ * term cannot name a 60-gene cluster. Terms without a resolved name are skipped: ids are never bare.
+ */
+export function pickClusterLabel(terms: EnrichmentTerm[], clusterSize = 0): EnrichmentTerm | null {
+  const minGenes = Math.max(LABEL_MIN_GENES, Math.ceil(LABEL_MIN_COVERAGE * clusterSize))
+  const share = (t: EnrichmentTerm) => (t.background_count ? t.gene_count / t.background_count : 0)
+  let best: EnrichmentTerm | null = null
+  for (const t of terms) {
+    if (t.fdr >= LABEL_MAX_FDR || t.gene_count < minGenes) continue
+    if (!t.term_name || t.term_name === t.term_id) continue
+    if (!best || share(t) > share(best) || (share(t) === share(best) && t.p_value < best.p_value))
+      best = t
+  }
+  return best
 }
 
 const errorMessage = (error: unknown, fallback: string): string =>
@@ -158,6 +195,10 @@ export function useNetworkAnalysis() {
   const hpoClassifications = ref<HPOClassificationsResult | null>(null)
   const loadingHPOClassifications = ref(false)
 
+  /** Backend cluster id -> its label term (see pickClusterLabel) */
+  const clusterLabelTerms = ref(new Map<number, EnrichmentTerm>())
+  const loadingClusterLabels = ref(false)
+
   // --- request bookkeeping -------------------------------------------------
   const inflight: Partial<Record<Pipeline, AbortController>> = {}
   const flags: Partial<Record<Pipeline, { value: boolean }>> = {
@@ -165,7 +206,8 @@ export function useNetworkAnalysis() {
     build: buildingNetwork,
     cluster: clustering,
     enrich: runningEnrichment,
-    hpo: loadingHPOClassifications
+    hpo: loadingHPOClassifications,
+    labels: loadingClusterLabels
   }
 
   function abort(p: Pipeline) {
@@ -212,20 +254,32 @@ export function useNetworkAnalysis() {
     // Rank by size (stable for ties), so display ids and colours follow size
     return [...byCluster.entries()]
       .sort((a, b) => b[1].length - a[1].length)
-      .map(([backendId, genes], displayId) => ({
-        title: `Cluster ${displayId + 1}`,
-        value: backendId,
-        displayId,
-        backendId,
-        size: genes.length,
-        genes,
-        color: clusterStyle(displayId, genes.length, clusteredWith.value?.minClusterSize ?? 1).color
-      }))
+      .map(([backendId, genes], displayId) => {
+        const labelTerm = clusterLabelTerms.value.get(backendId)
+        return {
+          title: labelTerm
+            ? `Cluster ${displayId + 1} · ${labelTerm.term_name}`
+            : `Cluster ${displayId + 1}`,
+          value: backendId,
+          displayId,
+          backendId,
+          size: genes.length,
+          genes,
+          color: clusterStyle(displayId, genes.length, clusteredWith.value?.minClusterSize ?? 1)
+            .color,
+          labelTerm
+        }
+      })
   })
 
   /** Backend cluster id -> display index (0 = largest) */
   const clusterIdMapping = computed(
     () => new Map(clusterList.value.map(c => [c.backendId, c.displayId]))
+  )
+
+  /** Backend cluster id -> label term name; the graph shows it next to the cluster */
+  const clusterLabels = computed(
+    () => new Map([...clusterLabelTerms.value].map(([id, t]) => [id, t.term_name]))
   )
 
   /** Backend cluster id -> colour by size rank; colours the graph, legend and list alike */
@@ -384,6 +438,39 @@ export function useNetworkAnalysis() {
     }
   }
 
+  // ponytail: the batch endpoint takes at most 200 communities; the smallest beyond that stay unlabelled
+  const MAX_LABELLED_CLUSTERS = 200
+
+  /** Background HPO labelling of every cluster of >= 3 genes; any failure keeps "Cluster N" */
+  const fetchClusterLabels = async () => {
+    const clusters = clusterList.value
+      .filter(c => c.size >= LABEL_MIN_GENES)
+      .slice(0, MAX_LABELLED_CLUSTERS)
+    if (clusters.length === 0) return
+    const controller = start('labels')
+    try {
+      const response = await networkApi.enrichHPOBatch(
+        { communities: clusters.map(c => c.genes), fdr_threshold: LABEL_MAX_FDR },
+        controller.signal
+      )
+      if (controller.signal.aborted) return
+      const labels = new Map<number, EnrichmentTerm>()
+      clusters.forEach((c, i) => {
+        const term = pickClusterLabel(response.results[i] ?? [], c.size)
+        if (term) labels.set(c.backendId, term)
+      })
+      clusterLabelTerms.value = labels
+    } catch (error) {
+      if (controller.signal.aborted) return
+      window.logService?.warn(
+        '[Network] Cluster labelling failed; keeping numbered clusters',
+        error
+      )
+    } finally {
+      finish('labels', controller)
+    }
+  }
+
   const buildNetwork = async () => {
     const genes = filteredGenes.value
     if (genes.length === 0) return
@@ -405,6 +492,7 @@ export function useNetworkAnalysis() {
       clusterStats.value = null
       clusteredWith.value = null
       selectedClusters.value = []
+      clusterLabelTerms.value = new Map()
       clearEnrichment()
       hpoClassifications.value = null
       window.logService?.info('Network built successfully')
@@ -453,9 +541,11 @@ export function useNetworkAnalysis() {
           (response.parameters?.modularity_resolution as number | undefined) ?? null
       }
       clusteredWith.value = settings
+      clusterLabelTerms.value = new Map()
       clearEnrichment()
       // Default to the largest cluster; pooling every cluster tests the whole network
       selectedClusters.value = clusterList.value[0] ? [clusterList.value[0].value] : []
+      void fetchClusterLabels()
       window.logService?.info(
         `Detected ${response.num_clusters} clusters (modularity: ${response.modularity.toFixed(3)})`
       )
@@ -561,6 +651,7 @@ export function useNetworkAnalysis() {
     builtKey.value = null
     clusteredWith.value = null
     selectedClusters.value = []
+    clusterLabelTerms.value = new Map()
     clearEnrichment()
     hpoClassifications.value = null
 
@@ -607,6 +698,7 @@ export function useNetworkAnalysis() {
     clusterList,
     clusterIdMapping,
     clusterColors,
+    clusterLabels,
     hgncIds,
     hiddenGenes,
     nextStep,

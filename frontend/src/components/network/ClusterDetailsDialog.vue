@@ -13,7 +13,13 @@
             {{ clusterDisplayName || `Cluster ${clusterId + 1}` }}
           </Badge>
           <div>
-            <DialogTitle class="text-lg font-medium">Cluster Details</DialogTitle>
+            <DialogTitle class="text-lg font-medium">
+              <template v-if="clusterLabel">
+                {{ clusterDisplayName || `Cluster ${clusterId + 1}` }} &middot;
+                <span :title="LABEL_NOTE">{{ clusterLabel }}</span>
+              </template>
+              <template v-else>Cluster Details</template>
+            </DialogTitle>
             <p class="text-xs text-muted-foreground mt-1">
               {{ geneCount }} gene{{ geneCount !== 1 ? 's' : '' }} in cluster
             </p>
@@ -301,6 +307,7 @@ import { networkAnalysisConfig, OTHER_CLUSTER_COLOR } from '../../config/network
 import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { OntologyTerm } from '@/components/shared'
 import { computeHpoClusterStats } from './hpoClusterStats'
+import { LABEL_MAX_FDR, LABEL_MIN_GENES } from '@/composables/useNetworkAnalysis'
 import { downloadFile, fileSlug, isoDate, toCsv } from '@/utils/csv'
 
 import {
@@ -336,6 +343,11 @@ const props = defineProps({
     type: String,
     default: ''
   },
+  /** Most specific enriched HPO term name (useNetworkAnalysis clusterLabels), if any */
+  clusterLabel: {
+    type: String,
+    default: ''
+  },
   clusterColor: {
     type: String,
     default: OTHER_CLUSTER_COLOR
@@ -349,6 +361,8 @@ const props = defineProps({
     default: null
   }
 })
+
+const LABEL_NOTE = `Most specific enriched HPO term (FDR < ${LABEL_MAX_FDR}, at least ${LABEL_MIN_GENES} genes)`
 
 // Emits
 defineEmits(['update:modelValue', 'highlightGene'])
