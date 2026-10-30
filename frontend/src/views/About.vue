@@ -63,7 +63,10 @@
               <strong class="font-semibold"
                 >The score and the number of sources set the tier.</strong
               >
-              A gene gets the highest tier whose score and source count it meets.
+              A gene gets the highest tier whose score and source count it meets. Established
+              Support and above also need at least one curated gene–disease assertion (ClinGen,
+              GenCC, PanelApp or Diagnostic Panels); count-only evidence (HPO, PubTator, Literature)
+              reaches at most Preliminary Evidence.
             </li>
           </ol>
 
@@ -345,9 +348,18 @@ const apiDocsUrl = `${config.apiBaseUrl}/docs`
 
 // Tier rules of the gene_scores view (backend/app/db/views.py), on the 0–100 score scale
 const tierRules: { tier: TierName; text: string }[] = [
-  { tier: 'comprehensive_support', text: 'Score ≥ 50 with evidence from at least 4 sources' },
-  { tier: 'multi_source_support', text: 'Score ≥ 35 with evidence from at least 3 sources' },
-  { tier: 'established_support', text: 'Score ≥ 20 with evidence from at least 2 sources' },
+  {
+    tier: 'comprehensive_support',
+    text: 'Score ≥ 50 with a curated assertion and evidence from at least 4 sources'
+  },
+  {
+    tier: 'multi_source_support',
+    text: 'Score ≥ 35 with a curated assertion and evidence from at least 3 sources'
+  },
+  {
+    tier: 'established_support',
+    text: 'Score ≥ 20 with a curated assertion and evidence from at least 2 sources'
+  },
   { tier: 'preliminary_evidence', text: 'Score ≥ 10' },
   { tier: 'minimal_evidence', text: 'Score above 0 and below 10' }
 ]

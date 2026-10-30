@@ -53,19 +53,19 @@ export const TIER_CONFIG: Record<TierName, TierConfig> = {
     label: 'Comprehensive Support',
     color: 'var(--strength-5)',
     icon: CircleCheck,
-    description: '4+ sources with robust evidence (score ≥50%)'
+    description: '4+ sources incl. a curated assertion (score ≥50%)'
   },
   multi_source_support: {
     label: 'Multi-Source Support',
     color: 'var(--strength-4)',
     icon: CircleCheckBig,
-    description: '3+ sources with emerging evidence (score ≥35%)'
+    description: '3+ sources incl. a curated assertion (score ≥35%)'
   },
   established_support: {
     label: 'Established Support',
     color: 'var(--strength-3)',
     icon: Check,
-    description: '2+ sources with moderate evidence (score ≥20%)'
+    description: '2+ sources incl. a curated assertion (score ≥20%)'
   },
   preliminary_evidence: {
     label: 'Preliminary Evidence',
@@ -89,7 +89,7 @@ export const GROUP_CONFIG: Record<GroupName, GroupConfig> = {
     label: 'Well-Supported',
     color: 'var(--strength-4)',
     icon: Star,
-    description: '2+ sources with strong evidence scores'
+    description: '2+ sources incl. a curated assertion (score ≥20%)'
   },
   emerging_evidence: {
     label: 'Emerging Evidence',
