@@ -348,9 +348,18 @@ const apiDocsUrl = `${config.apiBaseUrl}/docs`
 
 // Tier rules of the gene_scores view (backend/app/db/views.py), on the 0–100 score scale
 const tierRules: { tier: TierName; text: string }[] = [
-  { tier: 'comprehensive_support', text: 'Score ≥ 50 with evidence from at least 4 sources, incl. a curated assertion' },
-  { tier: 'multi_source_support', text: 'Score ≥ 35 with evidence from at least 3 sources, incl. a curated assertion' },
-  { tier: 'established_support', text: 'Score ≥ 20 with evidence from at least 2 sources, incl. a curated assertion' },
+  {
+    tier: 'comprehensive_support',
+    text: 'Score ≥ 50 with a curated assertion and evidence from at least 4 sources'
+  },
+  {
+    tier: 'multi_source_support',
+    text: 'Score ≥ 35 with a curated assertion and evidence from at least 3 sources'
+  },
+  {
+    tier: 'established_support',
+    text: 'Score ≥ 20 with a curated assertion and evidence from at least 2 sources'
+  },
   { tier: 'preliminary_evidence', text: 'Score ≥ 10' },
   { tier: 'minimal_evidence', text: 'Score above 0 and below 10' }
 ]

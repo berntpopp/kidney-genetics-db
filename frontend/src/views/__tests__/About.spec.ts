@@ -18,7 +18,9 @@ describe('About tier table (#314)', () => {
   it('renders one row per backend evidence tier, in order, on the 0–100 scale', () => {
     const rows = mountAbout().findAll('[data-testid="tier-row"]')
     expect(rows.map(r => r.find('dt').text())).toEqual(Object.values(TIER_CONFIG).map(t => t.label))
-    expect(rows[0]?.find('dd').text()).toBe('Score ≥ 50 with evidence from at least 4 sources')
+    expect(rows[0]?.find('dd').text()).toBe(
+      'Score ≥ 50 with a curated assertion and evidence from at least 4 sources'
+    )
     for (const row of rows) expect(row.text()).not.toContain('%')
   })
 })
