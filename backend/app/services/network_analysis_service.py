@@ -113,16 +113,25 @@ class NetworkAnalysisService:
         THREAD-SAFE: Creates fresh session using get_db_context()
         """
         with get_db_context() as db:
-            # Create empty igraph
+            # One query: drops unknown ids (no invented nodes) and maps partner symbols
+            known = dict(
+                db.query(Gene.id, Gene.approved_symbol).filter(Gene.id.in_(gene_ids)).all()
+            )
+            ids = [gid for gid in gene_ids if gid in known]
+            symbol_to_id = {known[gid]: gid for gid in ids}
+            gene_id_to_idx = {gid: idx for idx, gid in enumerate(ids)}
+
             g = ig.Graph()
-            g.add_vertices(len(gene_ids))
-            g.vs["gene_id"] = gene_ids
+            g.add_vertices(len(ids))
+            g.vs["gene_id"] = ids
+            g.vs["symbol"] = [known[gid] for gid in ids]
+            g["unknown_gene_ids"] = [gid for gid in gene_ids if gid not in known]
 
             # Query STRING annotations from JSONB (chunked to avoid memory spikes)
             NETWORK_BATCH_SIZE = 5000
             annotations = []
-            for i in range(0, len(gene_ids), NETWORK_BATCH_SIZE):
-                chunk = gene_ids[i : i + NETWORK_BATCH_SIZE]
+            for i in range(0, len(ids), NETWORK_BATCH_SIZE):
+                chunk = ids[i : i + NETWORK_BATCH_SIZE]
                 annotations.extend(
                     db.query(GeneAnnotation)
                     .filter(
@@ -132,14 +141,8 @@ class NetworkAnalysisService:
                     .all()
                 )
 
-            # Build gene_id → vertex index mapping
-            gene_id_to_idx = {gid: idx for idx, gid in enumerate(gene_ids)}
-
-            # Build edge list
-            edges = []
-            weights = []
-            string_scores = []
-
+            # Undirected simple graph: A lists B and B lists A, keep one edge at max score
+            pair_scores: dict[tuple[int, int], int] = {}
             for ann in annotations:
                 data = ann.annotations
                 if not data or "interactions" not in data:
@@ -149,31 +152,23 @@ class NetworkAnalysisService:
                 if source_idx is None:
                     continue
 
-                # Extract interactions from JSONB
                 for interaction in data["interactions"]:
                     score = interaction.get("string_score", 0)
+                    if score < min_string_score:
+                        continue
+                    partner_id = interaction.get("partner_gene_id") or symbol_to_id.get(
+                        interaction.get("partner_symbol")
+                    )
+                    target_idx = gene_id_to_idx.get(partner_id)
+                    if target_idx is None or target_idx == source_idx:
+                        continue
+                    pair = (min(source_idx, target_idx), max(source_idx, target_idx))
+                    pair_scores[pair] = max(score, pair_scores.get(pair, 0))
 
-                    if score >= min_string_score:
-                        # Get partner gene_id
-                        partner_symbol = interaction.get("partner_symbol")
-                        if not partner_symbol:
-                            continue
-
-                        partner_gene = (
-                            db.query(Gene).filter_by(approved_symbol=partner_symbol).first()
-                        )
-
-                        if partner_gene and partner_gene.id in gene_id_to_idx:
-                            target_idx = gene_id_to_idx[partner_gene.id]
-                            edges.append((source_idx, target_idx))
-                            weights.append(score / 1000.0)  # Normalize to 0-1
-                            string_scores.append(score)
-
-            # Add edges to graph
-            if edges:
-                g.add_edges(edges)
-                g.es["weight"] = weights
-                g.es["string_score"] = string_scores
+            if pair_scores:
+                g.add_edges(list(pair_scores))
+                g.es["string_score"] = list(pair_scores.values())
+                g.es["weight"] = [score / 1000.0 for score in pair_scores.values()]
 
             logger.sync_info(
                 "Built network graph in thread pool",
@@ -181,6 +176,7 @@ class NetworkAnalysisService:
                 edges=g.ecount(),
                 components=len(g.connected_components()),
                 min_score=min_string_score,
+                unknown_gene_ids=len(g["unknown_gene_ids"]),
             )
 
             return g
@@ -218,6 +214,8 @@ class NetworkAnalysisService:
             Tuple of ({gene_id: cluster_id} mapping, modularity_score, parameters used)
         """
         params: dict[str, Any]
+        # igraph raises on weights="weight" when the graph has no edges (no attribute)
+        weights = "weight" if graph.ecount() else None
         with _RNG_LOCK:
             ig.set_random_number_generator(random.Random(seed))
             try:
@@ -231,7 +229,7 @@ class NetworkAnalysisService:
                     }
                     partition = graph.community_leiden(
                         objective_function=params["objective"],
-                        weights="weight",
+                        weights=weights,
                         resolution=params["resolution"],
                         n_iterations=params["iterations"],
                     )
@@ -242,13 +240,13 @@ class NetworkAnalysisService:
                         "seed": seed,
                     }
                     partition = graph.community_multilevel(
-                        weights="weight", resolution=params["resolution"]
+                        weights=weights, resolution=params["resolution"]
                     )
                 elif algorithm == "walktrap":
                     # Walktrap algorithm (random walk-based, deterministic)
                     params = {"steps": self.config.get("walktrap_steps", 4)}
                     partition = graph.community_walktrap(
-                        weights="weight", steps=params["steps"]
+                        weights=weights, steps=params["steps"]
                     ).as_clustering()
                 else:
                     raise ValueError(
@@ -264,8 +262,19 @@ class NetworkAnalysisService:
                 gene_id = graph.vs[vertex_idx]["gene_id"]
                 gene_to_cluster[gene_id] = cluster_id
 
-        # Calculate modularity
-        modularity = graph.modularity(partition, weights="weight")
+        # Report modularity at the resolution optimised (CPM resolution is not a modularity
+        # gamma); igraph returns NaN without edges, so an edgeless graph scores 0
+        resolution = (
+            params.get("resolution", 1.0)
+            if params.get("objective", "modularity") == "modularity"
+            else 1.0
+        )
+        params["modularity_resolution"] = resolution
+        modularity = (
+            graph.modularity(partition, weights=weights, resolution=resolution)
+            if graph.ecount()
+            else 0.0
+        )
 
         logger.sync_info(
             f"Detected communities using {algorithm}",
@@ -345,76 +354,6 @@ class NetworkAnalysisService:
         )
 
         return subgraph
-
-    async def calculate_centrality_metrics(
-        self, graph: ig.Graph, session: Session, metrics: list[str] | None = None
-    ) -> dict[int, dict[str, float]]:
-        """
-        Calculate centrality metrics for all nodes.
-
-        Args:
-            graph: Network graph
-            session: Database session
-            metrics: List of metrics to calculate
-                    (default: ["degree", "betweenness", "closeness"])
-
-        Returns:
-            {gene_id: {metric_name: value}}
-        """
-        if metrics is None:
-            metrics = ["degree", "betweenness", "closeness"]
-
-        loop = asyncio.get_event_loop()
-        centrality_data = await loop.run_in_executor(
-            self._executor, self._calculate_centrality_sync, graph, metrics
-        )
-        return centrality_data
-
-    def _calculate_centrality_sync(
-        self, graph: ig.Graph, metrics: list[str]
-    ) -> dict[int, dict[str, float]]:
-        """
-        Synchronous centrality calculation.
-
-        igraph is 10-50x faster than NetworkX for these operations.
-        """
-        results: dict[int, dict[str, float]] = {v["gene_id"]: {} for v in graph.vs}
-
-        if "degree" in metrics:
-            degree_cent = graph.degree()
-            max_degree = max(degree_cent) if degree_cent else 1
-            for v in graph.vs:
-                results[v["gene_id"]]["degree_centrality"] = degree_cent[v.index] / max_degree
-
-        if "betweenness" in metrics:
-            # Betweenness centrality (10-50x faster than NetworkX)
-            between_cent = graph.betweenness(weights="weight", directed=False)
-            for v in graph.vs:
-                results[v["gene_id"]]["betweenness_centrality"] = between_cent[v.index]
-
-        if "closeness" in metrics:
-            # Closeness centrality (only for largest component)
-            components = graph.connected_components()
-            if len(components) > 0:
-                largest_component = max(components, key=len)
-                subgraph = graph.subgraph(largest_component)
-                closeness_cent = subgraph.closeness(weights="weight")
-
-                for idx, v_idx in enumerate(largest_component):
-                    gene_id = graph.vs[v_idx]["gene_id"]
-                    results[gene_id]["closeness_centrality"] = closeness_cent[idx]
-
-        if "pagerank" in metrics:
-            # PageRank (bonus - much faster in igraph)
-            pagerank = graph.pagerank(weights="weight")
-            for v in graph.vs:
-                results[v["gene_id"]]["pagerank"] = pagerank[v.index]
-
-        logger.sync_info(
-            "Calculated centrality metrics", metrics=metrics, node_count=graph.vcount()
-        )
-
-        return results
 
     async def filter_network(
         self,
