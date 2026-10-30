@@ -12,6 +12,7 @@ from sqlalchemy import select
 
 from app.core.initial_seeder import _seed_source
 from app.models.gene import Gene, GeneEvidence
+from app.models.static_sources import StaticEvidenceUpload
 from app.pipeline.sources.unified.diagnostic_panels import DiagnosticPanelsSource
 
 SHARED, SINGLE, NEWGENE = "KGT280SHARED", "KGT280SINGLE", "KGT280NEW"
@@ -49,9 +50,15 @@ async def test_seeded_and_merged_providers_keep_real_identities(db_session, tmp_
     shared = _evidence(db_session, SHARED).evidence_data
     assert shared["providers"] == sorted(PROVIDERS)
     assert shared["provider_count"] == 9
+    assert shared["provider_panels"] == {name: [f"Panel {i}"] for i, name in enumerate(PROVIDERS)}
     single = _evidence(db_session, SINGLE).evidence_data
     assert single["providers"] == ["Synthetic Lab 1"]
     assert single["provider_count"] == 1
+    # Provenance is recorded once per seed file, as for an upload
+    uploads = db_session.execute(
+        select(StaticEvidenceUpload).where(StaticEvidenceUpload.evidence_name.in_(PROVIDERS))
+    ).scalars()
+    assert sorted(u.upload_metadata["provider_name"] for u in uploads) == sorted(PROVIDERS)
 
     # Ordinary single-provider upload: merge into existing + create new record.
     source = DiagnosticPanelsSource(db_session=db_session)

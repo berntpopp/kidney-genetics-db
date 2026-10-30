@@ -363,7 +363,25 @@ class EnrichmentResult(BaseModel):
     term_name: Annotated[str, Field(title="Term Name")]
 
 
+class BackgroundGenes(RootModel[list[int]]):
+    root: Annotated[
+        list[int],
+        Field(
+            description="Background gene IDs (default: all genes in the Enrichr gene-set library)",
+            max_length=2000,
+            title="Background Genes",
+        ),
+    ]
+
+
 class GOEnrichmentRequest(BaseModel):
+    background_genes: Annotated[
+        BackgroundGenes | None,
+        Field(
+            description="Background gene IDs (default: all genes in the Enrichr gene-set library)",
+            title="Background Genes",
+        ),
+    ] = None
     cluster_genes: Annotated[
         list[int],
         Field(
@@ -448,7 +466,25 @@ class GeneNormalizationStagingResponse(BaseModel):
     updated_at: Annotated[AwareDatetime, Field(title="Updated At")]
 
 
+class BackgroundGenes1(RootModel[list[int]]):
+    root: Annotated[
+        list[int],
+        Field(
+            description="Background gene IDs (e.g. the network's genes); default: all genes with kidney HPO annotations",
+            max_length=2000,
+            title="Background Genes",
+        ),
+    ]
+
+
 class HPOBatchEnrichmentRequest(BaseModel):
+    background_genes: Annotated[
+        BackgroundGenes1 | None,
+        Field(
+            description="Background gene IDs (e.g. the network's genes); default: all genes with kidney HPO annotations",
+            title="Background Genes",
+        ),
+    ] = None
     communities: Annotated[
         list[list[int]],
         Field(
@@ -535,7 +571,7 @@ class HPOClassificationResponse(BaseModel):
     ]
 
 
-class BackgroundGenes(RootModel[list[int]]):
+class BackgroundGenes2(RootModel[list[int]]):
     root: Annotated[
         list[int],
         Field(
@@ -548,7 +584,7 @@ class BackgroundGenes(RootModel[list[int]]):
 
 class HPOEnrichmentRequest(BaseModel):
     background_genes: Annotated[
-        BackgroundGenes | None,
+        BackgroundGenes2 | None,
         Field(
             description="Background gene IDs; the tested universe is these genes that have kidney HPO annotations (default: all genes with kidney HPO annotations)",
             title="Background Genes",
@@ -644,8 +680,8 @@ class NetworkBuildRequest(BaseModel):
     min_string_score: Annotated[
         int | None,
         Field(
-            description="Minimum STRING confidence score (0-1000)",
-            ge=0,
+            description="Minimum STRING confidence score (400-1000); interactions below 400 are not ingested, so lower values are rejected",
+            ge=400,
             le=1000,
             title="Min String Score",
         ),
@@ -668,6 +704,13 @@ class NetworkBuildResponse(BaseModel):
     ]
     edges: Annotated[int, Field(description="Number of edges", title="Edges")]
     nodes: Annotated[int, Field(description="Number of nodes", title="Nodes")]
+    unknown_gene_ids: Annotated[
+        list[int] | None,
+        Field(
+            description="Submitted gene IDs not found in the database (no node)",
+            title="Unknown Gene Ids",
+        ),
+    ] = None
 
 
 class NetworkClusterRequest(BaseModel):
@@ -712,8 +755,8 @@ class NetworkClusterRequest(BaseModel):
     min_string_score: Annotated[
         int | None,
         Field(
-            description="Minimum STRING confidence score (0-1000)",
-            ge=0,
+            description="Minimum STRING confidence score (400-1000); interactions below 400 are not ingested, so lower values are rejected",
+            ge=400,
             le=1000,
             title="Min String Score",
         ),
@@ -765,6 +808,13 @@ class NetworkClusterResponse(BaseModel):
             title="Parameters",
         ),
     ]
+    unknown_gene_ids: Annotated[
+        list[int] | None,
+        Field(
+            description="Submitted gene IDs not found in the database (no node)",
+            title="Unknown Gene Ids",
+        ),
+    ] = None
 
 
 class NormalizationStatsResponse(BaseModel):
@@ -1011,8 +1061,8 @@ class SubgraphRequest(BaseModel):
     min_string_score: Annotated[
         int | None,
         Field(
-            description="Minimum STRING confidence score",
-            ge=0,
+            description="Minimum STRING confidence score (400-1000); interactions below 400 are not ingested, so lower values are rejected",
+            ge=400,
             le=1000,
             title="Min String Score",
         ),

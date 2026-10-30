@@ -136,11 +136,11 @@ def _get_count_for_evidence(evidence: GeneEvidence) -> int:
         return len(data.get("pmids", []))
 
     elif evidence.source_name == "DiagnosticPanels":
-        # Count panels
-        panel_count = data.get("panel_count")
-        if panel_count is not None:
-            return int(panel_count)
-        return len(data.get("panels", []))
+        # Count laboratories, as evidence_source_counts does
+        provider_count = data.get("provider_count")
+        if provider_count is not None:
+            return int(provider_count)
+        return len(data.get("providers", []))
 
     else:
         # Default: try to count common fields

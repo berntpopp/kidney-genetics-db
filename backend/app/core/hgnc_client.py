@@ -27,6 +27,14 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _approved(field: str, value: str) -> str:
+    """Search path matching approved entries only: withdrawn ACMG/IV must not normalize.
+
+    A bare ``search/symbol?symbol=X`` is a free-text query whose top hit is PHIP for any X.
+    """
+    return f"search/status:Approved+AND+{field}:{value.strip().upper()}"
+
+
 class HGNCClientCached:
     """
     Enhanced HGNC client with unified cache system integration.
@@ -128,7 +136,7 @@ class HGNCClientCached:
 
         async def fetch_hgnc_id() -> str | None:
             try:
-                response = await self._make_request("search/symbol", {"symbol": symbol})
+                response = await self._make_request(_approved("symbol", symbol))
                 docs = response.get("response", {}).get("docs", [])
                 if docs:
                     hgnc_id = docs[0].get("hgnc_id")
@@ -158,7 +166,7 @@ class HGNCClientCached:
 
         async def fetch_gene_info() -> dict[str, Any] | None:
             # An outage raises (and is not cached); None means HGNC has no such symbol.
-            response = await self._make_request("search/symbol", {"symbol": symbol})
+            response = await self._make_request(_approved("symbol", symbol))
             docs = response.get("response", {}).get("docs", [])
             if docs:
                 return cast(dict[str, Any], docs[0])
@@ -190,7 +198,7 @@ class HGNCClientCached:
             failed = False
             # Try direct symbol lookup
             try:
-                response = await self._make_request(f"search/symbol/{normalized_symbol}")
+                response = await self._make_request(_approved("symbol", normalized_symbol))
                 docs = response.get("response", {}).get("docs", [])
                 if docs:
                     return str(docs[0].get("symbol", symbol))
@@ -199,21 +207,24 @@ class HGNCClientCached:
 
             # Try previous symbol lookup
             try:
-                response = await self._make_request(f"search/prev_symbol/{normalized_symbol}")
+                response = await self._make_request(_approved("prev_symbol", normalized_symbol))
                 docs = response.get("response", {}).get("docs", [])
                 if docs:
                     return str(docs[0].get("symbol", symbol))
             except Exception:
                 failed = True
 
-            # Try alias symbol lookup
-            try:
-                response = await self._make_request(f"search/alias_symbol/{normalized_symbol}")
-                docs = response.get("response", {}).get("docs", [])
-                if docs:
-                    return str(docs[0].get("symbol", symbol))
-            except Exception:
-                failed = True
+            # Try alias symbol lookup; a 1-3 letter alias is too ambiguous to trust ("IV")
+            if len(normalized_symbol) > 3:
+                try:
+                    response = await self._make_request(
+                        _approved("alias_symbol", normalized_symbol)
+                    )
+                    docs = response.get("response", {}).get("docs", [])
+                    if docs:
+                        return str(docs[0].get("symbol", symbol))
+                except Exception:
+                    failed = True
 
             if failed:
                 # Raising keeps an outage out of the cache and apart from "not found" (#291).
@@ -284,9 +295,7 @@ class HGNCClientCached:
             # Use the +OR+ syntax for batch queries
             original_symbols = symbols
             query_str = "+OR+".join([s.upper() for s in original_symbols])
-            endpoint = f"search/symbol/{query_str}"
-
-            response = await self._make_request(endpoint, {"fields": "symbol,hgnc_id"})
+            response = await self._make_request(_approved("symbol", f"({query_str})"))
             docs = response.get("response", {}).get("docs", [])
 
             # Process results and cache individually

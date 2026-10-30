@@ -48,8 +48,9 @@ evidence_source_counts = ReplaceableObject(
                 (COALESCE((ge.evidence_data ->> 'publication_count'::text)::integer,
                 jsonb_array_length(ge.evidence_data -> 'pmids'::text)))::bigint
             WHEN 'DiagnosticPanels'::text THEN
-                (COALESCE((ge.evidence_data ->> 'panel_count'::text)::integer,
-                jsonb_array_length(ge.evidence_data -> 'panels'::text)))::bigint
+                -- Laboratories, not panel names: one lab's sub-panels count once
+                (COALESCE((ge.evidence_data ->> 'provider_count'::text)::integer,
+                jsonb_array_length(ge.evidence_data -> 'providers'::text)))::bigint
             WHEN 'GenCC'::text THEN
                 (COALESCE(jsonb_array_length(
                     ge.evidence_data -> 'classifications'::text), 0))::bigint

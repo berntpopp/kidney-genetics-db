@@ -1506,6 +1506,22 @@
       "GOEnrichmentRequest": {
         "description": "Request for GO/KEGG enrichment via GSEApy",
         "properties": {
+          "background_genes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "maxItems": 2000,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Background gene IDs (default: all genes in the Enrichr gene-set library)",
+            "title": "Background Genes"
+          },
           "cluster_genes": {
             "description": "Gene IDs in cluster",
             "items": {
@@ -1839,6 +1855,22 @@
       "HPOBatchEnrichmentRequest": {
         "description": "Request for HPO enrichment of several communities with pooled FDR (#332)",
         "properties": {
+          "background_genes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "maxItems": 2000,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Background gene IDs (e.g. the network's genes); default: all genes with kidney HPO annotations",
+            "title": "Background Genes"
+          },
           "communities": {
             "description": "Gene IDs per community; BH-FDR is pooled over all community x term pairs with at least one overlapping community gene (the single-community family). At most 200 communities.",
             "items": {
@@ -2228,9 +2260,9 @@
           },
           "min_string_score": {
             "default": 400,
-            "description": "Minimum STRING confidence score (0-1000)",
+            "description": "Minimum STRING confidence score (400-1000); interactions below 400 are not ingested, so lower values are rejected",
             "maximum": 1000.0,
-            "minimum": 0.0,
+            "minimum": 400.0,
             "title": "Min String Score",
             "type": "integer"
           },
@@ -2270,6 +2302,14 @@
             "description": "Number of nodes",
             "title": "Nodes",
             "type": "integer"
+          },
+          "unknown_gene_ids": {
+            "description": "Submitted gene IDs not found in the database (no node)",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Unknown Gene Ids",
+            "type": "array"
           }
         },
         "required": [
@@ -2324,9 +2364,9 @@
           },
           "min_string_score": {
             "default": 400,
-            "description": "Minimum STRING confidence score (0-1000)",
+            "description": "Minimum STRING confidence score (400-1000); interactions below 400 are not ingested, so lower values are rejected",
             "maximum": 1000.0,
-            "minimum": 0.0,
+            "minimum": 400.0,
             "title": "Min String Score",
             "type": "integer"
           },
@@ -2403,6 +2443,14 @@
             "description": "Clustering parameters used, e.g. objective, resolution, iterations, seed",
             "title": "Parameters",
             "type": "object"
+          },
+          "unknown_gene_ids": {
+            "description": "Submitted gene IDs not found in the database (no node)",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Unknown Gene Ids",
+            "type": "array"
           }
         },
         "required": [
@@ -3148,9 +3196,9 @@
           },
           "min_string_score": {
             "default": 400,
-            "description": "Minimum STRING confidence score",
+            "description": "Minimum STRING confidence score (400-1000); interactions below 400 are not ingested, so lower values are rejected",
             "maximum": 1000.0,
-            "minimum": 0.0,
+            "minimum": 400.0,
             "title": "Min String Score",
             "type": "integer"
           },
@@ -7196,6 +7244,30 @@
         ]
       }
     },
+    "/api/datasources/DiagnosticPanels/providers": {
+      "get": {
+        "description": "Scraper provenance (URLs, scrape date, panels) for each diagnostic panel provider.",
+        "operationId": "get_diagnostic_panel_providers_api_datasources_DiagnosticPanels_providers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Diagnostic Panel Providers Api Datasources Diagnosticpanels Providers Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Diagnostic Panel Providers",
+        "tags": [
+          "Core Resources - Data Sources"
+        ]
+      }
+    },
     "/api/datasources/update-all": {
       "post": {
         "description": "Trigger updates for all available data sources that support auto-update",
@@ -7912,6 +7984,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Get Audit Trail",
         "tags": [
           "Pipeline - Ingestion"
@@ -8186,6 +8263,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "List Uploads",
         "tags": [
           "Pipeline - Ingestion"

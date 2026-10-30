@@ -7,7 +7,7 @@ enforcing consistent patterns for fetching, processing, and storing data.
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -411,6 +411,26 @@ class DataSourceClient(ABC):
                     merged[count_key] = len(value)
         return merged
 
+    @staticmethod
+    def _gene_by_hgnc_id(db: Session, hgnc_id: str, *symbols: str) -> Gene | None | Literal[False]:
+        """The gene holding hgnc_id, or False when its symbol and aliases match none of ours.
+
+        A wrong stored ID (DLX4 held PHIP's HGNC:15673) must not pull another gene's evidence.
+        """
+        gene = db.query(Gene).filter(Gene.hgnc_id == hgnc_id).first()
+        names = {s.upper() for s in symbols if s}
+        if gene and names.isdisjoint(
+            {str(gene.approved_symbol).upper(), *(a.upper() for a in gene.aliases or [])}
+        ):
+            logger.sync_warning(
+                "HGNC ID held by a different gene, not merging",
+                hgnc_id=hgnc_id,
+                stored_symbol=gene.approved_symbol,
+                symbols=sorted(names),
+            )
+            return False
+        return gene
+
     async def _get_or_create_gene(
         self, db: Session, norm_result: dict[str, Any], original_symbol: str, stats: dict[str, Any]
     ) -> Gene | None:
@@ -426,7 +446,9 @@ class DataSourceClient(ABC):
 
         # If not found by symbol, try by HGNC ID (in case of symbol changes)
         if not gene and hgnc_id:
-            gene = db.query(Gene).filter(Gene.hgnc_id == hgnc_id).first()
+            gene = self._gene_by_hgnc_id(db, hgnc_id, approved_symbol, original_symbol)
+            if gene is False:
+                return None
 
         if not gene:
             gene_create = GeneCreate(
@@ -452,7 +474,9 @@ class DataSourceClient(ABC):
                 )
                 gene = gene_crud.get_by_symbol(db, approved_symbol)
                 if not gene and hgnc_id:
-                    gene = db.query(Gene).filter(Gene.hgnc_id == hgnc_id).first()
+                    gene = self._gene_by_hgnc_id(db, hgnc_id, approved_symbol, original_symbol)
+                    if gene is False:
+                        return None
 
                 if gene:
                     stats["genes_updated"] += 1

@@ -5,6 +5,8 @@ Simplified replacement for the complex static ingestion system.
 Handles file uploads for DiagnosticPanels source.
 """
 
+import contextlib
+import json
 import time
 from typing import Any, cast
 
@@ -101,7 +103,13 @@ async def upload_evidence_file(
             reason=f"Unsupported file type: {file_extension}. Supported: json, csv, tsv, xlsx, xls",
         )
 
-    # Use filename (without extension) as provider if not specified
+    doc = None
+    if source_name == "DiagnosticPanels" and file_extension == "json":
+        with contextlib.suppress(ValueError):  # malformed JSON is rejected by the parser below
+            doc = json.loads(file_content)
+    # The scraper's provider_name, not the filename: "blueprint_genetics" duplicated a lab
+    if not provider_name and isinstance(doc, dict) and isinstance(doc.get("provider_name"), str):
+        provider_name = doc["provider_name"].strip()
     if not provider_name:
         provider_name = file.filename.rsplit(".", 1)[0]
 
@@ -160,6 +168,9 @@ async def upload_evidence_file(
         processed_data = await source.process_data(raw_data)
 
         await logger.info("Data processed", gene_count=len(processed_data) if processed_data else 0)
+        if not processed_data:
+            # Before any delete: an empty replace upload would wipe the provider's evidence
+            raise ValueError("No genes found in the uploaded file")
 
         await logger.info("Starting hybrid gene creation/evidence merging", provider=provider_name)
 
@@ -265,6 +276,11 @@ async def upload_evidence_file(
             uploaded_by=current_user.id,
             mode=mode,
             gene_ids=gene_ids,
+            **(
+                {"upload_metadata": source.upload_provenance(doc, provider_name, processed_data)}
+                if isinstance(source, DiagnosticPanelsSource)
+                else {}
+            ),
         )
 
         await logger.info("Evidence storage complete", stats=evidence_stats)
@@ -474,7 +490,7 @@ async def delete_by_identifier(
                     "source": source_name,
                     "identifier": identifier,
                     "deletion_stats": stats,
-                    "message": f"Successfully deleted {stats.get('deleted_evidence', 0)} evidence records",
+                    "message": f"Successfully deleted {stats.get('evidence_deleted', 0)} evidence records",
                 },
                 meta={"deleted_by": current_user.username},
             ),
@@ -573,7 +589,7 @@ async def soft_delete_upload(
     )
 
 
-@router.get("/{source_name}/uploads")
+@router.get("/{source_name}/uploads", dependencies=[Depends(require_curator)])
 async def list_uploads(
     source_name: str,
     limit: int = 50,
@@ -651,7 +667,7 @@ async def list_uploads(
     )
 
 
-@router.get("/{source_name}/audit")
+@router.get("/{source_name}/audit", dependencies=[Depends(require_curator)])
 async def get_audit_trail(
     source_name: str,
     limit: int = 50,
