@@ -18,18 +18,22 @@ from app.core.exceptions import PermissionDeniedError, ResourceConflictError
 from app.core.exceptions import ValidationError as DomainValidationError
 from app.crud.gene import gene_crud
 from app.models.gene import Gene
+from app.models.gene_disease_association import MOI_TERMS
 from app.models.gene_disease_association import GeneDiseaseAssociation as GDA
 from app.models.user import User
 from app.schemas.gene_disease_association import (
     AssociationCreate,
     AssociationUpdate,
     ReviewDecision,
+    check_classification,
+    check_provenance,
 )
 
 
 def to_response(record: GDA) -> dict[str, Any]:
     data = {c.name: getattr(record, c.name) for c in GDA.__table__.columns}
     data["gene_symbol"] = record.gene.approved_symbol
+    data["moi_label"] = MOI_TERMS.get(record.moi) if record.moi else None
     return data
 
 
@@ -101,38 +105,60 @@ def _log(db: Session, record: GDA, action: str, user: User) -> None:
     )
 
 
-def _ensure_unique(db: Session, gene_id: int, disease_id: str, exclude_id: int | None) -> None:
-    query = db.query(GDA.id).filter(GDA.gene_id == gene_id, GDA.disease_id == disease_id)
-    if exclude_id is not None:
-        query = query.filter(GDA.id != exclude_id)
+def _ensure_unique(db: Session, record: GDA) -> None:
+    """Gene + disease + MOI (NULL MOIs equal) and source + external_id identify one record."""
+    query = db.query(GDA.id).filter(
+        GDA.gene_id == record.gene_id,
+        GDA.disease_id == record.disease_id,
+        GDA.moi.is_(None) if record.moi is None else GDA.moi == record.moi,
+    )
+    if record.id is not None:
+        query = query.filter(GDA.id != record.id)
     if query.first():
-        raise ResourceConflictError("Association", f"{disease_id} is already recorded for gene")
+        raise ResourceConflictError("Association", _duplicate(record))
+    if record.external_id is not None:
+        query = db.query(GDA.id).filter(
+            GDA.source == record.source, GDA.external_id == record.external_id
+        )
+        if record.id is not None:
+            query = query.filter(GDA.id != record.id)
+        if query.first():
+            raise ResourceConflictError(
+                "Association", f"{record.source} record {record.external_id} is already imported"
+            )
+
+
+def _duplicate(record: GDA) -> str:
+    moi = f" with MOI {record.moi}" if record.moi else " without an MOI"
+    return f"{record.disease_id}{moi} is already recorded for gene"
 
 
 def _commit_unique(db: Session, record: GDA, action: str, user: User) -> None:
     """Log and commit; a concurrent duplicate that passed _ensure_unique hits the unique key."""
-    disease_id = record.disease_id
+    message = _duplicate(record)
     try:
         _log(db, record, action, user)
         db.commit()
     except IntegrityError as e:
         db.rollback()
-        raise ResourceConflictError(
-            "Association", f"{disease_id} is already recorded for gene"
-        ) from e
+        if "uq_gda" not in str(e):  # only a unique key is a duplicate; re-raise check failures
+            raise
+        raise ResourceConflictError("Association", message) from e
 
 
 def create(db: Session, payload: AssociationCreate, user: User) -> GDA:
     gene = gene_crud.get_by_symbol(db, payload.gene_symbol)
     if gene is None:
         raise DomainValidationError("gene_symbol", f"unknown gene '{payload.gene_symbol}'")
-    _ensure_unique(db, gene.id, payload.disease_id, None)
     record = GDA(
         gene_id=gene.id,
         curator_id=user.id,
         status="draft",
-        **payload.model_dump(exclude={"gene_symbol"}),
+        # mode="json": diagnostics dates must be JSON-serialisable for JSONB
+        **payload.model_dump(mode="json", exclude={"gene_symbol"}),
     )
+    with db.no_autoflush:  # the new record must not match itself
+        _ensure_unique(db, record)
     db.add(record)
     _commit_unique(db, record, "create", user)
     db.refresh(record)
@@ -143,11 +169,18 @@ def update(db: Session, record_id: int, payload: AssociationUpdate, user: User) 
     record = _locked(db, record_id)
     _require_author(record, user)
     _require_status(record, "draft")
-    changes = payload.model_dump(exclude_unset=True)
-    if "disease_id" in changes:
-        _ensure_unique(db, record.gene_id, changes["disease_id"], record.id)
+    changes = payload.model_dump(mode="json", exclude_unset=True)
     for key, value in changes.items():
         setattr(record, key, value)
+    # A PATCH may change one side only (e.g. relationship_type): check the merged record
+    try:
+        check_classification(record.relationship_type, record.evidence_strength)
+        check_provenance(record.source, record.external_id, record.external_url)
+    except ValueError as e:
+        db.rollback()
+        raise DomainValidationError("association", str(e)) from e
+    with db.no_autoflush:
+        _ensure_unique(db, record)
     _commit_unique(db, record, "update", user)
     db.refresh(record)
     return record
