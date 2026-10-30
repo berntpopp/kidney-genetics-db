@@ -6,7 +6,8 @@ async-first implementation using the unified data source architecture.
 
 Persistence: HPO data is stored in two places by two pipelines (#254).
 - GeneEvidence (source_name "HPO"): written by this unified source during ingestion.
-  evidence_data holds hpo_terms ({id, name}), evidence_score and last_updated;
+  evidence_data holds hpo_terms ({id, name}; most specific only, #450), evidence_score
+  and last_updated;
   it is the gene's HPO evidence record used for evidence scoring.
 - gene_annotations (source "hpo"): written by the annotation pipeline
   (app.pipeline.sources.annotations.hpo) for every gene. annotations holds all
@@ -16,6 +17,7 @@ Persistence: HPO data is stored in two places by two pipelines (#254).
   syndromic_assessment (#421 dropped the unread copy from the evidence).
 """
 
+import asyncio
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -25,12 +27,30 @@ from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.datasource_config import get_source_cache_ttl, get_source_parameter
 from app.core.logging import get_logger
+from app.pipeline.sources.annotations.hpo import load_hpo_parents
 from app.pipeline.sources.unified.base import UnifiedDataSource
+from app.pipeline.sources.unified.kidney_assertions import _pinned_file
 
 if TYPE_CHECKING:
     from app.core.progress_tracker import ProgressTracker
 
 logger = get_logger(__name__)
+
+
+def most_specific_terms(terms: list[dict], parents: dict[str, set[str]]) -> list[dict]:
+    """Drop each term that is an is_a ancestor of another of the gene's terms (#450).
+
+    The HPO API propagates annotations up the ontology, so every queried ancestor of
+    an annotated term lists the gene too; counting those rewards ontology depth.
+    """
+    covered: set[str] = set()
+    stack = [p for t in terms for p in parents.get(t["id"], ())]
+    while stack:
+        term = stack.pop()
+        if term not in covered:
+            covered.add(term)
+            stack.extend(parents.get(term, ()))
+    return [t for t in terms if t["id"] not in covered]
 
 
 class HPOUnifiedSource(UnifiedDataSource):
@@ -111,6 +131,16 @@ class HPOUnifiedSource(UnifiedDataSource):
 
         # Process kidney phenotypes and get gene associations
         gene_evidence_map = await pipeline.process_kidney_phenotypes(None)
+
+        # Pinned, sha256-checked hp.json; no fallback, inflated counts must not be stored
+        hp_json = await _pinned_file(
+            get_source_parameter("HPO", "hp_json_url", ""),
+            "json",
+            str(get_source_parameter("HPO", "hp_json_sha256")),
+        )
+        parents = await asyncio.to_thread(load_hpo_parents, hp_json)
+        for evidence in gene_evidence_map.values():
+            evidence["hpo_terms"] = most_specific_terms(evidence["hpo_terms"], parents)
 
         return {
             "gene_evidence": gene_evidence_map,

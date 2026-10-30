@@ -3,12 +3,10 @@
 import pytest
 from sqlalchemy import text
 
-from app.db import views
 from tests.test_audit_migration_views import (  # noqa: F401 - baseline_db is a fixture
     _add_evidence,
     _add_gene,
     _alembic,
-    _assert_view_matches_canonical,
     baseline_db,
 )
 
@@ -16,6 +14,7 @@ DIFF = (
     "SELECT count(*) FROM ((SELECT * FROM gene_scores EXCEPT SELECT * FROM w4_snapshot) "
     "UNION ALL (SELECT * FROM w4_snapshot EXCEPT SELECT * FROM gene_scores)) d"
 )
+GENE_SCORES_DEF = "SELECT pg_get_viewdef('gene_scores'::regclass)"
 MATVIEWS = ("gene_scores", "source_overlap_statistics", "gene_annotations_summary")
 
 
@@ -57,12 +56,14 @@ def test_0009_keeps_gene_scores_and_adds_refreshable_matviews(baseline_db):  # n
         assert conn.execute(text(DIFF)).scalar_one() == 0
         tiers = conn.execute(text("SELECT count(DISTINCT evidence_tier) FROM gene_scores"))
         assert tiers.scalar_one() >= 3  # data actually exercises the tier branches
+        # Definition at 0008; 0014 later changes it, so compare to this, not app.db.views
+        scores_def = conn.execute(text(GENE_SCORES_DEF)).scalar_one()
 
     for _ in range(2):  # upgrade, then downgrade to 0008 and upgrade again
         _alembic(url, "upgrade", "0009")
         with engine.begin() as conn:
             assert conn.execute(text(DIFF)).scalar_one() == 0
-            _assert_view_matches_canonical(conn, views.gene_scores)
+            assert conn.execute(text(GENE_SCORES_DEF)).scalar_one() == scores_def
             assert conn.execute(text("SELECT count(*) FROM gene_list_detailed")).scalar() == 6
             assert conn.execute(text("SELECT sum(n) FROM w4_dependent")).scalar() == 6
             for mv in MATVIEWS:

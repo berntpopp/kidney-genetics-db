@@ -63,7 +63,10 @@
               <strong class="font-semibold"
                 >The score and the number of sources set the tier.</strong
               >
-              A gene gets the highest tier whose score and source count it meets.
+              A gene gets the highest tier whose score and source count it meets. Established
+              Support and above also need at least one curated gene–disease assertion (ClinGen,
+              GenCC, PanelApp or Diagnostic Panels); count-only evidence (HPO, PubTator, Literature)
+              reaches at most Preliminary Evidence.
             </li>
           </ol>
 
