@@ -103,7 +103,7 @@ const drawerItem =
 
       <!-- Active link: weight + primary underline. The invisible bold ::after copy reserves
            the bold width, so links never shift when the active route changes. -->
-      <nav aria-label="Main" class="hidden h-full flex-1 items-stretch gap-1 md:flex">
+      <nav aria-label="Main" class="hidden h-full flex-1 items-stretch gap-1 lg:flex">
         <RouterLink
           v-for="link in navLinks"
           :key="link.to"
@@ -121,7 +121,7 @@ const drawerItem =
         </RouterLink>
       </nav>
 
-      <div class="hidden items-center gap-2 md:flex">
+      <div class="hidden items-center gap-2 lg:flex">
         <UserMenu v-if="authStore.isAuthenticated" />
         <Button v-else variant="default" size="sm" @click="loginModalOpen = true">
           <LogIn class="mr-2 size-4" aria-hidden="true" />
@@ -139,7 +139,7 @@ const drawerItem =
         </Tooltip>
       </div>
 
-      <div class="ml-auto flex md:hidden">
+      <div class="ml-auto flex lg:hidden">
         <Tooltip>
           <TooltipTrigger as-child>
             <Button
