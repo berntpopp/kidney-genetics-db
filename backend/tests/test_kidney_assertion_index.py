@@ -23,6 +23,15 @@ G2P = (
     "1\tSCN1A\tHP:0001250\tSeizure\t-\tOMIM:607208\n"
     "2\tNOPANEL\tHP:0000787\tNephrolithiasis\t-\tOMIM:999999\n"
     "3\tEXCL\tHP:0000787\tNephrolithiasis\tHP:0040285\tOMIM:888888\n"
+    "4\tNEGATED\tHP:0000787\tNephrolithiasis\t-\tORPHA:777\n"
+    "5\tZERO\tHP:0000787\tNephrolithiasis\t0/3\tOMIM:666666\n"
+)
+# phenotype.hpoa: ORPHA:777 nephrolithiasis is a NOT annotation (#438); OMIM:259900 is not
+HPOA = (
+    "#version: 2026-09-02\n"
+    "database_id\tdisease_name\tqualifier\thpo_id\treference\tevidence\n"
+    "ORPHA:777\tSome syndrome\tNOT\tHP:0000787\tORPHA:777\tTAS\n"
+    "OMIM:259900\tHyperoxaluria\t\tHP:0000787\tOMIM:259900\tTAS\n"
 )
 SSSOM = {
     "OMIM:259900": {"MONDO:0009823"},
@@ -31,14 +40,16 @@ SSSOM = {
     "OMIM:222222": {"MONDO:0000003"},  # obsolete
 }
 LABELS = {"MONDO:0000003": "obsolete thing"}
-PANEL_GENES = {"AGXT", "SLC12A3", "SCN1A", "EXCL"}
+PANEL_GENES = {"AGXT", "SLC12A3", "SCN1A", "EXCL", "NEGATED", "ZERO"}
 
 
 @pytest.fixture
 def index(tmp_path):
     g2p = tmp_path / "g2p.txt"
     g2p.write_text(G2P)
-    return KidneyAssertionIndex.build(PARENTS, g2p, SSSOM, LABELS, PANEL_GENES, "HP:0000077")
+    hpoa = tmp_path / "phenotype.hpoa"
+    hpoa.write_text(HPOA)
+    return KidneyAssertionIndex.build(PARENTS, g2p, hpoa, SSSOM, LABELS, PANEL_GENES, "HP:0000077")
 
 
 @pytest.mark.unit
@@ -61,6 +72,12 @@ class TestIndex:
 
     def test_excluded_frequency_ignored(self, index):
         assert not index.matches("EXCL", ["OMIM:888888"])
+
+    def test_not_annotation_ignored(self, index):
+        assert not index.matches("NEGATED", ["ORPHA:777"])
+
+    def test_zero_of_n_frequency_ignored(self, index):
+        assert not index.matches("ZERO", ["OMIM:666666"])
 
     def test_wrong_gene_for_disease_rejected(self, index):
         assert not index.matches("SLC12A3", ["OMIM:259900"])

@@ -5,8 +5,9 @@ annotates that gene-disease pair with a term under ``kidney_assertion_hpo_root``
 (HP:0000077, Abnormality of the kidney) and the gene already has PanelApp or
 DiagnosticPanels evidence (plan .planning/plans/2026-10-30-kidney-assertion-filter.md).
 
-Uses only the pinned, sha256-checked HPO genes_to_phenotype.txt and hp.json and the
-MONDO SSSOM (exactMatch; ambiguous or obsolete mappings ignored). Building fails soft:
+Uses only the pinned, sha256-checked HPO genes_to_phenotype.txt, phenotype.hpoa (for the
+NOT qualifiers genes_to_phenotype.txt drops) and hp.json and the MONDO SSSOM (exactMatch;
+ambiguous or obsolete mappings ignored). Building fails soft:
 the loader returns None and the sources fall back to today's keyword-only filter.
 """
 
@@ -44,6 +45,7 @@ class KidneyAssertionIndex:
         cls,
         parents: dict[str, set[str]],
         g2p_path: Path,
+        hpoa_path: Path,
         sssom: dict[str, set[str]],
         labels: dict[str, str],
         panel_genes: set[str],
@@ -60,13 +62,25 @@ class KidneyAssertionIndex:
                     kidney_terms.add(child)
                     stack.append(child)
 
+        # (disease, term) pairs that phenotype.hpoa marks NOT: g2p lists them with frequency "-"
+        negated: set[tuple[str, str]] = set()
+        with open(hpoa_path, newline="") as f:
+            for line in f:
+                parts = line.rstrip("\n").split("\t")
+                if len(parts) > 3 and parts[2] == "NOT":
+                    negated.add((parts[0].strip(), parts[3].strip()))
+
         pairs: set[tuple[str, str]] = set()
         with open(g2p_path, newline="") as f:
             for line in f:
                 parts = line.rstrip("\n").split("\t")
                 if len(parts) < 6 or parts[2] not in kidney_terms:
                     continue
-                if hpo_frequency(parts[4].strip()) > 0:  # skip "Excluded" annotations
+                freq = parts[4].strip()
+                # skip NOT, "Excluded" and 0/n (seen in none of n patients) annotations
+                if (parts[5].strip(), parts[2]) in negated or freq.startswith("0/"):
+                    continue
+                if hpo_frequency(freq) > 0:
                     pairs.add((parts[1].strip().upper(), normalise_curie(parts[5])))
 
         xrefs: dict[str, set[str]] = {}
@@ -128,6 +142,11 @@ async def load_kidney_assertion_index(db: Any) -> KidneyAssertionIndex | None:
             "txt",
             str(get_source_parameter("HPO", "genes_to_phenotype_sha256")),
         )
+        hpoa = await _pinned_file(
+            get_source_parameter("HPO", "phenotype_hpoa_url", ""),
+            "hpoa",
+            str(get_source_parameter("HPO", "phenotype_hpoa_sha256")),
+        )
         sssom = await _pinned_file(str(mondo["sssom_url"]), "tsv", str(mondo["sssom_sha256"]))
         parents = await asyncio.to_thread(load_hpo_parents, hp_json)
         mappings, labels = await asyncio.to_thread(parse_sssom, sssom)
@@ -136,7 +155,7 @@ async def load_kidney_assertion_index(db: Any) -> KidneyAssertionIndex | None:
             raise ValueError("no PanelApp/DiagnosticPanels genes in the database")
         root = str(get_source_parameter("HPO", "kidney_assertion_hpo_root", "HP:0000077"))
         index = await asyncio.to_thread(
-            KidneyAssertionIndex.build, parents, g2p, mappings, labels, panel_genes, root
+            KidneyAssertionIndex.build, parents, g2p, hpoa, mappings, labels, panel_genes, root
         )
     except Exception as e:
         logger.sync_error(f"Kidney assertion index unavailable, keyword-only filter: {e}")

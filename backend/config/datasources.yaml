@@ -142,9 +142,12 @@ datasources:
     hpo_release: "2026-09-01"
     genes_to_phenotype_url: https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-09-01/genes_to_phenotype.txt
     hp_json_url: https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-09-01/hp.json
+    # NOT qualifiers, which genes_to_phenotype.txt drops; read by the kidney assertion filter (#438)
+    phenotype_hpoa_url: https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-09-01/phenotype.hpoa
     # Content pins: a cached or downloaded file with another hash is deleted and the run fails
     genes_to_phenotype_sha256: 507a17bff9c49e6329fbd88b1f91734fa7e9fdea5c06304044c0892eb6ab248c
     hp_json_sha256: a7b3a012e7b4007a35a7cf8da35f2373b54cc16907f80d13d62470d31f833501
+    phenotype_hpoa_sha256: e89aa39c8f97bf5a52c5d160f9250a603681d630ade8ec2679d84ac5aece1f72
     # Clinical groups: a gene term counts for a group when it is a root term or a
     # descendant; evidence = sum over diseases of frequency x information content
     # (spec .planning/specs/2026-10-26-hpo-clinical-groups-v2.md). Comments are hp.json labels.
