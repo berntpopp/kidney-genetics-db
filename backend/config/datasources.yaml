@@ -115,6 +115,8 @@ datasources:
     browser_url: https://hpo.jax.org
     # Kidney phenotype configuration
     kidney_root_term: HP:0010935  # Abnormality of the upper urinary tract
+    # GenCC/ClinGen kidney filter (#438): pair has a term under this root + gene on a panel
+    kidney_assertion_hpo_root: HP:0000077  # Abnormality of the kidney
     kidney_root_terms: [HP:0000077, HP:0000079]  # Legacy - kept for compatibility
     kidney_terms:
       - HP:0010935  # Abnormality of upper urinary tract

@@ -19,6 +19,10 @@ from app.core.cached_http_client import CachedHttpClient
 from app.core.datasource_config import get_source_parameter, matches_kidney_keyword
 from app.core.logging import get_logger
 from app.pipeline.sources.unified.base import UnifiedDataSource
+from app.pipeline.sources.unified.kidney_assertions import (
+    KidneyAssertionIndex,
+    load_kidney_assertion_index,
+)
 
 if TYPE_CHECKING:
     from app.core.progress_tracker import ProgressTracker
@@ -37,6 +41,8 @@ class ClinGenUnifiedSource(UnifiedDataSource):
     - Gene-disease validity scoring
     - Mode of inheritance extraction
     """
+
+    kidney_index: KidneyAssertionIndex | None = None  # set per run in fetch_raw_data (#438)
 
     @property
     def source_name(self) -> str:
@@ -107,6 +113,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         if self.http_client is None:
             raise RuntimeError("HTTP client not initialized")
 
+        self.kidney_index = await load_kidney_assertion_index(getattr(self, "db_session", None))
         response = await self.http_client.get(self.csv_url, timeout=60)
         response.raise_for_status()
         reader = csv.reader(io.StringIO(response.text))
@@ -134,7 +141,10 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             disease = row[2].strip().lower()
             is_kidney_panel = gcep in self.kidney_panel_names
             # Also include entries from non-kidney panels if disease is kidney-related
-            is_kidney_disease = matches_kidney_keyword(disease)
+            is_kidney_disease = matches_kidney_keyword(disease) or (
+                self.kidney_index is not None
+                and self.kidney_index.matches(row[0], [row[3].strip()])
+            )
 
             if not is_kidney_panel and not is_kidney_disease:
                 continue
@@ -190,7 +200,8 @@ class ClinGenUnifiedSource(UnifiedDataSource):
 
         for validity in raw_data["validities"]:
             # Check if kidney-related
-            if not self.is_kidney_related(validity):
+            kidney_match = self.kidney_match(validity)
+            if kidney_match is None:
                 continue
 
             kidney_related += 1
@@ -201,6 +212,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             if not gene_info:
                 continue
 
+            gene_info["kidney_match"] = kidney_match
             symbol = gene_info["symbol"]
 
             # Initialize gene entry if new
@@ -241,6 +253,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
 
             # Add metadata
             data["validity_count"] = len(data["validities"])
+            data["kidney_filter"] = "keyword_only" if self.kidney_index is None else "ontology"
             data["last_updated"] = datetime.now(timezone.utc).isoformat()
 
         logger.sync_info(
@@ -252,15 +265,11 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         return gene_data_map
 
     def is_kidney_related(self, validity: dict[str, Any]) -> bool:
-        """
-        Check if a gene validity assessment is kidney-related.
+        """Check if a gene validity assessment is kidney-related."""
+        return self.kidney_match(validity) is not None
 
-        Args:
-            validity: Gene validity record
-
-        Returns:
-            True if kidney-related
-        """
+    def kidney_match(self, validity: dict[str, Any]) -> str | None:
+        """Why an assessment is kidney-related (keyword, hpo_panel, expert_panel) or None."""
         # Extract disease and panel names
         disease_name = validity.get("disease_name", "").lower()
         expert_panel = validity.get("ep", "").lower()
@@ -268,11 +277,15 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         # Combine text for searching
         combined_text = f"{disease_name} {expert_panel}"
 
-        # Check for kidney keywords
-        is_kidney = matches_kidney_keyword(combined_text)
+        if matches_kidney_keyword(combined_text):
+            return "keyword"
+        if self.kidney_index is not None and self.kidney_index.matches(
+            validity.get("symbol", ""), [validity.get("mondo")]
+        ):
+            return "hpo_panel"
 
         # Since these are from kidney-specific panels, be more permissive
-        if not is_kidney and disease_name:
+        if disease_name:
             # Exclude obviously non-kidney conditions
             excluded_terms = [
                 "hearing",
@@ -286,9 +299,9 @@ class ClinGenUnifiedSource(UnifiedDataSource):
 
             if not has_excluded:
                 # From kidney panel and no excluded terms
-                is_kidney = True
+                return "expert_panel"
 
-        return is_kidney
+        return None
 
     def _extract_gene_info(self, validity: dict[str, Any]) -> dict[str, Any] | None:
         """

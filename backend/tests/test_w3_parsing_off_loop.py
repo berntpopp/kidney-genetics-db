@@ -15,7 +15,7 @@ async def test_gencc_rows_are_processed_in_a_worker_thread(monkeypatch):
     seen: list[int] = []
     source = GenCCUnifiedSource.__new__(GenCCUnifiedSource)
     monkeypatch.setattr(
-        source, "is_kidney_related", lambda row: seen.append(threading.get_ident()) or False
+        source, "kidney_match", lambda row: seen.append(threading.get_ident()) or None
     )
 
     assert await source.process_data(pd.DataFrame([{"gene_symbol": "X"}])) == {}
