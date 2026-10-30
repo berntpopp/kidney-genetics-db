@@ -19,6 +19,10 @@ from app.core.cached_http_client import CachedHttpClient
 from app.core.datasource_config import get_source_parameter, matches_kidney_keyword
 from app.core.logging import get_logger
 from app.pipeline.sources.unified.base import UnifiedDataSource
+from app.pipeline.sources.unified.kidney_assertions import (
+    KidneyAssertionIndex,
+    load_kidney_assertion_index,
+)
 
 if TYPE_CHECKING:
     from app.core.progress_tracker import ProgressTracker
@@ -36,6 +40,8 @@ class GenCCUnifiedSource(UnifiedDataSource):
     - Kidney-specific filtering
     - Comprehensive gene-disease relationship processing
     """
+
+    kidney_index: KidneyAssertionIndex | None = None  # set per run in process_data (#438)
 
     @property
     def source_name(self) -> str:
@@ -161,6 +167,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
         Returns:
             Dictionary mapping gene symbols to aggregated gene data
         """
+        self.kidney_index = await load_kidney_assertion_index(getattr(self, "db_session", None))
         return await asyncio.to_thread(self._process_rows, df)  # iterrows blocks (#363)
 
     def _process_rows(self, df: pd.DataFrame) -> dict[str, Any]:
@@ -172,7 +179,8 @@ class GenCCUnifiedSource(UnifiedDataSource):
 
         for idx, row in df.iterrows():
             # Filter for kidney-related submissions
-            if not self.is_kidney_related(row):
+            kidney_match = self.kidney_match(row)
+            if kidney_match is None:
                 continue
 
             kidney_related_count += 1
@@ -183,6 +191,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
                 logger.sync_debug("Failed to extract gene info from row", row_index=idx)
                 continue
 
+            gene_info["kidney_match"] = kidney_match
             symbol = gene_info["symbol"]
 
             # Aggregate by gene symbol
@@ -212,6 +221,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
 
             # Add metadata
             data["submission_count"] = len(data["submissions"])
+            data["kidney_filter"] = "keyword_only" if self.kidney_index is None else "ontology"
             data["last_updated"] = datetime.now(timezone.utc).isoformat()
 
             # Calculate evidence score based on classifications
@@ -226,8 +236,23 @@ class GenCCUnifiedSource(UnifiedDataSource):
         return gene_data_map
 
     def is_kidney_related(self, record: dict[str, Any] | pd.Series) -> bool:
+        """Check if a GenCC submission is kidney-related."""
+        return self.kidney_match(record) is not None
+
+    def kidney_match(self, record: dict[str, Any] | pd.Series) -> str | None:
+        """Why a submission is kidney-related ("keyword" or "hpo_panel"), or None (#438)."""
+        if self._matches_keyword(record):
+            return "keyword"
+        if self.kidney_index is not None:
+            symbol = record.get("gene_symbol") or record.get("submitted_as_hgnc_symbol")
+            ids = [record.get("disease_curie"), record.get("disease_original_curie")]
+            if isinstance(symbol, str) and self.kidney_index.matches(symbol, ids):
+                return "hpo_panel"
+        return None
+
+    def _matches_keyword(self, record: dict[str, Any] | pd.Series) -> bool:
         """
-        Check if a GenCC submission is kidney-related.
+        Check if a GenCC submission's disease text has a kidney keyword.
 
         Args:
             record: DataFrame row (Series) or dict with GenCC submission
