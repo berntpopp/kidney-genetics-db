@@ -31,8 +31,9 @@ keywords:
   kidney_exclude:
     - adrenal
     - complementation  # "Fanconi anemia, complementation group S" vs "complement" (#446)
-    # Bare "ciliopathy" covers retinal, motile and skeletal ciliopathies (ARL2BP, TUBB4B);
-    # kidney ciliopathies still match via nephronophthisis/renal/polycystic/cystic kidney (#451)
+    # Bare "ciliopathy" covers retinal, motile and skeletal ciliopathies (ARL2BP, TUBB4B) (#451);
+    # GenCC/ClinGen keep a "ciliopathy" title only for PanelApp/DiagnosticPanels genes
+    # (BBS1, CEP290; kidney_assertions.ciliopathy_match)
     - ciliopathy
     - polycystic lipomembranous  # Nasu-Hakola bone/brain disease (TREM2) (#451)
     - nephropathy due to maternal  # maternal alloimmune, not the child's germline gene (MME) (#451)

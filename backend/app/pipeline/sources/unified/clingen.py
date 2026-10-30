@@ -21,6 +21,7 @@ from app.core.logging import get_logger
 from app.pipeline.sources.unified.base import UnifiedDataSource
 from app.pipeline.sources.unified.kidney_assertions import (
     KidneyAssertionIndex,
+    ciliopathy_match,
     load_kidney_assertion_index,
 )
 
@@ -141,9 +142,13 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             disease = row[2].strip().lower()
             is_kidney_panel = gcep in self.kidney_panel_names
             # Also include entries from non-kidney panels if disease is kidney-related
-            is_kidney_disease = matches_kidney_keyword(disease) or (
-                self.kidney_index is not None
-                and self.kidney_index.matches(row[0], [row[3].strip()])
+            is_kidney_disease = (
+                matches_kidney_keyword(disease)
+                or (
+                    self.kidney_index is not None
+                    and self.kidney_index.matches(row[0], [row[3].strip()])
+                )
+                or ciliopathy_match(self.kidney_index, row[0], disease) is not None
             )
 
             if not is_kidney_panel and not is_kidney_disease:
@@ -269,7 +274,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         return self.kidney_match(validity) is not None
 
     def kidney_match(self, validity: dict[str, Any]) -> str | None:
-        """Why an assessment is kidney-related (keyword, hpo_panel, expert_panel) or None."""
+        """Why an assessment is kidney-related (keyword, hpo_panel, keyword_panel, expert_panel)."""
         # Extract disease and panel names
         disease_name = validity.get("disease_name", "").lower()
         expert_panel = validity.get("ep", "").lower()
@@ -283,6 +288,8 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             validity.get("symbol", ""), [validity.get("mondo")]
         ):
             return "hpo_panel"
+        if cilio := ciliopathy_match(self.kidney_index, validity.get("symbol"), disease_name):
+            return cilio
 
         # Since these are from kidney-specific panels, be more permissive
         if disease_name:
