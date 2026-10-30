@@ -12,13 +12,6 @@ export interface ColorModeOption {
   description: string
 }
 
-/** Warning message configuration */
-export interface WarningMessageConfig {
-  title: string
-  threshold: number
-  message: (_count: number) => string
-}
-
 /** Network analysis configuration shape */
 export interface NetworkAnalysisConfig {
   geneSelection: {
@@ -26,7 +19,6 @@ export interface NetworkAnalysisConfig {
     defaultMaxGenes: number
     maxGenesHardLimit: number
     minGenesLimit: number
-    largeNetworkThreshold: number
     maxGeneIds: number
   }
   networkConstruction: {
@@ -39,6 +31,8 @@ export interface NetworkAnalysisConfig {
     defaultMinDegree: number
     defaultMinClusterSize: number
     defaultLargestComponentOnly: boolean
+    maxMinDegree: number
+    maxMinClusterSize: number
   }
   enrichment: {
     defaultEnrichmentType: string
@@ -48,9 +42,6 @@ export interface NetworkAnalysisConfig {
   }
   ui: {
     defaultGraphHeight: string
-    warningMessages: {
-      largeNetwork: WarningMessageConfig
-    }
   }
   search: {
     enabled: boolean
@@ -97,7 +88,6 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
     defaultMaxGenes: 700, // Maximum genes to include in network
     maxGenesHardLimit: 700, // Hard limit for gene count (cannot exceed)
     minGenesLimit: 10, // Minimum genes required
-    largeNetworkThreshold: 700, // Show warning when exceeding this threshold
     maxGeneIds: 5000 // Maximum gene IDs allowed per API request (backend limit)
   },
 
@@ -105,7 +95,7 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
   networkConstruction: {
     defaultMinStringScore: 400, // Default STRING confidence score (0-1000)
     minStringScoreRange: {
-      min: 0,
+      min: 400, // Backend rejects < 400 (medium confidence)
       max: 1000,
       step: 50
     },
@@ -117,7 +107,9 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
     defaultRemoveIsolated: false, // Remove isolated nodes by default
     defaultMinDegree: 2, // Default minimum node degree
     defaultMinClusterSize: 3, // Default minimum cluster size
-    defaultLargestComponentOnly: false // Keep only largest component
+    defaultLargestComponentOnly: false, // Keep only largest component
+    maxMinDegree: 10, // Backend limit (NetworkBuildRequest.min_degree)
+    maxMinClusterSize: 20 // UI limit; backend accepts up to 50
   },
 
   // Enrichment Analysis Parameters
@@ -134,15 +126,7 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
 
   // UI Configuration
   ui: {
-    defaultGraphHeight: '700px', // Default height for network visualization
-    warningMessages: {
-      largeNetwork: {
-        title: 'Large Network Warning',
-        threshold: 700,
-        message: (count: number) =>
-          `You have selected ${count} genes. Networks with >${networkAnalysisConfig.geneSelection.largeNetworkThreshold} nodes may take longer to build and visualize. Consider filtering to higher evidence tiers for better performance.`
-      }
-    }
+    defaultGraphHeight: '700px' // Default height for network visualization
   },
 
   // Search Configuration
