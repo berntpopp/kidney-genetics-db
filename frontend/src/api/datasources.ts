@@ -34,6 +34,22 @@ interface DataSourceApiResponse {
   meta?: Record<string, unknown>
 }
 
+/** One laboratory in GET /api/datasources/DiagnosticPanels/providers: its scrape provenance */
+export interface DiagnosticPanelsProvider {
+  provider_name: string
+  main_url: string | null
+  /** ISO timestamp of the website scrape */
+  scraped_at: string | null
+  scraper_version: string | null
+  panels: { name: string; url: string | null; gene_count: number | null }[]
+  gene_count: number | null
+  /** ISO timestamp of the upload into KGDB */
+  uploaded_at: string | null
+}
+
+// Fetched once per session; a failed request is forgotten so a later card retries
+let providersRequest: Promise<DiagnosticPanelsProvider[]> | null = null
+
 export const datasourceApi = {
   /**
    * Get all data sources with their status and statistics
@@ -49,5 +65,19 @@ export const datasourceApi = {
   async getDataSource(sourceName: string): Promise<DataSource> {
     const response = await api.get<DataSourceApiResponse>(`/api/datasources/${sourceName}`)
     return response.data.data as DataSource
+  },
+
+  /**
+   * Laboratory registry behind the DiagnosticPanels source (cached for the session)
+   */
+  getDiagnosticPanelsProviders(): Promise<DiagnosticPanelsProvider[]> {
+    providersRequest ??= api
+      .get<{ data: DiagnosticPanelsProvider[] }>('/api/datasources/DiagnosticPanels/providers')
+      .then(response => response.data.data)
+      .catch((error: unknown) => {
+        providersRequest = null
+        throw error
+      })
+    return providersRequest
   }
 }
