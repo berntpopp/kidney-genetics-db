@@ -145,7 +145,7 @@ describe('DiagnosticPanelsEvidence grouped by laboratory', () => {
   it('shows provenance in the footer with a link to the method', async () => {
     const footer = (await render(data)).get('[data-testid="panels-provenance"]')
     expect(words(footer)).toBe(
-      'Panel lists scraped from laboratory websites · KGDB scraper 1.3.2, 1.4.0 · uploaded 1 Oct 2026 Sources & method'
+      'Panel lists from laboratory test catalogues · KGDB import 1.3.2, 1.4.0 · uploaded 1 Oct 2026 Sources & method'
     )
     expect(footer.get('a').attributes('href')).toBe('/data-sources')
   })
@@ -174,7 +174,7 @@ describe('DiagnosticPanelsEvidence grouped by laboratory', () => {
     expect(w.find('[data-testid="lab"] a').exists()).toBe(false)
     expect(w.text()).not.toMatch(/error|failed/i)
     expect(words(w.get('[data-testid="panels-provenance"]'))).toBe(
-      'Panel lists scraped from laboratory websites Sources & method'
+      'Panel lists from laboratory test catalogues Sources & method'
     )
   })
 })
@@ -214,7 +214,7 @@ describe('DiagnosticPanelsEvidence legacy evidence', () => {
     const footer = (await render({ panels: ['A'], providers: ['Natera'] })).get(
       '[data-testid="panels-provenance"]'
     )
-    expect(footer.text()).toContain('KGDB scraper 1.4.0')
+    expect(footer.text()).toContain('KGDB import 1.4.0')
   })
 })
 

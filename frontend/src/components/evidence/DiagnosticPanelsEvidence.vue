@@ -83,11 +83,11 @@
     class="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-xs text-muted-foreground"
     data-testid="panels-provenance"
   >
-    <span>Panel lists scraped from laboratory websites</span>
+    <span>Panel lists from laboratory test catalogues</span>
     <template v-if="provenance.versions.length">
       <span aria-hidden="true">·</span>
       <span
-        >KGDB scraper <span class="font-mono">{{ provenance.versions.join(', ') }}</span></span
+        >KGDB import <span class="font-mono">{{ provenance.versions.join(', ') }}</span></span
       >
     </template>
     <template v-if="provenance.uploaded">
