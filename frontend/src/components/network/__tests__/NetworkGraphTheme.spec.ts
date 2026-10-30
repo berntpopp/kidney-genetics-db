@@ -11,6 +11,7 @@ vi.mock('cytoscape', () => {
   const fake: unknown = new Proxy(function () {}, {
     get: (_t, key) => {
       if (key === 'then') return undefined
+      if (key === 'length') return 0
       if (key === 'destroyed') return () => false
       if (key === 'style') return (...args: unknown[]) => (styleSpy(...args), fake)
       return fake
