@@ -1,4 +1,4 @@
-"""Kidney keyword matching: keywords.yaml list with an explicit "adrenal" exclusion (#369)."""
+"""Kidney keyword matching: keywords.yaml list with kidney_exclude blanking (#369, #446, #451)."""
 
 import pytest
 
@@ -15,6 +15,12 @@ from app.core.datasource_config import matches_kidney_keyword
         "cystic fibrosis",
         "tubulinopathy",
         "tubular aggregate myopathy",
+        "Fanconi anemia, complementation group S",  # BRCA1 (#446)
+        "ciliopathy",  # ARL2BP, MONDO:0005308 (#451)
+        "TUBB4B-related ciliopathy",  # (#451)
+        "polycystic lipomembranous osteodysplasia with sclerosing leukoencephalopathy 2",  # TREM2
+        "congenital membranous nephropathy due to maternal anti-neutral endopeptidase "
+        "alloimmunization",  # MME (#451)
     ],
 )
 def test_non_kidney_diseases_do_not_match(text):
@@ -34,6 +40,11 @@ def test_non_kidney_diseases_do_not_match(text):
         "oculocerebrorenal syndrome",
         "branchiootorenal syndrome 1",
         "Fanconi renotubular syndrome 1",
+        "complement factor H deficiency",  # (#446)
+        "complement component 3 deficiency",
+        "C3 glomerulonephritis",
+        "polycystic kidney disease",  # (#451)
+        "membranous nephropathy",
     ],
 )
 def test_kidney_diseases_match(text):
