@@ -87,11 +87,11 @@ class MayoClinicScraper(BaseDiagnosticScraper):
                     self.logger.debug(f"Playwright Stealth navigating to: {url}")
 
                     # Navigate to the page with realistic timing
-                    await page.goto(url, wait_until="networkidle", timeout=60000)
+                    await page.goto(url, wait_until="domcontentloaded", timeout=60000)  # networkidle never settles (2026)
                     self.logger.debug("Page loaded successfully with Playwright Stealth")
 
                     # Wait for dynamic content with realistic timing
-                    await page.wait_for_timeout(3000)
+                    await page.wait_for_timeout(8000)
 
                     # Try to wait for specific elements that might indicate content is loaded
                     try:
@@ -280,7 +280,7 @@ class MayoClinicScraper(BaseDiagnosticScraper):
             metadata={
                 'panel_name': 'Comprehensive Nephrology Gene Panel (NEPHP)',
                 'test_id': '618086',
-                'scraper_version': '2.0.0',
+                'scraper_version': '2.1.0',
                 'akamai_bypass': 'playwright-stealth',
                 'stealth_features': ['navigator_webdriver_hidden', 'custom_languages', 'realistic_headers']
             },

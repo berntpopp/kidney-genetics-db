@@ -4,7 +4,6 @@ CeGaT scraper - CeGaT Kidney disease panel.
 
 import logging
 import os
-import re
 import sys
 from typing import Dict, List, Optional
 
@@ -14,7 +13,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from base_scraper import BaseDiagnosticScraper
 from schemas import GeneEntry, ProviderData
-from utils import clean_gene_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -28,50 +26,19 @@ class CegatScraper(BaseDiagnosticScraper):
         self.logger.debug(f"Initialized CeGaT scraper with URL: {self.url}")
 
     def extract_genes(self, content: str) -> List[str]:
-        """Extract genes from CeGaT page"""
+        """Return the comma-separated <em> list under the "Gene Directory" heading.
+
+        Only that element is read: free page text produced false symbols (ACMG, ENDE, II).
+        """
         soup = BeautifulSoup(content, 'html.parser')
-        genes = []
-
-        # CeGaT typically lists genes in a structured format
-        # Try to find gene table or list
-        selectors = [
-            'div.gene-panel-content',
-            'div.panel-body',
-            'table.gene-table',
-            'div.genes',
-            'div[class*="gene-list"]',
-            'ul.gene-list li'
-        ]
-
-        for selector in selectors:
-            elements = soup.select(selector)
-            if elements:
-                for elem in elements:
-                    text = elem.get_text()
-                    # Look for gene symbols (typically uppercase, alphanumeric)
-                    potential_genes = re.findall(r'\b[A-Z][A-Z0-9]{1,}[0-9]*[A-Z]*\b', text)
-                    for gene in potential_genes:
-                        if 2 <= len(gene) <= 15:
-                            cleaned = clean_gene_symbol(gene)
-                            if cleaned:
-                                genes.append(cleaned)
-
-        # If no structured data, look for genes in paragraphs
-        if not genes:
-            # Look for content sections that might contain gene lists
-            for element in soup.find_all(['p', 'div']):
-                text = element.get_text()
-                # CeGaT often lists genes separated by commas or in parentheses
-                if ',' in text or '(' in text:
-                    # Extract potential gene symbols
-                    potential_genes = re.findall(r'\b[A-Z][A-Z0-9]{1,}[0-9]*[A-Z]*\b', text)
-                    for gene in potential_genes:
-                        if 2 <= len(gene) <= 15 and not gene.startswith(('HTTP', 'DNA', 'RNA')):
-                            cleaned = clean_gene_symbol(gene)
-                            if cleaned:
-                                genes.append(cleaned)
-
-        return list(set(genes))
+        heading = soup.find(
+            ['h1', 'h2', 'h3', 'h4'], string=lambda s: s and s.strip().startswith('Gene Directory')
+        )
+        gene_list = heading.find_next('em') if heading else None
+        if not gene_list:
+            return []
+        symbols = (s.strip() for s in gene_list.get_text(' ').split(','))
+        return list(dict.fromkeys(s for s in symbols if s))
 
     def run(self) -> ProviderData:
         """Run CeGaT scraper"""
@@ -116,7 +83,7 @@ class CegatScraper(BaseDiagnosticScraper):
             genes=gene_entries,
             metadata={
                 'panel_name': 'Kidney Disease Panel',
-                'scraper_version': '1.0.0'
+                'scraper_version': '1.1.0'
             },
             errors=errors if errors else None
         )

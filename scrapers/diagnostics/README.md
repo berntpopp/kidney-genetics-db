@@ -17,21 +17,27 @@ python3 run_scrapers.py --dry-run
 
 ## Supported Providers
 
-Statuses without a date are historical and have not been re-verified. Gene counts are not
-kept here; read them from a dated `output/YYYY-MM-DD/<provider>.json` run.
+Verified 2026-10-30 with one live, sequential run of every provider. Gene counts are unique
+genes after HGNC normalization in that run. Browser providers were run with
+`--with playwright==1.61.0 --with playwright-stealth` against a locally cached Chromium.
 
-| Provider | Type | Status |
-|----------|------|--------|
-| UChicago Genetic Services | Multi-panel (Nephrology category) | Verified 2026-10-27 (static HTML, see below) |
-| Invitae | Single panel | Historical: working |
-| Mayo Clinic | Single panel | Historical: working (Stealth) |
-| Centogene | Single panel | Historical: configured |
-| MGZ München | Single panel | Historical: configured |
-| Natera RenaSight | Single panel | Historical: configured |
-| Blueprint Genetics | Multi-panel (24) | Historical: configured |
-| CeGaT | Single panel | Historical: configured |
-| PreventionGenetics | Single panel | Historical: configured |
-| MVZ Medicover | Single panel | Historical: configured |
+| Provider | Type | Fetch | Status 2026-10-30 | Genes |
+|----------|------|-------|-------------------|-------|
+| Blueprint Genetics | Multi-panel (24) | HTTP | Working | 370 |
+| CeGaT | Single panel | HTTP | Fixed: reads only the "Gene Directory" list (free page text gave ACMG, EN, ENDE, CAP, II) | 284 |
+| Centogene | Single panel | Browser | Working | 490 |
+| Invitae | Single panel | Browser | Working | 401 |
+| Mayo Clinic | Single panel | Browser (Stealth) | Fixed: `networkidle` never settled; waits for DOM content | 303 |
+| MGZ München | Multi-panel (19 of 20 tests in the Nephrologie area) | HTTP + JSON | Fixed: site relaunched, old URL 404; reads `/leistungsspektrum/` area plus gene endpoint | 261 |
+| MVZ Medicover | Single panel | HTTP | Fixed: headless Chromium got a bot-block page; plain HTTP has the data | 125 |
+| Natera Renasight | Single panel | HTTP (AJAX) | Fixed: hardcoded nonce expired; read from page | 397 |
+| PreventionGenetics | Single panel | HTTP | Fixed: URL redirects to `/tests/…`; gene list read from embedded test data | 345 |
+| UChicago Genetic Services | Multi-panel (7, Nephrology category) | HTTP | Working | 296 |
+
+Shared fixes in the same run: plain HTTP no longer advertises `br` (MGZ answered with
+undecodable brotli), `scraped_at` is UTC, single-panel outputs carry one `sub_panels` entry
+linking the panel page, and HGNC normalization ignores non-Approved records and never maps a
+reported symbol of 3 characters or fewer through an alias.
 
 ### Provider Validation (2026-10-27)
 
@@ -132,7 +138,9 @@ from providers.new_provider import NewProviderScraper
 ### Tests
 
 ```bash
-python -m pytest tests/   # offline: mocked HGNC, captured HTML fixtures in tests/fixtures/
+# offline: mocked HGNC, captured HTML fixtures in tests/fixtures/
+uv run --no-project --python 3.13 --with pyyaml --with beautifulsoup4 --with requests \
+  --with pytest python -m pytest tests/
 ```
 
 ### Debug Individual Scrapers

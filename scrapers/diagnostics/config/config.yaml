@@ -23,9 +23,12 @@ scrapers:
     enabled: true
     url: https://www.medicover-diagnostics.de/leistungsverzeichnis/humangenetik/nierenerkrankungen
     
+  # Site relaunched 2026: the old /gen-panels/ section page is 404. Panels are now listed
+  # per specialty area on /leistungsspektrum/, with gene lists from a public JSON endpoint.
   mgz_muenchen:
     enabled: true
-    url: https://www.mgz-muenchen.de/gen-panels/section/nephrologie-endokrinologie-und-elektrolyte/tag/14.html
+    url: https://www.mgz-muenchen.de/leistungsspektrum/
+    area: nephrologie-und-elektrolytstoerungen
     
   cegat:
     enabled: true
@@ -37,7 +40,10 @@ scrapers:
     
   prevention_genetics:
     enabled: true
-    url: https://www.preventiongenetics.com/testInfo?val=PGmaxTM-%252D-Comprehensive-Inherited-Kidney-Diseases-Panel
+    # Old /testInfo?val= URL now redirects here; the page embeds several related tests,
+    # so the panel is picked by its exact displayName.
+    url: https://www.preventiongenetics.com/tests/pgmax-comprehensive-inherited-kidney-diseases-panel
+    display_name: "PGmax™ - Comprehensive Inherited Kidney Diseases Panel"
     
   invitae:
     enabled: true
