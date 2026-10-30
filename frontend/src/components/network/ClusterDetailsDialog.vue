@@ -1,6 +1,8 @@
 <template>
   <Dialog :open="modelValue" @update:open="$emit('update:modelValue', $event)">
-    <DialogContent class="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+    <!-- Focus the dialog itself, not the first gene: that gene's tooltip would open on focus
+         and take the first Escape -->
+    <DialogContent class="sm:max-w-4xl max-h-[90vh] overflow-y-auto" @open-auto-focus="focusDialog">
       <!-- Header -->
       <DialogHeader>
         <div class="flex items-center gap-3">
@@ -16,13 +18,17 @@
             <DialogTitle class="text-lg font-medium">
               <template v-if="clusterLabel">
                 {{ clusterDisplayName || `Cluster ${clusterId + 1}` }} &middot;
-                <span :title="LABEL_NOTE">{{ clusterLabel }}</span>
+                <span>{{ clusterLabel }}</span>
               </template>
               <template v-else>Cluster Details</template>
             </DialogTitle>
-            <p class="text-xs text-muted-foreground mt-1">
-              {{ geneCount }} gene{{ geneCount !== 1 ? 's' : '' }} in cluster
-            </p>
+            <DialogDescription class="text-xs mt-1">
+              {{ geneCount }} gene{{ geneCount !== 1 ? 's' : '' }} in cluster<template
+                v-if="clusterLabel"
+              >
+                &middot; {{ LABEL_NOTE }}</template
+              >
+            </DialogDescription>
           </div>
         </div>
       </DialogHeader>
@@ -307,12 +313,13 @@ import { networkAnalysisConfig, OTHER_CLUSTER_COLOR } from '../../config/network
 import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { OntologyTerm } from '@/components/shared'
 import { computeHpoClusterStats } from './hpoClusterStats'
-import { LABEL_MAX_FDR, LABEL_MIN_GENES } from '@/composables/useNetworkAnalysis'
+import { LABEL_MAX_FDR } from '@/composables/useNetworkAnalysis'
 import { downloadFile, fileSlug, isoDate, toCsv } from '@/utils/csv'
 
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle
@@ -343,7 +350,7 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  /** Most specific enriched HPO term name (useNetworkAnalysis clusterLabels), if any */
+  /** Naming HPO term (useNetworkAnalysis clusterLabels), if any */
   clusterLabel: {
     type: String,
     default: ''
@@ -362,7 +369,12 @@ const props = defineProps({
   }
 })
 
-const LABEL_NOTE = `Most specific enriched HPO term (FDR < ${LABEL_MAX_FDR}, at least ${LABEL_MIN_GENES} genes)`
+const LABEL_NOTE = `named after its most significant specific HPO term (FDR < ${LABEL_MAX_FDR})`
+
+const focusDialog = event => {
+  event.preventDefault()
+  event.target?.focus()
+}
 
 // Emits
 defineEmits(['update:modelValue', 'highlightGene'])

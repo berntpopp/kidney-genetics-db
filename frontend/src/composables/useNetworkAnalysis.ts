@@ -57,7 +57,7 @@ export interface ClusterListItem {
   size: number
   genes: number[]
   color: string
-  /** Most specific enriched HPO term, once the background labelling has finished */
+  /** Naming HPO term (see pickClusterLabel), once the background labelling has finished */
   labelTerm?: EnrichmentTerm
 }
 
@@ -88,7 +88,7 @@ const DOWNSTREAM: Record<Pipeline, Pipeline[]> = {
 
 /** Tooltip for a cluster label: what it is and how strongly it is supported */
 export const clusterLabelNote = (t: EnrichmentTerm): string =>
-  `Most specific enriched HPO term (FDR ${t.fdr.toExponential(1)}, ${t.gene_count} genes)`
+  `Named after its most significant specific HPO term (FDR ${t.fdr.toExponential(1)}, ${t.gene_count} genes)`
 
 /** Labelling thresholds: a label must be significant and carried by several cluster genes */
 export const LABEL_MAX_FDR = 0.05

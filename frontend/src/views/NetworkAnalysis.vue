@@ -341,6 +341,10 @@
                         :title="cluster.labelTerm ? clusterLabelNote(cluster.labelTerm) : undefined"
                       >
                         {{ cluster.title }}
+                        <!-- title tooltips are mouse-only; screen readers get the note here -->
+                        <span v-if="cluster.labelTerm" class="sr-only">
+                          ({{ clusterLabelNote(cluster.labelTerm) }})
+                        </span>
                       </span>
                       <Badge variant="outline" class="text-xs">{{ cluster.size }}</Badge>
                     </button>
