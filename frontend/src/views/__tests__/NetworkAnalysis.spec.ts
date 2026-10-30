@@ -829,27 +829,23 @@ describe('NetworkAnalysis.vue', () => {
       background_count: 12
     })
 
-    it('picks the most specific term, not the lowest p or the capped odds ratio', () => {
-      expect(pickClusterLabel([broad, cyst])?.term_name).toBe('Renal cyst')
+    it('picks the lowest-p term that is neither broad nor niche', () => {
+      // broad (1500 of 1500 genes) is excluded by the 10% term-size cap despite the lowest p
+      expect(pickClusterLabel([broad, cyst], 0, 1500)?.term_name).toBe('Renal cyst')
+      const strong = term({ term_name: 'Strong', p_value: 1e-9, background_count: 100 })
+      expect(pickClusterLabel([cyst, strong], 0, 1500)?.term_name).toBe('Strong')
+      // without a universe there is no size cap
+      expect(pickClusterLabel([broad, cyst])).toBe(broad)
     })
 
-    it('requires FDR < 0.05, at least 3 genes and a resolved name', () => {
-      expect(pickClusterLabel([term({ fdr: 0.05, background_count: 3 }), broad])).toBe(broad)
-      // A 3-gene niche term cannot name a 60-gene cluster (needs >= 6 genes = 10%)
+    it('requires FDR < 0.05, enough cluster genes and a resolved name', () => {
+      expect(pickClusterLabel([term({ fdr: 0.05 })])).toBeNull()
+      // A 3-gene term cannot name a 60-gene cluster (needs >= 6 genes = 10%)
       const niche = term({ term_name: 'Niche', gene_count: 3, background_count: 3 })
-      expect(pickClusterLabel([niche, broad], 60)).toBe(broad)
-      expect(pickClusterLabel([niche, broad], 20)).toBe(niche)
-      expect(pickClusterLabel([term({ gene_count: 2, background_count: 2 }), broad])).toBe(broad)
-      expect(pickClusterLabel([term({ term_name: 'HP:1', background_count: 3 }), broad])).toBe(
-        broad
-      )
-      expect(pickClusterLabel([term({ fdr: 0.2 })])).toBeNull()
-    })
-
-    it('breaks ties by lowest p', () => {
-      const a = term({ term_name: 'A', p_value: 1e-3 })
-      const b = term({ term_name: 'B', p_value: 1e-5 })
-      expect(pickClusterLabel([a, b])?.term_name).toBe('B')
+      expect(pickClusterLabel([niche], 60)).toBeNull()
+      expect(pickClusterLabel([niche], 20)).toBe(niche)
+      expect(pickClusterLabel([term({ gene_count: 2 })])).toBeNull()
+      expect(pickClusterLabel([term({ term_name: 'HP:1' })])).toBeNull()
     })
 
     // cluster 0: genes 1-4; cluster 1: genes 5-7; cluster 2: gene 8 (too small to label)
@@ -889,10 +885,11 @@ describe('NetworkAnalysis.vue', () => {
       ])
       expect(params.background_genes).toBeUndefined() // reference background
       expect(vm.clusterLabels.get(0)).toBe('Renal cyst')
-      expect(vm.clusterLabels.get(1)).toBe('Abnormality of the kidney')
+      // only the broad root term: too unspecific to name the cluster
+      expect(vm.clusterLabels.has(1)).toBe(false)
       expect(vm.clusterList.map((c: any) => c.title)).toEqual([
         'Cluster 1 · Renal cyst',
-        'Cluster 2 · Abnormality of the kidney',
+        'Cluster 2',
         'Cluster 3'
       ])
     })
@@ -911,7 +908,7 @@ describe('NetworkAnalysis.vue', () => {
       let resolveStale!: (_v: any) => void
       vi.mocked(networkApi.enrichHPOBatch)
         .mockReturnValueOnce(new Promise(r => (resolveStale = r)))
-        .mockResolvedValueOnce({ results: [[cyst], []], total_tests: 2, fdr_threshold: 0.05 })
+        .mockResolvedValueOnce({ results: [[cyst], [broad]], total_tests: 2, fdr_threshold: 0.05 })
       const vm = mountComponent().vm as any
       await cluster(vm)
       const staleSignal = vi.mocked(networkApi.enrichHPOBatch).mock.calls[0]![1]!
