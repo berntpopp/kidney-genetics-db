@@ -93,6 +93,8 @@ export const clusterLabelNote = (t: EnrichmentTerm): string =>
 /** Labelling thresholds: a label must be significant and carried by several cluster genes */
 export const LABEL_MAX_FDR = 0.05
 export const LABEL_MIN_GENES = 3
+/** ...and representative: carried by at least this share of the cluster's genes */
+export const LABEL_MIN_COVERAGE = 0.1
 
 /**
  * The most specific informative term of one cluster, or null.
@@ -101,13 +103,15 @@ export const LABEL_MIN_GENES = 3
  * (gene_count / background_count, proportional to fold enrichment within one cluster), ties by
  * lowest p. Not by p (true-path propagation makes broad ancestors win on p) and not by odds ratio
  * (the backend caps it at 1000 when every annotated cluster gene carries the term, which again
- * is exactly the broad ancestors). Terms without a resolved name are skipped: ids are never bare.
+ * is exactly the broad ancestors). A label must cover >= 10% of the cluster, so a 3-gene niche
+ * term cannot name a 60-gene cluster. Terms without a resolved name are skipped: ids are never bare.
  */
-export function pickClusterLabel(terms: EnrichmentTerm[]): EnrichmentTerm | null {
+export function pickClusterLabel(terms: EnrichmentTerm[], clusterSize = 0): EnrichmentTerm | null {
+  const minGenes = Math.max(LABEL_MIN_GENES, Math.ceil(LABEL_MIN_COVERAGE * clusterSize))
   const share = (t: EnrichmentTerm) => (t.background_count ? t.gene_count / t.background_count : 0)
   let best: EnrichmentTerm | null = null
   for (const t of terms) {
-    if (t.fdr >= LABEL_MAX_FDR || t.gene_count < LABEL_MIN_GENES) continue
+    if (t.fdr >= LABEL_MAX_FDR || t.gene_count < minGenes) continue
     if (!t.term_name || t.term_name === t.term_id) continue
     if (!best || share(t) > share(best) || (share(t) === share(best) && t.p_value < best.p_value))
       best = t
@@ -452,7 +456,7 @@ export function useNetworkAnalysis() {
       if (controller.signal.aborted) return
       const labels = new Map<number, EnrichmentTerm>()
       clusters.forEach((c, i) => {
-        const term = pickClusterLabel(response.results[i] ?? [])
+        const term = pickClusterLabel(response.results[i] ?? [], c.size)
         if (term) labels.set(c.backendId, term)
       })
       clusterLabelTerms.value = labels

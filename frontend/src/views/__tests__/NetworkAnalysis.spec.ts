@@ -835,6 +835,10 @@ describe('NetworkAnalysis.vue', () => {
 
     it('requires FDR < 0.05, at least 3 genes and a resolved name', () => {
       expect(pickClusterLabel([term({ fdr: 0.05, background_count: 3 }), broad])).toBe(broad)
+      // A 3-gene niche term cannot name a 60-gene cluster (needs >= 6 genes = 10%)
+      const niche = term({ term_name: 'Niche', gene_count: 3, background_count: 3 })
+      expect(pickClusterLabel([niche, broad], 60)).toBe(broad)
+      expect(pickClusterLabel([niche, broad], 20)).toBe(niche)
       expect(pickClusterLabel([term({ gene_count: 2, background_count: 2 }), broad])).toBe(broad)
       expect(pickClusterLabel([term({ term_name: 'HP:1', background_count: 3 }), broad])).toBe(
         broad
