@@ -47,8 +47,8 @@
     <Card class="mb-3">
       <CardContent class="p-3 overflow-hidden">
         <!-- Row 1: Parameter inputs -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-          <div class="space-y-1">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 items-end">
+          <div class="col-span-2 md:col-span-1 space-y-1 min-w-0">
             <div class="flex items-center gap-1">
               <label for="na-tiers" class="text-xs font-medium text-muted-foreground">
                 Evidence Tiers
@@ -86,7 +86,7 @@
               </PopoverContent>
             </Popover>
           </div>
-          <div class="space-y-1">
+          <div class="space-y-1 min-w-0">
             <div class="flex items-center gap-1">
               <label for="na-min-score" class="text-xs font-medium text-muted-foreground">
                 Min Score
@@ -106,7 +106,7 @@
               class="h-9"
             />
           </div>
-          <div class="space-y-1">
+          <div class="space-y-1 min-w-0">
             <div class="flex items-center gap-1">
               <label for="na-max-genes" class="text-xs font-medium text-muted-foreground">
                 Max Genes
@@ -126,7 +126,7 @@
               class="h-9"
             />
           </div>
-          <div class="space-y-1">
+          <div class="space-y-1 min-w-0">
             <div class="flex items-center gap-1">
               <label for="na-string-score" class="text-xs font-medium text-muted-foreground">
                 STRING Score
@@ -147,7 +147,7 @@
               class="h-9"
             />
           </div>
-          <div class="space-y-1">
+          <div class="space-y-1 min-w-0">
             <div class="flex items-center gap-1">
               <label for="na-algorithm" class="text-xs font-medium text-muted-foreground">
                 Clustering Algorithm
@@ -159,7 +159,7 @@
               </HoverPopover>
             </div>
             <Select v-model="clusterAlgorithm">
-              <SelectTrigger id="na-algorithm" class="h-9">
+              <SelectTrigger id="na-algorithm" class="h-9 w-full">
                 <SelectValue placeholder="Algorithm" />
               </SelectTrigger>
               <SelectContent>
@@ -171,52 +171,106 @@
           </div>
         </div>
 
-        <!-- Row 2: Step buttons + enrichment controls + utility actions -->
-        <div class="flex flex-wrap items-end gap-2 mt-3 pt-3 border-t">
-          <!-- Step 1: Filter -->
-          <Button
-            :variant="stepVariant(1)"
-            :disabled="loadingGenes"
-            size="sm"
-            @click="fetchFilteredGenes"
-          >
-            <span :class="stepBadgeClass(1)">1</span>
-            <Filter class="size-3.5 mr-1" />
-            <span v-if="loadingGenes">Loading...</span>
-            <span v-else>Filter Genes</span>
-          </Button>
+        <!-- Row 2: Step buttons + utility actions; enrichment controls wrap below as one group -->
+        <div class="flex flex-wrap items-end gap-x-2 gap-y-3 mt-3 pt-3 border-t">
+          <div class="grid grid-cols-3 gap-2 w-full sm:flex sm:w-auto">
+            <!-- Step 1: Filter -->
+            <Button
+              :variant="stepVariant(1)"
+              :disabled="loadingGenes"
+              size="sm"
+              @click="fetchFilteredGenes"
+            >
+              <span :class="stepBadgeClass(1)">1</span>
+              <Filter class="size-3.5 mr-1 max-sm:hidden" aria-hidden="true" />
+              <span v-if="loadingGenes">Loading...</span>
+              <span v-else>Filter<span class="max-sm:hidden"> Genes</span></span>
+            </Button>
 
-          <!-- Step 2: Build -->
-          <Button
-            :variant="stepVariant(2)"
-            :disabled="filteredGenes.length === 0 || pipelineBusy"
-            size="sm"
-            @click="buildNetwork"
-          >
-            <span :class="stepBadgeClass(2)">2</span>
-            <NetworkIcon class="size-3.5 mr-1" />
-            <span v-if="buildingNetwork">Building...</span>
-            <span v-else>Build Network</span>
-          </Button>
+            <!-- Step 2: Build -->
+            <Button
+              :variant="stepVariant(2)"
+              :disabled="filteredGenes.length === 0 || pipelineBusy"
+              size="sm"
+              @click="buildNetwork"
+            >
+              <span :class="stepBadgeClass(2)">2</span>
+              <NetworkIcon class="size-3.5 mr-1 max-sm:hidden" aria-hidden="true" />
+              <span v-if="buildingNetwork">Building...</span>
+              <span v-else>Build<span class="max-sm:hidden"> Network</span></span>
+            </Button>
 
-          <!-- Step 3: Cluster -->
-          <Button
-            :variant="stepVariant(3)"
-            :disabled="!networkData || pipelineBusy"
-            size="sm"
-            @click="clusterNetwork"
-          >
-            <span :class="stepBadgeClass(3)">3</span>
-            <ChartScatter class="size-3.5 mr-1" />
-            <span v-if="clustering">Clustering...</span>
-            <span v-else>Cluster</span>
-          </Button>
+            <!-- Step 3: Cluster -->
+            <Button
+              :variant="stepVariant(3)"
+              :disabled="!networkData || pipelineBusy"
+              size="sm"
+              @click="clusterNetwork"
+            >
+              <span :class="stepBadgeClass(3)">3</span>
+              <ChartScatter class="size-3.5 mr-1 max-sm:hidden" aria-hidden="true" />
+              <span v-if="clustering">Clustering...</span>
+              <span v-else>Cluster</span>
+            </Button>
+          </div>
+
+          <!-- Utility actions, right of the step buttons -->
+          <TooltipProvider>
+            <div class="ml-auto flex gap-1 self-end">
+              <Tooltip v-if="filteredGenes.length > 0">
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-8"
+                    :disabled="isEncoding"
+                    aria-label="Share this analysis as a link"
+                    @click="handleShareNetwork"
+                  >
+                    <Share2 class="size-3.5" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Share this analysis as a link</TooltipContent>
+              </Tooltip>
+              <Tooltip v-if="hasAnyState">
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-8 text-danger hover:text-danger"
+                    aria-label="Reset all"
+                    @click="resetAll"
+                  >
+                    <RotateCcw class="size-3.5" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Reset all</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-8"
+                    aria-label="Advanced settings"
+                    aria-controls="na-advanced"
+                    :aria-expanded="showAdvanced"
+                    @click="showAdvanced = !showAdvanced"
+                  >
+                    <SlidersHorizontal class="size-3.5" :class="{ 'text-primary': showAdvanced }" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Advanced settings</TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
 
           <!-- Step 4: Enrichment (appears after clustering) -->
-          <template v-if="clusterStats">
-            <Separator orientation="vertical" class="h-6 mx-1 self-center" />
-
-            <div class="space-y-1">
+          <div
+            v-if="clusterStats"
+            class="grid grid-cols-2 items-end gap-2 w-full sm:flex sm:flex-wrap"
+          >
+            <div class="col-span-2 space-y-1 min-w-0">
               <div class="flex items-center gap-1">
                 <label for="na-clusters" class="text-xs font-medium text-muted-foreground">
                   Clusters to enrich
@@ -233,12 +287,12 @@
                     id="na-clusters"
                     variant="outline"
                     size="sm"
-                    class="text-xs min-w-[140px] justify-start"
+                    class="text-xs w-full sm:w-auto sm:min-w-[140px] sm:max-w-[18rem] justify-start"
                   >
                     <span v-if="selectedClusters.length === 0" class="text-muted-foreground">
                       None selected
                     </span>
-                    <span v-else-if="selectedClusters.length === 1">
+                    <span v-else-if="selectedClusters.length === 1" class="truncate">
                       {{ clusterTitle(selectedClusters[0]!) }}
                     </span>
                     <span v-else>
@@ -282,7 +336,12 @@
                         class="size-3 flex-shrink-0"
                         :style="{ color: cluster.color, fill: cluster.color }"
                       />
-                      <span class="text-sm flex-1">{{ cluster.title }}</span>
+                      <span
+                        class="text-sm flex-1 min-w-0"
+                        :title="cluster.labelTerm ? clusterLabelNote(cluster.labelTerm) : undefined"
+                      >
+                        {{ cluster.title }}
+                      </span>
                       <Badge variant="outline" class="text-xs">{{ cluster.size }}</Badge>
                     </button>
                   </div>
@@ -298,12 +357,12 @@
               </Popover>
             </div>
 
-            <div class="space-y-1">
+            <div class="space-y-1 min-w-0">
               <label for="na-enrich-type" class="text-xs font-medium text-muted-foreground">
                 Enrichment
               </label>
               <Select v-model="enrichmentType">
-                <SelectTrigger id="na-enrich-type" class="h-8 w-44 text-xs">
+                <SelectTrigger id="na-enrich-type" class="h-8 w-full sm:w-44 text-xs">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -314,7 +373,7 @@
               </Select>
             </div>
 
-            <div class="space-y-1">
+            <div class="space-y-1 min-w-0">
               <div class="flex items-center gap-1">
                 <label for="na-enrich-bg" class="text-xs font-medium text-muted-foreground">
                   Background
@@ -326,7 +385,7 @@
                 </HoverPopover>
               </div>
               <Select v-model="enrichmentBackground">
-                <SelectTrigger id="na-enrich-bg" class="h-8 w-40 text-xs">
+                <SelectTrigger id="na-enrich-bg" class="h-8 w-full sm:w-40 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -339,66 +398,16 @@
             <Button
               :variant="stepVariant(4)"
               size="sm"
+              class="col-span-2 sm:col-auto"
               :disabled="selectedClusters.length === 0 || runningEnrichment || pipelineBusy"
               @click="runEnrichmentAndSwitch"
             >
               <span :class="stepBadgeClass(4)">4</span>
-              <ChartBarBig class="size-3.5 mr-1" />
+              <ChartBarBig class="size-3.5 mr-1" aria-hidden="true" />
               <span v-if="runningEnrichment">Running...</span>
               <span v-else>Enrich</span>
             </Button>
-          </template>
-
-          <!-- Right side: utility actions -->
-          <TooltipProvider>
-            <div class="ml-auto flex gap-1 self-center">
-              <Tooltip v-if="filteredGenes.length > 0">
-                <TooltipTrigger as-child>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="size-8"
-                    :disabled="isEncoding"
-                    aria-label="Share this analysis as a link"
-                    @click="handleShareNetwork"
-                  >
-                    <Share2 class="size-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Share this analysis as a link</TooltipContent>
-              </Tooltip>
-              <Tooltip v-if="hasAnyState">
-                <TooltipTrigger as-child>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="size-8 text-danger hover:text-danger"
-                    aria-label="Reset all"
-                    @click="resetAll"
-                  >
-                    <RotateCcw class="size-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Reset all</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="size-8"
-                    aria-label="Advanced settings"
-                    aria-controls="na-advanced"
-                    :aria-expanded="showAdvanced"
-                    @click="showAdvanced = !showAdvanced"
-                  >
-                    <SlidersHorizontal class="size-3.5" :class="{ 'text-primary': showAdvanced }" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Advanced settings</TooltipContent>
-              </Tooltip>
-            </div>
-          </TooltipProvider>
+          </div>
         </div>
 
         <!-- What to do next, and why a step is unavailable -->
@@ -539,6 +548,7 @@
             :error="networkError ?? undefined"
             :cluster-id-mapping="clusterIdMapping"
             :cluster-colors-map="clusterColors"
+            :cluster-labels="clusterLabels"
             :min-cluster-size="clusteredWith?.minClusterSize ?? 1"
             :hpo-classifications="hpoClassifications ?? undefined"
             :hgnc-ids="hgncIds"
@@ -710,7 +720,7 @@ import { networkAnalysisConfig, OTHER_CLUSTER_COLOR } from '@/config/networkAnal
 import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
 import useNetworkUrlState from '@/composables/useNetworkUrlState'
-import useNetworkAnalysis from '@/composables/useNetworkAnalysis'
+import useNetworkAnalysis, { clusterLabelNote } from '@/composables/useNetworkAnalysis'
 import type { NetworkState } from '@/utils/networkStateCodec'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
@@ -793,6 +803,7 @@ const {
   clusterList,
   clusterIdMapping,
   clusterColors,
+  clusterLabels,
   hgncIds,
   hiddenGenes,
   nextStep,
@@ -906,7 +917,7 @@ const stepBadgeClass = (step: number) => [
 ]
 
 const clusterTitle = (backendId: number) =>
-  `Cluster ${(clusterIdMapping.value.get(backendId) ?? backendId) + 1}`
+  clusterList.value.find(c => c.backendId === backendId)?.title ?? `Cluster ${backendId + 1}`
 
 // Utility Functions
 const toggleTier = (tier: string, checked: boolean) => {
