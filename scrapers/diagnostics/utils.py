@@ -19,8 +19,9 @@ class HGNCNormalizer:
     CACHE_DIR = Path("data/hgnc_cache")
     CACHE_TTL = 30 * 24 * 3600  # 30 days in seconds
     # Older entries are re-resolved: v1 could hold outages cached as not-found,
-    # v1/v2 could hold an arbitrary pick (docs[0]) from an ambiguous prev/alias match.
-    CACHE_VERSION = 3
+    # v1/v2 could hold an arbitrary pick (docs[0]) from an ambiguous prev/alias match;
+    # v3 could hold withdrawn records and short-symbol alias matches.
+    CACHE_VERSION = 4
 
     def __init__(self):
         """Initialize the HGNC normalizer."""
@@ -119,8 +120,12 @@ class HGNCNormalizer:
             ("prev_symbol", "was_previous"),
             ("alias_symbol", "was_alias"),
         ):
+            if flag == "was_alias" and len(normalized) <= 3:
+                # Short page words (EN, II, CAP) hit unrelated aliases; too weak to trust.
+                break
             quoted = urllib.parse.quote(normalized)
-            response = self._make_request(f"search/{endpoint}/{quoted}")
+            # fetch (not search) returns full records, so status can be checked.
+            response = self._make_request(f"fetch/{endpoint}/{quoted}")
             body = response.get("response") if isinstance(response, dict) else None
             if not isinstance(body, dict):
                 # An outage is not "not found": never cache it, so a later run retries HGNC.
@@ -131,8 +136,9 @@ class HGNCNormalizer:
                     "found": False,
                     "hgnc_unavailable": True,
                 }
-            docs = body.get("docs") or []
-            if len(docs) > 1 or body.get("numFound", len(docs)) > 1:
+            # Withdrawn entries (e.g. ACMG, IV) still match; only Approved records count.
+            docs = [d for d in body.get("docs") or [] if d.get("status") == "Approved"]
+            if len(docs) > 1:
                 # Several genes share this prev/alias symbol: picking one is a guess.
                 logger.warning(f"Ambiguous HGNC {endpoint} match: {symbol} unresolved")
                 result = {

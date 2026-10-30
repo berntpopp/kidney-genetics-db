@@ -16,8 +16,9 @@ def empty():
     return {"response": {"numFound": 0, "docs": []}}
 
 
-def hits(*docs):
-    return {"response": {"numFound": len(docs), "docs": list(docs)}}
+def hits(*docs, status="Approved"):
+    docs = [{"status": status, **d} for d in docs]
+    return {"response": {"numFound": len(docs), "docs": docs}}
 
 
 @pytest.fixture
@@ -27,7 +28,7 @@ def hgnc(monkeypatch, tmp_path):
     routes, calls = {}, []
 
     def fake_urlopen(req, timeout=None):
-        endpoint = req.full_url.split("/search/")[1].split("/")[0]
+        endpoint = req.full_url.split("/fetch/")[1].split("/")[0]
         calls.append(endpoint)
         payload = routes.get(endpoint, empty())
         if isinstance(payload, Exception):
@@ -101,12 +102,40 @@ def test_ambiguous_match_is_not_normalized_in_any_order(hgnc, endpoint, reverse)
     assert result["candidates"] == ["HGNC:1", "HGNC:2"]
 
 
-def test_numfound_above_returned_docs_is_ambiguous(hgnc):
+def test_withdrawn_record_is_not_normalized(hgnc):
     routes, _ = hgnc
-    routes["alias_symbol"] = {
-        "response": {"numFound": 2, "docs": [{"hgnc_id": "HGNC:1", "symbol": "AAA"}]}
+    routes["symbol"] = hits({"hgnc_id": "HGNC:116", "symbol": "ACMG"}, status="Entry Withdrawn")
+    result = utils.HGNCNormalizer().normalize_symbol("ACMG")
+    assert (result["found"], result["hgnc_id"]) == (False, None)
+    assert utils.normalization_status(result) == "not_found"
+
+
+def test_withdrawn_candidate_does_not_make_match_ambiguous(hgnc):
+    routes, _ = hgnc
+    routes["prev_symbol"] = {
+        "response": {
+            "docs": [
+                {"hgnc_id": "HGNC:1", "symbol": "AAA", "status": "Approved"},
+                {"hgnc_id": "HGNC:2", "symbol": "BBB", "status": "Entry Withdrawn"},
+            ]
+        }
     }
-    assert utils.HGNCNormalizer().normalize_symbol("OLD1")["found"] is False
+    assert utils.HGNCNormalizer().normalize_symbol("OLD1")["hgnc_id"] == "HGNC:1"
+
+
+@pytest.mark.parametrize("symbol", ["EN", "II", "CAP"])
+def test_short_symbol_is_not_normalized_via_alias(hgnc, symbol):
+    routes, calls = hgnc
+    routes["alias_symbol"] = hits({"hgnc_id": "HGNC:1", "symbol": "AAA"})
+    result = utils.HGNCNormalizer().normalize_symbol(symbol)
+    assert utils.normalization_status(result) == "not_found"
+    assert calls == ["symbol", "prev_symbol"]
+
+
+def test_short_symbol_still_resolves_as_approved_or_previous(hgnc):
+    routes, _ = hgnc
+    routes["symbol"] = hits({"hgnc_id": "HGNC:2707", "symbol": "ACE"})
+    assert utils.HGNCNormalizer().normalize_symbol("ACE")["hgnc_id"] == "HGNC:2707"
 
 
 def test_unique_alias_match_is_normalized(hgnc):
