@@ -345,8 +345,14 @@ gene_scores = ReplaceableObject(
            -- Total active sources for reference
            (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
                AS total_active_sources,
-           -- Evidence tier classification
+           -- Evidence tier classification. Established support and above need a
+           -- gene-disease assertion source; count-only sources cap at preliminary (#450)
            CASE
+               WHEN NOT bool_or(source_name IN ('ClinGen', 'GenCC', 'PanelApp', 'DiagnosticPanels'))
+                   AND SUM(source_score) /
+                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
+                   * 100 >= 10
+                   THEN 'preliminary_evidence'
                WHEN COUNT(DISTINCT source_name) >= 4 AND SUM(source_score) /
                    (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
                    * 100 >= 50
@@ -371,7 +377,9 @@ gene_scores = ReplaceableObject(
            END AS evidence_tier,
            -- Evidence group classification
            CASE
-               WHEN COUNT(DISTINCT source_name) >= 2 AND SUM(source_score) /
+               WHEN COUNT(DISTINCT source_name) >= 2
+                   AND bool_or(source_name IN ('ClinGen', 'GenCC', 'PanelApp', 'DiagnosticPanels'))
+                   AND SUM(source_score) /
                    (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
                    * 100 >= 20
                    THEN 'well_supported'
