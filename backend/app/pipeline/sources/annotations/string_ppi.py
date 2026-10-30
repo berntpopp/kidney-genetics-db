@@ -40,7 +40,6 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
     # Configuration from settings
     cache_ttl_days = settings.STRING_CACHE_TTL_DAYS
     min_string_score = settings.STRING_MIN_SCORE
-    max_interactions_stored = settings.STRING_MAX_INTERACTIONS_STORED
 
     # Data file paths
     data_dir = Path(settings.STRING_DATA_DIR)
@@ -68,6 +67,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         self._gene_to_protein: dict[str, list[str]] | None = None
         self._partners: dict[str, list[tuple[str, Any]]] | None = None
         self._kidney_genes: set[str] | None = None
+        self._gene_ids: dict[str, int] | None = None  # kidney gene symbol -> Gene.id
         self._gene_evidence_scores: dict[str, float] | None = None
 
     async def _download_string_file(self, url: str, dest_path: Path) -> None:
@@ -228,27 +228,25 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
 
         result = self.session.execute(
             text("""
-            SELECT approved_symbol, percentage_score
+            SELECT gene_id, approved_symbol, percentage_score
             FROM gene_scores
             WHERE percentage_score > 0
         """)
         )
 
-        kidney_genes = []
+        gene_ids = {}
         evidence_scores = {}
 
-        for row in result:
-            symbol = row[0]
-            score = row[1]
-
-            kidney_genes.append(symbol)
+        for gene_id, symbol, score in result:
+            gene_ids[symbol] = gene_id
             evidence_scores[symbol] = float(score)
 
         # Commit to close the read transaction — prevents idle-in-transaction
         # timeout during the long PPI computation that follows.
         self.session.commit()
 
-        self._kidney_genes = set(kidney_genes)
+        self._kidney_genes = set(gene_ids)
+        self._gene_ids = gene_ids
         self._gene_evidence_scores = evidence_scores
 
         logger.sync_info(f"Loaded {len(self._kidney_genes)} kidney genes with evidence scores")
@@ -284,6 +282,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
             self._kidney_genes is None
             or self._partners is None
             or self._gene_evidence_scores is None
+            or self._gene_ids is None
         ):
             raise RuntimeError("Data should be loaded at this point")
 
@@ -324,6 +323,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
                     if string_score > partner_interactions[partner]["string_score"]:
                         partner_interactions[partner] = {
                             "partner_symbol": partner,
+                            "partner_gene_id": self._gene_ids[partner],
                             "string_score": string_score,
                             "partner_evidence": round(partner_evidence, 1),
                             "weighted_score": round((string_score / 1000) * partner_evidence, 2),
@@ -331,6 +331,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
                 else:
                     partner_interactions[partner] = {
                         "partner_symbol": partner,
+                        "partner_gene_id": self._gene_ids[partner],
                         "string_score": string_score,
                         "partner_evidence": round(partner_evidence, 1),
                         "weighted_score": round((string_score / 1000) * partner_evidence, 2),
@@ -351,9 +352,8 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
 
             raw_scores[gene.id] = raw_score
 
-            # Sort interactions by weighted score and keep top N
-            interaction_details.sort(key=lambda x: x["weighted_score"], reverse=True)
-            top_interactions = interaction_details[: self.max_interactions_stored]
+            # Store every kidney partner >= STRING_MIN_SCORE so the network matches STRING
+            interaction_details.sort(key=lambda x: x["string_score"], reverse=True)
 
             # Create summary statistics
             summary = {
@@ -375,7 +375,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
             results[gene.id] = {
                 "ppi_score": round(raw_score, 2),
                 "ppi_degree": degree,
-                "interactions": top_interactions,
+                "interactions": interaction_details,
                 "summary": summary,
             }
 
@@ -455,7 +455,6 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         config.update(
             {
                 "min_string_score": self.min_string_score,
-                "max_interactions_stored": self.max_interactions_stored,
                 "data_version": self.version,
                 "data_dir": str(self.data_dir),
             }

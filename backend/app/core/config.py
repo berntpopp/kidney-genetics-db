@@ -93,6 +93,7 @@ class Settings(BaseSettings):
     # STRING-DB Configuration
     STRING_VERSION: str = "12.0"
     STRING_MIN_SCORE: int = 400
+    # Unused: all kidney partners are stored. Kept so existing .env files still load (extra=forbid)
     STRING_MAX_INTERACTIONS_STORED: int = 30
     STRING_DATA_DIR: str = "./data/string/v12.0"
     STRING_CACHE_TTL_DAYS: int = 30
