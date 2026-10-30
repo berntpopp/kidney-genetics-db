@@ -1,7 +1,9 @@
 # Plan: HPO neoplasia clinical group with descendant matching (#338)
 
-Status: plan only, not implemented. Needs curator sign-off on the term list and
-on the scoring change before code.
+Status: superseded and implemented. The `neoplasia` group ships with root
+HP:0009726 (Renal neoplasm) and descendant matching in the clinical-groups v2
+classifier (commit daf11f5, spec `.planning/specs/2026-10-26-hpo-clinical-groups-v2.md`).
+The design below is the original proposal and is kept as a record.
 
 ## Goal
 
