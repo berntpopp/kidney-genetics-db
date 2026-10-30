@@ -111,6 +111,21 @@ def load_hpo_parents(path: Path) -> dict[str, set[str]]:
     return parents
 
 
+async def download_pinned_hp_json(
+    cache_dir: Path = BulkDataSourceMixin.bulk_cache_dir,
+) -> Path:
+    """Download (or reuse the cached) pinned hp.json, sha256-verified."""
+
+    class _PinnedFile(BulkDataSourceMixin):
+        bulk_file_url = get_source_parameter("HPO", "hp_json_url", "")
+        bulk_file_format = "json"
+        bulk_cache_dir = cache_dir
+
+    path = await _PinnedFile().download_bulk_file_streaming()
+    expected = str(get_source_parameter("HPO", "hp_json_sha256"))
+    return await asyncio.to_thread(verify_sha256, path, expected)
+
+
 class ClinicalGroupClassifier:
     """Kidney clinical groups from disease-level HPO annotations (#338).
 
@@ -410,15 +425,7 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
     async def _download_hp_json(self) -> Path:
         """Download (or reuse the cached) pinned hp.json via the bulk-file cache."""
-
-        class _PinnedFile(BulkDataSourceMixin):
-            bulk_file_url = get_source_parameter("HPO", "hp_json_url", "")
-            bulk_file_format = "json"
-            bulk_cache_dir = self.bulk_cache_dir
-
-        path = await _PinnedFile().download_bulk_file_streaming()
-        expected = str(get_source_parameter("HPO", "hp_json_sha256"))
-        return await asyncio.to_thread(verify_sha256, path, expected)
+        return await download_pinned_hp_json(self.bulk_cache_dir)
 
     async def _load_clinical_group_classifier(self) -> ClinicalGroupClassifier:
         """Load the pinned files and IC once per run; fail closed (#338).

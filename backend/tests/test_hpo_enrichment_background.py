@@ -30,6 +30,7 @@ def _service() -> EnrichmentService:
     service = EnrichmentService()
     service._get_hpo_annotations = AsyncMock(return_value=ANNOTATIONS)  # type: ignore[method-assign]
     service.hpo_client.get_term = AsyncMock(return_value=None)  # type: ignore[method-assign]
+    service.min_term_genes = 1  # custom backgrounds leave single-gene terms in this fixture
     return service
 
 
