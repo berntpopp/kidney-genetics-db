@@ -17,7 +17,7 @@ keywords:
     - alport
     - nephritis
     - cystic kidney  # More specific than just "cystic"
-    - ciliopathy  # Note: ciliopathies are multi-system, may need review
+    - ciliopathy  # PanelApp panel-name search term only; blanked by kidney_exclude (#451)
     - complement
     - cakut
     - focal segmental
@@ -30,3 +30,9 @@ keywords:
   # "renal" is a substring of "adrenal" (congenital adrenal hyperplasia, CYP21A2).
   kidney_exclude:
     - adrenal
+    - complementation  # "Fanconi anemia, complementation group S" vs "complement" (#446)
+    # Bare "ciliopathy" covers retinal, motile and skeletal ciliopathies (ARL2BP, TUBB4B);
+    # kidney ciliopathies still match via nephronophthisis/renal/polycystic/cystic kidney (#451)
+    - ciliopathy
+    - polycystic lipomembranous  # Nasu-Hakola bone/brain disease (TREM2) (#451)
+    - nephropathy due to maternal  # maternal alloimmune, not the child's germline gene (MME) (#451)
