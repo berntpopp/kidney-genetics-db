@@ -6,6 +6,7 @@ Tests all pure functions in clinvar_utils.py with edge cases.
 
 import pytest
 
+from app.pipeline.sources.annotations.clinvar import ClinVarAnnotationSource
 from app.pipeline.sources.annotations.clinvar_utils import (
     GeneAccumulator,
     format_accession,
@@ -416,6 +417,22 @@ class TestGeneAccumulator:
             "cdna_change": "c.100C>T",
         }
 
+    def test_conflicting_is_not_pathogenic(self) -> None:
+        """ClinVar's label contains "pathogenic"; it must count once, as conflicting (#440)."""
+        variants = [
+            self._make_variant("Pathogenic"),
+            self._make_variant("Conflicting classifications of pathogenicity"),
+        ]
+        acc = GeneAccumulator(CONFIDENCE_LEVELS)
+        for v in variants:
+            acc.add_variant(v)
+        source = ClinVarAnnotationSource.__new__(ClinVarAnnotationSource)
+        source._review_confidence_levels = CONFIDENCE_LEVELS
+        for stats in (acc.finalize(), source._aggregate_variants(variants)):
+            assert stats["pathogenic_count"] == 1
+            assert stats["conflicting_count"] == 1
+            assert stats["pathogenic_percentage"] == 50.0
+
     def test_empty_accumulator(self) -> None:
         acc = GeneAccumulator(CONFIDENCE_LEVELS)
         stats = acc.finalize()
@@ -440,7 +457,7 @@ class TestGeneAccumulator:
         acc.add_variant(self._make_variant("Uncertain significance"))
         acc.add_variant(self._make_variant("Benign"))
         acc.add_variant(self._make_variant("Likely benign"))
-        acc.add_variant(self._make_variant("Conflicting classifications"))
+        acc.add_variant(self._make_variant("Conflicting classifications of pathogenicity"))
         stats = acc.finalize()
         assert stats["pathogenic_count"] == 1
         assert stats["likely_pathogenic_count"] == 1

@@ -576,7 +576,8 @@ class ClinVarAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
             # Count by classification
             is_pathogenic = False
-            if "pathogenic" in classification:
+            # "Conflicting classifications of pathogenicity" is not pathogenic (#440)
+            if "pathogenic" in classification and "conflicting" not in classification:
                 is_pathogenic = True
                 if "likely" in classification:
                     likely_pathogenic_count += 1
