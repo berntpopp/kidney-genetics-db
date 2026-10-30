@@ -106,7 +106,8 @@ jobs:
     name: Security Scan (${{ matrix.image }})
     runs-on: ubuntu-latest
     needs: build
-    timeout-minutes: 10
+    # The backend image scan took 10m40s on v0.20.0 and was cancelled at 10 minutes
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: read
