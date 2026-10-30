@@ -1,4 +1,4 @@
-"""0015: the DiagnosticPanels score counts laboratories; 0016: DLX4 gets HGNC:2917 back."""
+"""0015: DiagnosticPanels counts laboratories; 0016: DLX4 HGNC fix; 0017: drop ACMG/IV rows."""
 
 import pytest
 from sqlalchemy import text
@@ -76,4 +76,26 @@ def test_dlx4_repair_touches_only_the_wrong_row(baseline_db):  # noqa: F811
                 "PKD1": "HGNC:9008",
             }
         _alembic(url, "downgrade", "0015")
+    _alembic(url, "upgrade", "head")
+
+
+@pytest.mark.integration
+def test_0017_drops_only_empty_withdrawn_rows(baseline_db):  # noqa: F811
+    engine, url = baseline_db
+    _alembic(url, "upgrade", "0016")
+    with engine.begin() as conn:
+        for symbol, hgnc_id in (("ACMG", "HGNC:116"), ("IV", "HGNC:6185"), ("PKD1", "HGNC:9008")):
+            gene = _add_gene(conn, symbol)
+            conn.execute(
+                text("UPDATE genes SET hgnc_id = :h WHERE id = :g"), {"h": hgnc_id, "g": gene}
+            )
+            conn.execute(text("INSERT INTO gene_curations (gene_id) VALUES (:g)"), {"g": gene})
+            if symbol == "IV":  # still has evidence: must stay
+                _add_evidence(conn, gene, "DiagnosticPanels", {"panels": ["K"]})
+    _alembic(url, "upgrade", "0017")
+    with engine.begin() as conn:
+        left = conn.execute(
+            text("SELECT approved_symbol FROM genes WHERE approved_symbol IN ('ACMG','IV','PKD1')")
+        ).scalars()
+        assert sorted(left) == ["IV", "PKD1"]
     _alembic(url, "upgrade", "head")
