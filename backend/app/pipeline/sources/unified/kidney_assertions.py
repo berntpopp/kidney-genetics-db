@@ -77,8 +77,8 @@ class KidneyAssertionIndex:
                 if len(parts) < 6 or parts[2] not in kidney_terms:
                     continue
                 freq = parts[4].strip()
-                # skip NOT, "Excluded" and 0/n (seen in none of n patients) annotations
-                if (parts[5].strip(), parts[2]) in negated or freq.startswith("0/"):
+                # skip NOT and "Excluded"; 0/n is "not seen in that cohort", not absent, and stays
+                if (parts[5].strip(), parts[2]) in negated:
                     continue
                 if hpo_frequency(freq) > 0:
                     pairs.add((parts[1].strip().upper(), normalise_curie(parts[5])))

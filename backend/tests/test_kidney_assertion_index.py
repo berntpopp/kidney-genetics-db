@@ -76,8 +76,9 @@ class TestIndex:
     def test_not_annotation_ignored(self, index):
         assert not index.matches("NEGATED", ["ORPHA:777"])
 
-    def test_zero_of_n_frequency_ignored(self, index):
-        assert not index.matches("ZERO", ["OMIM:666666"])
+    def test_zero_of_n_frequency_kept(self, index):
+        # 0/n is weak evidence, not a NOT annotation (AMN, CPLANE1 depend on it)
+        assert index.matches("ZERO", ["OMIM:666666"])
 
     def test_wrong_gene_for_disease_rejected(self, index):
         assert not index.matches("SLC12A3", ["OMIM:259900"])
