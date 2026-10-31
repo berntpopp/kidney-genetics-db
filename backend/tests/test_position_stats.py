@@ -1,5 +1,6 @@
 """Position statistics: R reference values, calibration/power, 3D planted clusters, endpoint."""
 
+import json
 import math
 import time
 import uuid
@@ -21,6 +22,7 @@ from app.services.position_stats import (
     hyper_upper,
     linear_scan,
     protein_regions,
+    refseq_needed,
 )
 
 
@@ -145,8 +147,54 @@ class TestVariantSet:
         bad = build_variant_set(SEQ, [], [g("p.Gln3Arg"), g("p.Gln2Arg"), g("p.Arg99Cys")], 0)
         assert bad["withheld"] == (
             "Statistics withheld: 66.7% of gnomAD missense variants do not match the UniProt "
-            "sequence (likely a transcript mismatch)."
+            "sequence or any of its isoforms (likely a transcript mismatch)."
         )
+
+    def test_isoform_positions_map_to_canonical(self):
+        # Canonical has a 6-residue insert after residue 10; ClinVar follows the shorter isoform.
+        canon = "MAAGGRKLLLWWWWWWPQRSTVDEF"
+        iso = "MAAGGRKLLLPQRSTVDEF"
+        rows = [cv(12, "Gln", {"pathogenic": {"1": 3}}), cv(18, "Glu", {"benign": {"1": 1}})]
+        r = build_variant_set(canon, rows, [], 1, {"X-2": iso})
+        assert r["isoforms"]["clinvar"] == {"unknown": "X-2"}
+        assert r["cases"] == [18, 18, 18] and r["benign"] == [24] and not r["withheld"]
+        assert canon[17] == iso[11] == "Q"
+
+    def test_isoform_only_segment_is_unplaced_not_mismatch(self):
+        canon = "MAAGGRKLLLPQRSTVDEFHHHHH"
+        iso = "MAAGGRKLLLCCCCCCCCPQRSTVDEFHHHHH"  # isoform-only insert at 11-18
+        rows = [cv(12, "Cys", {"pathogenic": {"1": 1}})] + [
+            cv(20, "Gln", {"pathogenic": {"1": 5}}),
+        ]
+        r = build_variant_set(canon, rows, [], 1, {"X-2": iso})
+        assert r["unplaced"]["clinvar"] == 1 and r["dropped"]["clinvar"] == 0
+        assert r["cases"] == [12] * 5
+
+    def test_canonical_kept_when_it_matches(self):
+        rows = [cv(2, "Arg", {"pathogenic": {"1": 4}})]
+        r = build_variant_set(SEQ, rows, [], 1, {"X-2": "M" * 10})
+        assert r["isoforms"]["clinvar"] == {"unknown": None} and r["cases"] == [2, 2, 2, 2]
+
+    def test_each_clinvar_transcript_is_placed_on_its_own(self):
+        # Canonical-numbered NM_A rows and NM_B rows numbered on a RefSeq-only protein
+        # (3 residues shorter at the N-terminus, no UniProt isoform).
+        canon = "MKTAYIAKQRQISFVKSHFSRQ"
+        nm_b = canon[3:]
+        rows = [
+            {**cv(9, "Gln", {"pathogenic": {"1": 2}}), "tx": "NM_A.1"},
+            {**cv(6, "Gln", {"pathogenic": {"1": 3}}), "tx": "NM_B.2"},
+        ]
+        assert refseq_needed(canon, rows, {}, 1) == ["NM_B.2"]
+        r = build_variant_set(canon, rows, [], 1, {}, {"NM_B.2": nm_b})
+        assert r["cases"] == [9] * 5 and not r["withheld"]
+        assert r["isoforms"]["clinvar"] == {"NM_A.1": None, "NM_B.2": "NM_B.2"}
+
+    def test_gnomad_mane_refseq_protein_is_used(self):
+        canon = "MKTAYIAKQRQISFVKSHFSRQ"
+        gnomad = [{**g("p.Gln6Arg"), "tx": "NM_M.3"}, {**g("p.Arg7Cys"), "tx": "NM_M.3"}]
+        assert refseq_needed(canon, [], {}, 1, gnomad) == ["NM_M.3"]
+        r = build_variant_set(canon, [], gnomad, 1, {}, {"NM_M.3": canon[3:]})
+        assert r["controls"] == [9, 10] and r["isoforms"]["gnomad"] == "NM_M.3"
 
     def test_missing_residues_need_refresh(self):
         assert build_variant_set(SEQ, None, [], 0)["withheld"] == (
@@ -346,13 +394,13 @@ async def test_endpoint_with_mocked_upstreams(async_client, db_session, monkeypa
         return gnomad
 
     async def fake_seq(client, acc):
-        return sequence
+        return {acc: sequence}
 
     async def fake_model(client, acc, n):
         return {"entryId": f"AF-{acc}-F1", "version": 6, "residues": line(length)}
 
     monkeypatch.setattr(sources, "fetch_gnomad_missense", fake_gnomad)
-    monkeypatch.setattr(sources, "fetch_uniprot_sequence", fake_seq)
+    monkeypatch.setattr(sources, "fetch_uniprot_sequences", fake_seq)
     monkeypatch.setattr(sources, "fetch_alphafold_model", fake_model)
 
     res = await async_client.get(f"/api/genes/{symbol.lower()}/position-statistics")
@@ -408,10 +456,10 @@ def _mock_linear_upstreams(monkeypatch):
         return [g(f"p.Ala{r}Val") for r in list(range(2, 61)) * 2]
 
     async def fake_seq(client, acc):
-        return "M" + "A" * 59
+        return {acc: "M" + "A" * 59}
 
     monkeypatch.setattr(sources, "fetch_gnomad_missense", fake_gnomad)
-    monkeypatch.setattr(sources, "fetch_uniprot_sequence", fake_seq)
+    monkeypatch.setattr(sources, "fetch_uniprot_sequences", fake_seq)
 
 
 @pytest.mark.integration
@@ -507,10 +555,63 @@ async def test_gnomad_unreadable_reply_is_502(async_client, db_session, monkeypa
     symbol = _gene_with_annotations(db_session)
 
     async def fake_seq(client, acc):
-        return "M" + "A" * 59
+        return {acc: "M" + "A" * 59}
 
-    monkeypatch.setattr(sources, "fetch_uniprot_sequence", fake_seq)
+    monkeypatch.setattr(sources, "fetch_uniprot_sequences", fake_seq)
     _mock_transport(monkeypatch, lambda request: httpx.Response(200, text="<html>busy</html>"))
     res = await async_client.get(f"/api/genes/{symbol}/position-statistics")
     assert res.status_code == 502
     assert res.json()["error"]["detail"] == "gnomAD returned an unreadable response"
+
+
+@pytest.mark.unit
+async def test_gnomad_controls_come_from_the_mane_transcript():
+    asked = []
+
+    def handler(request):
+        variables = json.loads(request.content)["variables"]
+        asked.append(variables)
+        if "g" in variables:
+            return httpx.Response(200, json={"data": {"gene": {
+                "canonical_transcript_id": "ENST_CANON",
+                "mane_select_transcript": {"ensembl_id": "ENST_MANE"}}}})  # fmt: skip
+        return httpx.Response(200, json={"data": {"transcript": {"variants": [
+            {"consequence": "missense_variant", "hgvsp": "p.Arg2Cys"},
+            {"consequence": "synonymous_variant", "hgvsp": "p.Arg2="}]}}})  # fmt: skip
+
+    client = sources.RetryableHTTPClient(
+        httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        sources.RetryConfig(max_retries=0),
+    )
+    variants = await sources.fetch_gnomad_missense(client, "PAX2")
+    assert asked == [{"g": "PAX2"}, {"t": "ENST_MANE"}]
+    assert [v["hgvsp"] for v in variants] == ["p.Arg2Cys"]
+
+
+@pytest.mark.unit
+def test_parse_fasta_keeps_isoforms():
+    text = ">sp|Q02962|PAX2_HUMAN x\nMDM\nHC\n>sp|Q02962-3|PAX2_HUMAN Isoform 3\nMDH\n"
+    assert sources.parse_fasta(text) == {"Q02962": "MDMHC", "Q02962-3": "MDH"}
+    # a ">" inside a header (HSD3B2: "Delta 5-->4-isomerase") is not a new record
+    assert sources.parse_fasta(">sp|P26439|3BHS2 Delta 5-->4-isomerase\nMGW\n") == {"P26439": "MGW"}
+
+
+@pytest.mark.unit
+async def test_refseq_proteins_by_transcript():
+    fasta = (
+        ">lcl|NM_138711.6_prot_NP_619725.3_1 [gene=PPARG] [protein_id=NP_619725.3]\nMGET\nLGD\n"
+        ">lcl|NM_000278.5_prot_NP_000269.3_1 [gene=PAX2]\nMDMH\n"
+    )
+    seen = []
+
+    def handler(request):
+        seen.append(request.url.params["id"])
+        return httpx.Response(200, text=fasta)
+
+    client = sources.RetryableHTTPClient(
+        httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        sources.RetryConfig(max_retries=0),
+    )
+    out = await sources.fetch_refseq_proteins(client, ["NM_138711.6", "NM_000278.5"])
+    assert seen == ["NM_138711.6,NM_000278.5"]
+    assert out == {"NM_138711.6": "MGETLGD", "NM_000278.5": "MDMH"}

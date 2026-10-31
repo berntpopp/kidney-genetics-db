@@ -47,6 +47,7 @@ _MISSENSE_RE = re.compile(r"p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})")
 
 # Strict single-residue missense (Python twin of the frontend regex)
 _MISSENSE_RESIDUE_RE = re.compile(r"^p\.\(?([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})\)?$")
+_REFSEQ_TX_RE = re.compile(r"^(N[MR]_\d+\.\d+)")
 
 # Detail-list fill order: categories are interleaved round-robin in this order
 _CATEGORY_ORDER = (
@@ -364,7 +365,8 @@ class GeneAccumulator:
         self.genomic_variants: dict[str, list[Any]] = {}
         self.protein_variants_total = 0
         self.genomic_variants_total = 0
-        self.missense_residues: dict[tuple[int, str], dict[str, dict[str, int]]] = {}
+        # (RefSeq transcript or "", residue, ref) -> category -> stars -> count
+        self.missense_residues: dict[tuple[str, int, str], dict[str, dict[str, int]]] = {}
         self._confidence_levels = confidence_levels
         self._max_detail = max_detail
 
@@ -451,7 +453,11 @@ class GeneAccumulator:
         if any("missense variant" == c.lower() for c in mol_consequences):
             m = _MISSENSE_RESIDUE_RE.match(protein_change)
             if m and m.group(1) != m.group(3) and m.group(3) in _AMINO_ACIDS_3:
-                by_star = self.missense_residues.setdefault((int(m.group(2)), m.group(1)), {})
+                # Residue numbers follow the variant's own RefSeq transcript, which differs
+                # between a gene's variants (PPARG: NM_138711 matches no UniProt isoform).
+                tx = _REFSEQ_TX_RE.match(variant.get("cdna_change") or variant.get("title") or "")
+                key = (tx.group(1) if tx else "", int(m.group(2)), m.group(1))
+                by_star = self.missense_residues.setdefault(key, {})
                 stars = by_star.setdefault(category, {})
                 stars[str(confidence)] = stars.get(str(confidence), 0) + 1
 
@@ -604,8 +610,9 @@ class GeneAccumulator:
                     "residue": residue,
                     "ref": ref,
                     "counts": {cat: dict(sorted(stars.items())) for cat, stars in counts.items()},
+                    **({"tx": tx} if tx else {}),
                 }
-                for (residue, ref), counts in sorted(self.missense_residues.items())
+                for (tx, residue, ref), counts in sorted(self.missense_residues.items())
             ],
             "consequence_categories": self.consequence_categories,
             "top_molecular_consequences": top_molecular_consequences,

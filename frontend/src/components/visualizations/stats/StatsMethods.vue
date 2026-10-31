@@ -34,13 +34,27 @@ const clinvarDate = computed(() =>
 const dropped = computed(() => {
   const s = props.set
   if (!s) return []
-  return [
-    { name: 'ClinVar', d: s.dropped.clinvar, c: s.checked.clinvar },
-    { name: 'gnomAD', d: s.dropped.gnomad, c: s.checked.gnomad }
+  const lines = [
+    { name: 'ClinVar', d: s.dropped.clinvar, c: s.checked.clinvar, u: s.unplaced?.clinvar ?? 0 },
+    { name: 'gnomAD', d: s.dropped.gnomad, c: s.checked.gnomad, u: s.unplaced?.gnomad ?? 0 }
   ].map(
     r =>
-      `${n(r.d)} of ${n(r.c)} ${r.name} missense variants did not match the UniProt sequence and were excluded.`
+      `${n(r.d)} of ${n(r.c)} ${r.name} missense variants did not match the UniProt sequence and were excluded` +
+      (r.u
+        ? `; ${n(r.u)} lie in a segment absent from the canonical protein and were not placed.`
+        : '.')
   )
+  // Positions numbered on another isoform or RefSeq protein are mapped onto canonical UniProt.
+  const iso = s.isoforms
+  const mapped = [
+    ...Object.entries(iso?.clinvar ?? {})
+      .filter(([, frame]) => frame)
+      .map(([tx, frame]) => (frame === tx ? `ClinVar ${tx}` : `ClinVar ${tx} (via ${frame})`)),
+    ...(iso?.gnomad ? [`gnomAD MANE transcript (via ${iso.gnomad})`] : [])
+  ]
+  if (mapped.length)
+    lines.push(`Positions mapped onto the canonical UniProt sequence from: ${mapped.join(', ')}.`)
+  return lines
 })
 const switchId = computed(() => `stats-zero-star-${props.kind}`)
 </script>

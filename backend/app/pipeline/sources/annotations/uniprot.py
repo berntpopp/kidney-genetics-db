@@ -30,7 +30,7 @@ _UNIPROT_FIELDS = (
 
 # ID Mapping polling configuration
 _ID_MAPPING_POLL_INTERVAL = 3.0  # seconds between status checks
-_ID_MAPPING_TIMEOUT = 120.0  # max seconds to wait for job completion
+_ID_MAPPING_TIMEOUT = 900.0  # a full-gene-set job (~5,200 symbols) runs for minutes
 
 
 def _has_primary_name(entry: dict[str, Any], symbol: str) -> bool:
@@ -456,8 +456,10 @@ class UniProtAnnotationSource(BaseAnnotationSource):
                 status_data = status_response.json()
 
                 job_status = status_data.get("jobStatus")
-                if job_status == "RUNNING":
+                if job_status in ("NEW", "RUNNING"):
                     continue
+                if job_status == "ERROR":
+                    raise RuntimeError(f"ID Mapping job {job_id} failed")
 
                 # Any status other than RUNNING means the job is done
                 # (FINISHED, or the status endpoint redirects to results)
@@ -575,32 +577,30 @@ class UniProtAnnotationSource(BaseAnnotationSource):
             )
             query = f"({gene_clauses}) AND (organism_id:9606) AND (reviewed:true)"
 
-            url = f"{self.base_url}/uniprotkb/search"
-            params = {
+            # gene_exact also hits other genes' synonyms, so N symbols return more than N
+            # entries: page through all of them, or some genes are silently left stale.
+            next_url: str | None = f"{self.base_url}/uniprotkb/search"
+            params: dict[str, str] | None = {
                 "query": query,
                 "format": "json",
                 "fields": _UNIPROT_FIELDS,
-                "size": str(len(genes)),
+                "size": "500",
             }
-
-            response = await client.get(
-                url,
-                params=params,
-                headers={
-                    "Accept": "application/json",
-                },
-            )
-
-            if response.status_code != 200:
-                logger.sync_warning(
-                    "Batch request failed",
-                    status_code=response.status_code,
-                    batch_size=len(genes),
+            api_results: list[dict[str, Any]] = []
+            while next_url:
+                response = await client.get(
+                    next_url, params=params, headers={"Accept": "application/json"}
                 )
-                return {}
-
-            data = response.json()
-            api_results = data.get("results", [])
+                if response.status_code != 200:
+                    logger.sync_warning(
+                        "Batch request failed",
+                        status_code=response.status_code,
+                        batch_size=len(genes),
+                    )
+                    return {}
+                api_results.extend(response.json().get("results", []))
+                next_url = response.links.get("next", {}).get("url")
+                params = None  # the next link already carries the query and cursor
 
             # Map results back to genes by gene symbol
             gene_map = {g.approved_symbol.upper(): g for g in genes}

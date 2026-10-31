@@ -5,6 +5,7 @@ annotation timestamps. The statistics run in a worker thread, never on the event
 """
 
 import asyncio
+import os
 import re
 from typing import Any
 
@@ -20,14 +21,24 @@ from app.core.retry_utils import RetryableHTTPClient, RetryConfig
 from app.core.version import get_package_version
 from app.models.gene import Gene
 from app.models.gene_annotation import GeneAnnotation
-from app.services.position_stats import STATS_VERSION, compute_position_statistics
+from app.services.position_stats import (
+    STATS_VERSION,
+    compute_position_statistics,
+    refseq_needed,
+)
 
 logger = get_logger(__name__)
 
 TTL = 30 * 24 * 3600
 GNOMAD_URL = "https://gnomad.broadinstitute.org/api"
+# Gene-level variants carry the most severe consequence across ALL transcripts (PAX2: 5 of
+# them), so HGVSp positions mix isoforms. Take the variants of one transcript: MANE Select.
+GNOMAD_GENE_QUERY = (
+    "query($g:String!){ gene(gene_symbol:$g, reference_genome:GRCh38){ "
+    "canonical_transcript_id mane_select_transcript{ ensembl_id refseq_id refseq_version } } }"
+)
 GNOMAD_QUERY = (
-    "query($g:String!){ gene(gene_symbol:$g, reference_genome:GRCh38){ variants(dataset: "
+    "query($t:String!){ transcript(transcript_id:$t, reference_genome:GRCh38){ variants(dataset: "
     "gnomad_r4){ variant_id consequence hgvsp exome{ ac filters } genome{ ac filters } } } }"
 )
 GNOMAD_RELEASE = "gnomAD v4.1 (gnomad_r4)"
@@ -58,9 +69,9 @@ async def _request(source: str, send: Any, url: str, **kwargs: Any) -> httpx.Res
         raise UpstreamError(f"{source} request failed ({type(e).__name__})") from e
 
 
-async def fetch_gnomad_missense(client: RetryableHTTPClient, symbol: str) -> list[dict[str, Any]]:
+async def _gnomad(client: RetryableHTTPClient, query: str, variables: dict[str, str]) -> Any:
     res = await _request("gnomAD", client.post, GNOMAD_URL,
-                         json={"query": GNOMAD_QUERY, "variables": {"g": symbol}})  # fmt: skip
+                         json={"query": query, "variables": variables})  # fmt: skip
     try:
         body = res.json()
     except ValueError as e:
@@ -70,19 +81,78 @@ async def fetch_gnomad_missense(client: RetryableHTTPClient, symbol: str) -> lis
     # Partial data would silently give the statistics an incomplete control set.
     if body.get("errors"):
         raise UpstreamError(f"gnomAD returned an error: {body['errors'][0].get('message')}")
-    gene = (body.get("data") or {}).get("gene")
+    return body.get("data") or {}
+
+
+async def fetch_gnomad_missense(client: RetryableHTTPClient, symbol: str) -> list[dict[str, Any]]:
+    """Missense variants of the gene's MANE Select (else canonical) transcript.
+
+    Each variant carries the MANE RefSeq transcript as "tx" (its protein is the exact sequence
+    gnomAD's HGVSp numbering follows, when it matches no UniProt isoform).
+    """
+    gene = (await _gnomad(client, GNOMAD_GENE_QUERY, {"g": symbol})).get("gene")
     if not gene:
         raise UpstreamError(f"gnomAD has no data for {symbol}")
-    return [v for v in gene.get("variants") or [] if v.get("consequence") == "missense_variant"]
+    mane = gene.get("mane_select_transcript") or {}
+    tx = mane.get("ensembl_id") or gene.get("canonical_transcript_id")
+    nm = (
+        f"{mane['refseq_id']}.{mane['refseq_version']}"
+        if mane.get("refseq_id") and mane.get("refseq_version")
+        else None
+    )
+    if not tx:
+        raise UpstreamError(f"gnomAD has no MANE or canonical transcript for {symbol}")
+    transcript = (await _gnomad(client, GNOMAD_QUERY, {"t": tx})).get("transcript")
+    if not transcript:
+        raise UpstreamError(f"gnomAD has no data for transcript {tx}")
+    variants = transcript.get("variants") or []
+    return [
+        {**v, "tx": nm} if nm else v for v in variants if v.get("consequence") == "missense_variant"
+    ]
 
 
-async def fetch_uniprot_sequence(client: RetryableHTTPClient, accession: str) -> str:
+EFETCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+_CDS_HEAD = re.compile(r"^lcl\|(N[MR]_\d+\.\d+)_prot_")
+_FASTA_RECORD = re.compile(r"^>", re.M)  # headers may contain ">" (HSD3B2: "5-->4-isomerase")
+MAX_REFSEQ = 10  # transcripts fetched per gene; the rest stay unplaced (counted as mismatches)
+
+
+async def fetch_refseq_proteins(client: RetryableHTTPClient, txs: list[str]) -> dict[str, str]:
+    """Protein translation of each versioned RefSeq transcript (NM_138711.6 -> its NP sequence)."""
+    params = {"db": "nuccore", "id": ",".join(txs), "rettype": "fasta_cds_aa", "retmode": "text"}
+    if key := os.environ.get("NCBI_API_KEY"):
+        params["api_key"] = key
+    res = await _request("NCBI", client.get, EFETCH, params=params)
+    out: dict[str, str] = {}
+    for block in _FASTA_RECORD.split(res.text)[1:]:
+        head, *lines = block.splitlines()
+        m = _CDS_HEAD.match(head)
+        if m and m[1] not in out:  # first CDS only
+            out[m[1]] = "".join(line.strip() for line in lines)
+    return out
+
+
+def parse_fasta(text: str) -> dict[str, str]:
+    """UniProt FASTA -> {accession or isoform id (Q02962-3): sequence}."""
+    out: dict[str, str] = {}
+    for block in _FASTA_RECORD.split(text)[1:]:
+        head, *lines = block.splitlines()
+        parts = head.split("|")
+        if len(parts) >= 2:
+            out[parts[1]] = "".join(line.strip() for line in lines)
+    return out
+
+
+async def fetch_uniprot_sequences(client: RetryableHTTPClient, accession: str) -> dict[str, str]:
+    """Canonical sequence (key: the accession) plus every isoform, in one request."""
     res = await _request("UniProt", client.get,
-                         f"https://rest.uniprot.org/uniprotkb/{accession}.fasta")  # fmt: skip
-    seq = "".join(line.strip() for line in res.text.splitlines() if not line.startswith(">"))
-    if not seq:
+                         "https://rest.uniprot.org/uniprotkb/stream",
+                         params={"query": f"accession:{accession}", "format": "fasta",
+                                 "includeIsoform": "true"})  # fmt: skip
+    seqs = parse_fasta(res.text)
+    if not seqs.get(accession):
         raise UpstreamError(f"UniProt returned no sequence for {accession}")
-    return seq
+    return seqs
 
 
 def parse_ca_atoms(cif: str) -> list[dict[str, Any]]:
@@ -206,13 +276,14 @@ async def get_position_statistics(db: Session, symbol: str, min_stars: int) -> d
 
     client = _client()
     try:
-        sequence = await _cached("uniprot_fasta", f"{accession}:{g['uniprot_at']}",
-                                 lambda: fetch_uniprot_sequence(client, accession))  # fmt: skip
+        seqs = await _cached("uniprot_isoforms", f"{accession}:{g['uniprot_at']}",
+                             lambda: fetch_uniprot_sequences(client, accession))  # fmt: skip
+        sequence = seqs[accession]
         length = int(g["uniprot"].get("length") or len(sequence))
         gnomad: Any
         model: Any
         gnomad, model = await asyncio.gather(
-            _cached("gnomad_missense", g["symbol"],
+            _cached("gnomad_mane_missense_v2", g["symbol"],
                     lambda: fetch_gnomad_missense(client, g["symbol"])),
             _cached("alphafold_ca", f"{accession}:{length}",
                     lambda: fetch_alphafold_model(client, accession, length)),
@@ -220,6 +291,19 @@ async def get_position_statistics(db: Session, symbol: str, min_stars: int) -> d
         )  # fmt: skip
         if isinstance(gnomad, BaseException):
             raise gnomad
+        isoforms = {k: v for k, v in seqs.items() if k != accession}
+        clinvar_rows = g["clinvar"].get("missense_residues")
+        needed = await run_in_threadpool(
+            refseq_needed, sequence, clinvar_rows, isoforms, min_stars, gnomad
+        )
+        refseq: dict[str, str] = {}
+        if needed:
+            needed = sorted(needed)[:MAX_REFSEQ]
+            try:  # versioned accessions never change: cache as long as the rest
+                refseq = await _cached("refseq_protein", ",".join(needed),
+                                       lambda: fetch_refseq_proteins(client, needed))  # fmt: skip
+            except UpstreamError as e:  # without them those variants stay unplaced
+                logger.sync_warning("RefSeq proteins unavailable", gene=g["symbol"], error=str(e))
     finally:
         await client.close()
 
@@ -251,6 +335,8 @@ async def get_position_statistics(db: Session, symbol: str, min_stars: int) -> d
             min_stars=min_stars,
             provenance={"clinvar": g["clinvar_at"], "gnomad": GNOMAD_RELEASE, "uniprot": accession},
             spatial_error=spatial_error,
+            isoforms=isoforms,
+            refseq=refseq,
         )
     )
     if not spatial_error:  # a transient AlphaFold outage must not stick for 30 days

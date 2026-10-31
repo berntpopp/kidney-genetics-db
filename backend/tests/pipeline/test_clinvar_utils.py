@@ -527,6 +527,18 @@ class TestGeneAccumulator:
         ]
         assert len(stats["protein_variants"]) == 2
 
+    def test_missense_residues_keep_their_refseq_transcript(self) -> None:
+        acc = GeneAccumulator(CONFIDENCE_LEVELS)
+        for name in ("NM_138711.6(PPARG):c.28C>G (p.Pro10Ala)",
+                     "NM_015869.5(PPARG):c.34C>G (p.Pro12Ala)"):  # fmt: skip
+            acc.add_variant(
+                {**self._make_variant(protein_change=name.split("(")[-1][:-1]), "cdna_change": name}
+            )
+        assert [(r["tx"], r["residue"]) for r in acc.finalize()["missense_residues"]] == [
+            ("NM_015869.5", 12),
+            ("NM_138711.6", 10),
+        ]
+
     def test_missense_residues_requires_missense_consequence(self) -> None:
         acc = GeneAccumulator(CONFIDENCE_LEVELS)
         acc.add_variant(
