@@ -106,11 +106,13 @@ def _log(db: Session, record: GDA, action: str, user: User) -> None:
 
 
 def _ensure_unique(db: Session, record: GDA) -> None:
-    """Gene + disease + MOI (NULL MOIs equal) and source + external_id identify one record."""
+    """Gene + disease + MOI (NULL MOIs equal) + relationship type and source + external_id
+    identify one record."""
     query = db.query(GDA.id).filter(
         GDA.gene_id == record.gene_id,
         GDA.disease_id == record.disease_id,
         GDA.moi.is_(None) if record.moi is None else GDA.moi == record.moi,
+        GDA.relationship_type == record.relationship_type,
     )
     if record.id is not None:
         query = query.filter(GDA.id != record.id)
@@ -130,7 +132,7 @@ def _ensure_unique(db: Session, record: GDA) -> None:
 
 def _duplicate(record: GDA) -> str:
     moi = f" with MOI {record.moi}" if record.moi else " without an MOI"
-    return f"{record.disease_id}{moi} is already recorded for gene"
+    return f"{record.disease_id}{moi} is already recorded for gene as {record.relationship_type}"
 
 
 def _commit_unique(db: Session, record: GDA, action: str, user: User) -> None:

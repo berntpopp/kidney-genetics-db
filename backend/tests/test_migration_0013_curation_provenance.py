@@ -196,3 +196,48 @@ def test_0013_downgrade_refuses_to_drop_moi_provenance_or_points(db_0013, row):
     with pytest.raises(subprocess.CalledProcessError) as err:
         _alembic(url, "downgrade", "0012")
     assert b"provenance" in err.value.stderr
+
+
+# --- 0018: relationship type joins the key (#472) ---
+
+SUSCEPTIBLE = {"rt": "susceptibility", "st": "Likely association"}
+
+
+@pytest.fixture
+def db_0018(db_0013):
+    engine, url, gene, user = db_0013
+    _alembic(url, "upgrade", "0018")
+    return engine, url, gene, user
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("moi", [None, "HP:0000006"])
+def test_0018_mendelian_and_susceptibility_coexist(db_0018, moi):
+    engine, _, gene, user = db_0018
+    with engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(moi=moi)})
+        conn.execute(NEW, {"g": gene, "u": user, **_row(moi=moi, **SUSCEPTIBLE)})
+    for rt in ({}, SUSCEPTIBLE):  # same-type duplicates still collide
+        with pytest.raises(IntegrityError), engine.begin() as conn:
+            conn.execute(NEW, {"g": gene, "u": user, **_row(moi=moi, **rt)})
+
+
+@pytest.mark.integration
+def test_0018_downgrade_refuses_to_merge_relationship_types(db_0018):
+    engine, url, gene, user = db_0018
+    with engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row()})
+        conn.execute(NEW, {"g": gene, "u": user, **_row(**SUSCEPTIBLE)})
+    with pytest.raises(subprocess.CalledProcessError) as err:
+        _alembic(url, "downgrade", "0017")
+    assert b"relationship type" in err.value.stderr
+
+
+@pytest.mark.integration
+def test_0018_downgrade_restores_gene_disease_moi_key(db_0018):
+    engine, url, gene, user = db_0018
+    with engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(moi="HP:0000006")})
+    _alembic(url, "downgrade", "0017")
+    with pytest.raises(IntegrityError), engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(moi="HP:0000006", **SUSCEPTIBLE)})
