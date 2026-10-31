@@ -5,6 +5,7 @@ import { useHead } from '@unhead/vue'
 import AppHeader from '@/layouts/AppHeader.vue'
 import AppFooter from '@/layouts/AppFooter.vue'
 import { Toaster } from '@/components/ui/sonner'
+import { ConfigProvider } from 'reka-ui'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useLogStore } from '@/stores/logStore'
 import { useAppTheme } from '@/composables/useAppTheme'
@@ -57,31 +58,34 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <TooltipProvider :delay-duration="0">
-    <div class="min-h-screen flex flex-col bg-background text-foreground">
-      <a
-        href="#main-content"
-        class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-md focus:ring-2 focus:ring-ring"
-      >
-        Skip to main content
-      </a>
-      <AppHeader />
-      <!-- Bottom padding = the fixed footer (h-11 + border + safe area), so it never covers content -->
-      <main
-        id="main-content"
-        tabindex="-1"
-        class="flex-1 pb-[calc(2.75rem+1px+env(safe-area-inset-bottom))] focus:outline-none"
-      >
-        <!-- No route transition: an out-in fade emptied <main> and shifted the page on every navigation -->
-        <router-view v-slot="{ Component }">
-          <!-- Keyed by path: symbol changes remount gene views; query-only changes do not -->
-          <component :is="Component" :key="route.path" />
-        </router-view>
-      </main>
-      <AppFooter />
-      <LogViewer v-if="logViewerUsed" />
-      <!-- Offset clears the fixed footer -->
-      <Toaster position="bottom-right" :expand="false" rich-colors offset="3.5rem" />
-    </div>
-  </TooltipProvider>
+  <!-- html reserves the scrollbar gutter (main.css), so overlays must not pad body again -->
+  <ConfigProvider :scroll-body="{ padding: 0, margin: 0 }">
+    <TooltipProvider :delay-duration="0">
+      <div class="min-h-screen flex flex-col bg-background text-foreground">
+        <a
+          href="#main-content"
+          class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-md focus:ring-2 focus:ring-ring"
+        >
+          Skip to main content
+        </a>
+        <AppHeader />
+        <!-- Bottom padding = the fixed footer (h-11 + border + safe area), so it never covers content -->
+        <main
+          id="main-content"
+          tabindex="-1"
+          class="flex-1 pb-[calc(2.75rem+1px+env(safe-area-inset-bottom))] focus:outline-none"
+        >
+          <!-- No route transition: an out-in fade emptied <main> and shifted the page on every navigation -->
+          <router-view v-slot="{ Component }">
+            <!-- Keyed by path: symbol changes remount gene views; query-only changes do not -->
+            <component :is="Component" :key="route.path" />
+          </router-view>
+        </main>
+        <AppFooter />
+        <LogViewer v-if="logViewerUsed" />
+        <!-- Offset clears the fixed footer -->
+        <Toaster position="bottom-right" :expand="false" rich-colors offset="3.5rem" />
+      </div>
+    </TooltipProvider>
+  </ConfigProvider>
 </template>
