@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { KGDBLogo } from '@/components/branding'
 import UserMenu from '@/components/auth/UserMenu.vue'
-import LoginModal from '@/components/auth/LoginModal.vue'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -33,6 +32,8 @@ import {
   LogOut,
   BookCheck
 } from 'lucide-vue-next'
+// Lazy: keeps the form/validation libraries (vee-validate, zod) off every public page
+const LoginModal = defineAsyncComponent(() => import('@/components/auth/LoginModal.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -41,6 +42,9 @@ const { isDark, toggleTheme } = useAppTheme()
 
 const drawerOpen = ref(false)
 const loginModalOpen = ref(false)
+// Mounted on first open, then kept so the close animation still plays
+const loginModalMounted = ref(false)
+watch(loginModalOpen, open => open && (loginModalMounted.value = true))
 
 const themeLabel = computed(() => (isDark.value ? 'Switch to light mode' : 'Switch to dark mode'))
 
@@ -249,5 +253,9 @@ const drawerItem =
     </SheetContent>
   </Sheet>
 
-  <LoginModal v-model:open="loginModalOpen" @login-success="handleLoginSuccess" />
+  <LoginModal
+    v-if="loginModalMounted"
+    v-model:open="loginModalOpen"
+    @login-success="handleLoginSuccess"
+  />
 </template>

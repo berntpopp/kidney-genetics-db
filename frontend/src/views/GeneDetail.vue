@@ -40,16 +40,20 @@
 
         <template #description>
           <span class="flex flex-wrap items-center gap-x-2 gap-y-1" data-testid="gene-identity">
-            <span
-              v-if="!approvedName && (loading || loadingAnnotations)"
-              class="inline-block h-5 w-48 rounded-md bg-muted motion-safe:animate-pulse"
-              aria-hidden="true"
-            />
-            <template v-for="(id, i) in identifiers" :key="id.id">
+            <!-- Two bars wrap like name + MANE + location do, so nothing jumps on load -->
+            <template v-if="loading || loadingAnnotations">
+              <span
+                v-for="w in ['w-48', 'w-60']"
+                :key="w"
+                :class="['inline-block h-6 rounded-md bg-muted motion-safe:animate-pulse', w]"
+                aria-hidden="true"
+              />
+            </template>
+            <template v-for="(id, i) in identifiers" v-else :key="id.id">
               <span v-if="i > 0" class="text-border" aria-hidden="true">·</span>
               <OntologyTerm :id="id.id" :href="id.href" :name="id.name" />
             </template>
-            <template v-if="hgnc?.location">
+            <template v-if="hgnc?.location && !loadingAnnotations">
               <span class="text-border" aria-hidden="true">·</span>
               <span class="text-sm" title="Cytogenetic location">{{ hgnc.location }}</span>
             </template>
@@ -121,8 +125,8 @@
       >
         <template #loading>
           <div class="grid grid-cols-12 gap-6" aria-hidden="true">
-            <div class="col-span-12 h-80 rounded-xl border bg-card md:order-last md:col-span-4" />
-            <div class="col-span-12 h-80 rounded-xl border bg-card md:col-span-8" />
+            <div class="col-span-12 h-90 rounded-xl border bg-card md:order-last md:col-span-4" />
+            <div class="col-span-12 h-90 rounded-xl border bg-card md:col-span-8" />
           </div>
         </template>
 
@@ -171,8 +175,9 @@
             >
               <template #loading>
                 <div class="space-y-3" aria-hidden="true">
+                  <!-- One card per source the gene has, so the list does not grow on load -->
                   <div
-                    v-for="n in 4"
+                    v-for="n in gene?.evidence_count || 4"
                     :key="n"
                     class="h-[6.5rem] rounded-xl border bg-card px-4 py-3"
                   >

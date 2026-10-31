@@ -26,7 +26,7 @@
       <Chip
         kind="neutral"
         class="tabular-nums"
-        :label="`${stringPpiData.ppi_degree} ${stringPpiData.ppi_degree === 1 ? 'partner' : 'partners'}`"
+        :label="`${stringPpiData.ppi_degree} kidney-gene ${stringPpiData.ppi_degree === 1 ? 'partner' : 'partners'}`"
         tooltip="Number of interaction partners among the kidney genes"
       />
       <span v-if="topPartners.length" class="text-sm">

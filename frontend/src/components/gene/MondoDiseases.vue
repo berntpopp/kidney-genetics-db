@@ -3,6 +3,9 @@
   <p v-if="quietEmpty" class="text-xs text-muted-foreground" data-testid="mondo-empty">
     <span class="font-medium">Diseases (MONDO):</span> no mappings for this gene.
   </p>
+  <p v-else-if="notComputed" class="text-xs text-muted-foreground" data-testid="mondo-missing">
+    <span class="font-medium">Diseases (MONDO):</span> mappings not yet computed for this gene.
+  </p>
   <Card v-else class="gap-4">
     <CardHeader>
       <CardTitle tag="h2" class="text-base">Diseases (MONDO)</CardTitle>
@@ -107,5 +110,9 @@ const diseases = computed(() =>
     })
     .sort((a, b) => (a.label ?? a.mondo_id).localeCompare(b.label ?? b.mondo_id))
 )
-const quietEmpty = computed(() => !props.loading && !props.error && !diseases.value.length)
+// Empty only when the MONDO annotation exists and maps nothing; a missing annotation is not "no mappings"
+const quietEmpty = computed(
+  () => !props.loading && !props.error && !!mondo.value && !diseases.value.length
+)
+const notComputed = computed(() => !props.loading && !props.error && !mondo.value)
 </script>

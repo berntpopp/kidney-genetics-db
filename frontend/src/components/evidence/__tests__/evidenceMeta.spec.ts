@@ -132,7 +132,7 @@ describe('evidence helpers', () => {
       ])
     ).toEqual([
       { name: 'Diabetes mellitus, noninsulin-dependent', omim: '125853' },
-      { name: 'Renal cell carcinoma', omim: '144700' },
+      { name: 'Renal cell carcinoma (susceptibility)', omim: '144700' },
       { name: 'Renal cysts and diabetes syndrome', omim: '137920' }
     ])
   })
