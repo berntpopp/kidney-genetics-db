@@ -60,14 +60,15 @@
           </span>
         </template>
 
-        <template v-if="gene" #actions>
+        <!-- Rendered before the gene loads: on mobile the row wraps under the title and shifted the page -->
+        <template #actions>
           <Tooltip>
             <TooltipTrigger as-child>
               <Button
                 variant="outline"
                 size="icon-sm"
                 :aria-label="copied === 'symbol' ? 'Symbol copied' : 'Copy gene symbol'"
-                @click="copy(gene.approved_symbol, 'symbol', 'Gene symbol copied')"
+                @click="copy(symbol, 'symbol', 'Gene symbol copied')"
               >
                 <Check v-if="copied === 'symbol'" aria-hidden="true" />
                 <Copy v-else aria-hidden="true" />
@@ -91,7 +92,7 @@
 
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
-              <Button variant="outline" size="sm" aria-label="Export gene data">
+              <Button variant="outline" size="sm" :disabled="!gene" aria-label="Export gene data">
                 <Download aria-hidden="true" />
                 <span class="hidden sm:inline">Export</span>
               </Button>
@@ -109,7 +110,7 @@
           </DropdownMenu>
 
           <Button variant="outline" size="sm" as-child>
-            <RouterLink :to="`/genes/${gene.approved_symbol}/structure`">
+            <RouterLink :to="`/genes/${symbol}/structure`">
               <Dna aria-hidden="true" />
               Structure
             </RouterLink>
@@ -161,7 +162,7 @@
             @retry="fetchAnnotations"
           />
 
-          <GeneCuratedAssociations :gene-symbol="gene.approved_symbol" />
+          <GeneCuratedAssociations :records="curated" />
 
           <section aria-labelledby="evidence-heading" class="space-y-3">
             <h2 id="evidence-heading" class="text-xl font-semibold">Evidence by source</h2>
@@ -221,6 +222,7 @@ import { ref, computed, onMounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { geneApi } from '../api/genes'
+import { curationApi } from '@/api/curation'
 import { getGeneDetailBreadcrumbs } from '@/utils/publicBreadcrumbs'
 import { sourceDisplayName } from '@/utils/sources'
 import { useSeoMeta } from '@/composables/useSeoMeta'
@@ -262,6 +264,7 @@ const loadError = ref(null)
 const evidenceError = ref(null)
 const annotationsError = ref(null)
 const copied = ref(null)
+const curated = ref([])
 
 const symbol = computed(() => gene.value?.approved_symbol ?? String(route.params.symbol ?? ''))
 const firstAnnotation = source => annotations.value?.annotations?.[source]?.[0]?.data ?? null
@@ -329,10 +332,15 @@ const sortedEvidence = computed(() =>
   [...evidence.value].sort((a, b) => (b.normalized_score ?? 0) - (a.normalized_score ?? 0))
 )
 
+// Above-the-fold calls get this long to settle before the body reveals; a slower one renders progressively
+const REVEAL_BUDGET_MS = 1000
+
 const fetchGeneDetails = async () => {
   loading.value = true
   loadError.value = null
   notFound.value = false
+  // Evidence is the slowest call and keyed by symbol: start it with the gene call (it sits below the fold)
+  fetchEvidence(route.params.symbol)
   try {
     gene.value = await geneApi.getGene(route.params.symbol)
   } catch (error) {
@@ -341,21 +349,34 @@ const fetchGeneDetails = async () => {
     // Only a 404 means "not in the database"; anything else is a failed request
     if (error?.response?.status === 404) notFound.value = true
     else loadError.value = new Error("Couldn't load gene data from the server.")
-    return
-  } finally {
     loading.value = false
+    return
   }
-  // Not awaited: each section renders as soon as its own call returns
-  fetchEvidence()
-  fetchAnnotations()
+  // One reveal: cards that would otherwise insert or collapse after first paint shifted the page
+  await Promise.race([
+    Promise.all([fetchAnnotations(), fetchCurated()]),
+    new Promise(resolve => setTimeout(resolve, REVEAL_BUDGET_MS))
+  ])
+  loading.value = false
 }
 
-const fetchEvidence = async () => {
-  if (!gene.value) return
+// Published records only (the public endpoint); none or a failed request shows nothing (issue 379)
+const fetchCurated = async () => {
+  try {
+    curated.value = (
+      await curationApi.listPublished({ gene_symbol: gene.value.approved_symbol })
+    ).data
+  } catch (error) {
+    window.logService.warn('Curated associations unavailable', error)
+  }
+}
+
+const fetchEvidence = async (symbol = gene.value?.approved_symbol) => {
+  if (!symbol) return
   loadingEvidence.value = true
   evidenceError.value = null
   try {
-    const response = await geneApi.getGeneEvidence(gene.value.approved_symbol)
+    const response = await geneApi.getGeneEvidence(symbol)
     evidence.value = response.evidence || []
   } catch (error) {
     window.logService.error('Failed to fetch evidence:', error)

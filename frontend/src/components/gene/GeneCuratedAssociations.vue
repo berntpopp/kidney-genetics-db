@@ -49,10 +49,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
-  curationApi,
   diseaseUrl,
   RELATIONSHIP_LABELS,
   RELATIONSHIP_TYPES,
@@ -65,29 +64,13 @@ import SusceptibilityChip from '@/components/curation/SusceptibilityChip.vue'
 import { Chip, OntologyTerm } from '@/components/shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-const props = defineProps<{ geneSymbol: string }>()
-
-// Published records only (the public endpoint); none or a failed request shows nothing (issue 379)
-const records = ref<Association[]>([])
+// The gene's published records; GeneDetail fetches them before first paint so the card never pops in
+const props = defineProps<{ records: Association[] }>()
 
 const groups = computed(() =>
   RELATIONSHIP_TYPES.map(type => ({
     type,
-    records: records.value.filter(r => (r.relationship_type ?? 'mendelian') === type)
+    records: props.records.filter(r => (r.relationship_type ?? 'mendelian') === type)
   })).filter(g => g.records.length)
-)
-
-watch(
-  () => props.geneSymbol,
-  async symbol => {
-    records.value = []
-    if (!symbol) return
-    try {
-      records.value = (await curationApi.listPublished({ gene_symbol: symbol })).data
-    } catch (err) {
-      window.logService?.warn('Curated associations unavailable', err)
-    }
-  },
-  { immediate: true }
 )
 </script>

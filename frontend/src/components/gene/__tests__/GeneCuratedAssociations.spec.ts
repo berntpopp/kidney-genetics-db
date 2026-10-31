@@ -1,19 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { h } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 vi.stubGlobal('logService', { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })
-vi.mock('@/api/curation', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/api/curation')>()),
-  curationApi: { listPublished: vi.fn() }
-}))
-
-import { curationApi, type Association } from '@/api/curation'
+import type { Association } from '@/api/curation'
 import GeneCuratedAssociations from '@/components/gene/GeneCuratedAssociations.vue'
 
-const api = vi.mocked(curationApi)
 const RECORD = {
   id: 1,
   gene_id: 1,
@@ -33,13 +27,13 @@ const RECORD = {
   published_at: '2026-10-02T00:00:00Z'
 } as Association
 
-async function mountFor(symbol: string) {
+async function mountFor(records: Association[]) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/:rest(.*)', component: { render: () => null } }]
   })
   const w = mount(
-    { render: () => h(TooltipProvider, () => h(GeneCuratedAssociations, { geneSymbol: symbol })) },
+    { render: () => h(TooltipProvider, () => h(GeneCuratedAssociations, { records })) },
     { global: { plugins: [router] } }
   )
   await flushPromises()
@@ -47,16 +41,9 @@ async function mountFor(symbol: string) {
 }
 
 describe('GeneCuratedAssociations', () => {
-  beforeEach(() => vi.clearAllMocks())
-
   it("lists the gene's published records with outbound links", async () => {
-    api.listPublished.mockResolvedValue({
-      data: [RECORD],
-      meta: { total: 1, limit: 100, offset: 0 }
-    })
-    const w = await mountFor('PKD1')
+    const w = await mountFor([RECORD])
 
-    expect(api.listPublished).toHaveBeenCalledWith({ gene_symbol: 'PKD1' })
     expect(w.text()).toContain('Definitive')
     expect(w.text()).toContain('Segregation in many families.')
     const hrefs = w.findAll('a').map(a => a.attributes('href'))
@@ -71,11 +58,7 @@ describe('GeneCuratedAssociations', () => {
       relationship_type: 'susceptibility',
       evidence_strength: 'Likely association'
     } as Association
-    api.listPublished.mockResolvedValue({
-      data: [{ ...RECORD, relationship_type: 'mendelian' } as Association, risk],
-      meta: { total: 2, limit: 100, offset: 0 }
-    })
-    const w = await mountFor('PKD1')
+    const w = await mountFor([{ ...RECORD, relationship_type: 'mendelian' } as Association, risk])
     const mendelian = w.find('[data-testid="gda-mendelian"]')
     const susceptibility = w.find('[data-testid="gda-susceptibility"]')
     expect(mendelian.text()).toContain('Definitive')
@@ -90,11 +73,7 @@ describe('GeneCuratedAssociations', () => {
       relationship_type: 'susceptibility',
       evidence_strength: 'Refuted association'
     } as Association
-    api.listPublished.mockResolvedValue({
-      data: [refuted],
-      meta: { total: 1, limit: 100, offset: 0 }
-    })
-    const w = await mountFor('APOL1')
+    const w = await mountFor([refuted])
     const chip = w.findAll('[data-slot="chip"]').find(c => c.text() === 'Refuted association')!
     expect(chip.classes()).toEqual(
       expect.arrayContaining(['text-muted-foreground', 'line-through'])
@@ -102,11 +81,8 @@ describe('GeneCuratedAssociations', () => {
     expect(chip.find('svg').exists()).toBe(true)
   })
 
-  it('renders nothing when there are no records or the request fails', async () => {
-    api.listPublished.mockResolvedValue({ data: [], meta: { total: 0, limit: 100, offset: 0 } })
-    expect((await mountFor('PKD1')).html()).not.toContain('Expert-reviewed')
-
-    api.listPublished.mockRejectedValue(new Error('offline'))
-    expect((await mountFor('PKD2')).html()).not.toContain('Expert-reviewed')
+  // A failed request is GeneDetail's concern now (it fetches the records): see GeneDetail.spec.ts
+  it('renders nothing without records', async () => {
+    expect((await mountFor([])).html()).not.toContain('Expert-reviewed')
   })
 })

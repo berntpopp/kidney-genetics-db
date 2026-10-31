@@ -232,6 +232,12 @@ export const routes: RouteRecordRaw[] = [
     }
   },
   {
+    // SPA fallback document for non-prerendered routes (see AppShell.vue); no meta on purpose
+    path: '/app-shell',
+    name: 'app-shell',
+    component: () => import('../views/AppShell.vue')
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('../views/NotFound.vue'),

@@ -68,7 +68,7 @@ function escapeAttr(s: string): string {
 }
 
 async function main() {
-  const template = readFileSync(join(DIST_DIR, 'index.html'), 'utf-8')
+  const template = readFileSync(join(DIST_DIR, 'app-shell', 'index.html'), 'utf-8')
 
   console.log(`Fetching genes from ${API_URL}/api/genes ...`)
   const genes = await fetchAllGenes()

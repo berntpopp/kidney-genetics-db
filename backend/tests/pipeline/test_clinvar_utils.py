@@ -492,6 +492,138 @@ class TestGeneAccumulator:
         assert len(stats["genomic_variants"]) == 2
         assert stats["total_count"] == 5
 
+    def _mv(self, accession: str, change: str, classification: str, status: str, **kw):  # type: ignore[no-untyped-def]
+        return {
+            **self._make_variant(classification, status, change, **kw),
+            "accession": accession,
+        }
+
+    def test_missense_residues_counts_all_variants_beyond_detail_cap(self) -> None:
+        two, three, zero = (
+            "criteria provided, single submitter",
+            "criteria provided, multiple submitters, no conflicts",
+            "no classification provided",
+        )
+        acc = GeneAccumulator(CONFIDENCE_LEVELS, max_detail=2)
+        for v in [
+            self._mv("A", "p.Arg177Trp", "Pathogenic", two),
+            self._mv("B", "p.Arg177Trp", "Pathogenic", two),
+            self._mv("C", "p.Arg177Gln", "Likely pathogenic", three),
+            self._mv("D", "p.Ser148Trp", "Uncertain significance", zero),
+            self._mv("E", "p.Gly20Arg", "Benign", three),
+            self._mv("F", "p.Arg177Ter", "Pathogenic", two, mol_consequences=["nonsense"]),
+            self._mv("G", "p.Val5del", "Pathogenic", two, mol_consequences=["inframe_indel"]),
+        ]:
+            acc.add_variant(v)
+        stats = acc.finalize()
+        assert stats["missense_residues"] == [
+            {"residue": 20, "ref": "Gly", "counts": {"benign": {"3": 1}}},
+            {"residue": 148, "ref": "Ser", "counts": {"vus": {"0": 1}}},
+            {
+                "residue": 177,
+                "ref": "Arg",
+                "counts": {"pathogenic": {"2": 2}, "likely_pathogenic": {"3": 1}},
+            },
+        ]
+        assert len(stats["protein_variants"]) == 2
+
+    def test_missense_residues_requires_missense_consequence(self) -> None:
+        acc = GeneAccumulator(CONFIDENCE_LEVELS)
+        acc.add_variant(
+            self._make_variant(protein_change="p.Arg177Trp", mol_consequences=["other"])
+        )
+        # shape-valid but not missense: Ter alt, same residue
+        acc.add_variant(self._make_variant(protein_change="p.Arg177Ter"))
+        acc.add_variant(self._make_variant(protein_change="p.Arg177Arg"))
+        acc.add_variant(self._make_variant(protein_change="p.Arg5Xaa"))  # unknown alt residue
+        assert acc.finalize()["missense_residues"] == []
+
+    @staticmethod
+    def _finalize_both_orders(rows: list[dict], max_detail: int) -> list[dict]:
+        out = []
+        for order in (rows, rows[::-1]):
+            acc = GeneAccumulator(CONFIDENCE_LEVELS, max_detail=max_detail)
+            for v in order:
+                acc.add_variant(v)
+            out.append(acc.finalize())
+        assert out[0]["protein_variants"] == out[1]["protein_variants"]
+        assert out[0]["genomic_variants"] == out[1]["genomic_variants"]
+        return out
+
+    def test_detail_cap_balances_categories_deterministically(self) -> None:
+        two, three = (
+            "criteria provided, single submitter",
+            "criteria provided, multiple submitters, no conflicts",
+        )
+        one = "no assertion criteria provided"
+        rows = [
+            self._mv("P1", "p.Arg300Trp", "Pathogenic", three),
+            self._mv("P2", "p.Arg20Trp", "Pathogenic", two),
+            self._mv("P3", "p.Arg10Trp", "Pathogenic", one),
+            self._mv("V1", "p.Arg70Trp", "Uncertain significance", three),
+            self._mv("V2", "p.Arg71Trp", "Uncertain significance", two),
+            self._mv("V3", "p.Arg72Trp", "Uncertain significance", one),
+            self._mv("B1", "p.Arg5Trp", "Benign", three),
+            self._mv("B2", "p.Arg6Trp", "Benign", two),
+        ]
+        res = self._finalize_both_orders(rows, 4)[0]
+        # best P, best VUS, best B, then second-best P
+        assert [v["accession"] for v in res["protein_variants"]] == ["B1", "P2", "V1", "P1"]
+        assert [v["position"] for v in res["protein_variants"]] == [5, 20, 70, 300]
+        assert res["protein_variants_total"] == 8
+        assert res["genomic_variants_total"] == 8
+        assert len(res["genomic_variants"]) == 4
+
+    def test_detail_cap_spreads_ties_along_the_protein(self) -> None:
+        two = "criteria provided, single submitter"
+        rows = [
+            self._mv(f"VCV{i:09d}", f"p.Arg{i}Trp", "Uncertain significance", two)
+            for i in range(1, 51)
+        ]
+        res = self._finalize_both_orders(rows, 10)[0]
+        positions = [v["position"] for v in res["protein_variants"]]
+        assert len(positions) == 10
+        assert max(positions) > 25  # not just the N-terminal ten
+
+    def test_detail_cap_gives_unused_slots_to_other_categories(self) -> None:
+        two = "criteria provided, single submitter"
+        three = "criteria provided, multiple submitters, no conflicts"
+        rows = [
+            self._mv("P1", "p.Arg1Trp", "Pathogenic", two),
+            self._mv("B1", "p.Arg2Trp", "Benign", two),
+        ]
+        rows += [
+            self._mv(
+                f"V{i}",
+                f"p.Arg{10 + i}Trp",
+                "Uncertain significance",
+                three if i == 0 else two if i == 1 else "no assertion criteria provided",
+            )
+            for i in range(5)
+        ]
+        res = self._finalize_both_orders(rows, 4)[0]
+        assert [v["accession"] for v in res["protein_variants"]] == ["P1", "B1", "V0", "V1"]
+
+    def test_genomic_detail_tie_break_uses_genomic_start(self) -> None:
+        rows = [
+            {**self._make_variant(protein_change="", genomic_start=g), "accession": "X"}
+            for g in (300, 100, 200)
+        ]
+        res = self._finalize_both_orders(rows, 2)[0]
+        assert [v["genomic_start"] for v in res["genomic_variants"]] == [100, 200]
+
+    def test_aggregate_variants_matches_accumulator(self) -> None:
+        rows = [
+            self._mv("A", "p.Arg177Trp", "Pathogenic", "criteria provided, single submitter"),
+            self._mv("B", "p.Gly20Arg", "Benign", "criteria provided, single submitter"),
+        ]
+        acc = GeneAccumulator(CONFIDENCE_LEVELS, max_detail=200)
+        for v in rows:
+            acc.add_variant(v)
+        source = ClinVarAnnotationSource.__new__(ClinVarAnnotationSource)
+        source._review_confidence_levels = CONFIDENCE_LEVELS
+        assert source._aggregate_variants(rows) == acc.finalize()
+
     def test_variant_type_counts(self) -> None:
         acc = GeneAccumulator(CONFIDENCE_LEVELS)
         acc.add_variant(self._make_variant(variant_type="single nucleotide variant"))

@@ -107,3 +107,6 @@ backend/backend/
 # Release exports
 backend/exports/
 .env.production
+
+# Layout-stability harness output (frontend/scripts/perf/measure-stability.mjs)
+frontend/perf-runs/

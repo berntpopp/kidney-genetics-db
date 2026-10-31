@@ -37,7 +37,7 @@ const toggle = (model, value) => {
         type="button"
         variant="ghost"
         size="sm"
-        class="w-32 justify-start px-2"
+        class="w-full justify-start px-2 sm:w-32"
         :class="colorBy === row.key ? 'font-semibold text-foreground' : 'text-muted-foreground'"
         :aria-pressed="colorBy === row.key"
         :title="`Colour variants by ${row.title.toLowerCase()}`"
