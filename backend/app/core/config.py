@@ -115,6 +115,11 @@ class Settings(BaseSettings):
     ZENODO_SANDBOX: bool = True  # True = sandbox.zenodo.org, False = zenodo.org
     ZENODO_COMMUNITY: str | None = None  # Optional community identifier
 
+    # Gene Curator export import (#448); the token is a scope member's personal access token
+    GENE_CURATOR_URL: str | None = None  # API base, e.g. https://curator.example.org
+    GENE_CURATOR_TOKEN: SecretStr | None = None
+    GENE_CURATOR_SCOPE: str = "kidney-genetics"
+
     # Backup Configuration
     BACKUP_DIR: str = "backups"  # Directory for backup files
     BACKUP_RETENTION_DAYS: int = 7  # How long to keep backups

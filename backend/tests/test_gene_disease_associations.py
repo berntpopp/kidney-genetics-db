@@ -229,6 +229,7 @@ def test_no_pipeline_code_writes_expert_records() -> None:
         "models/__init__.py",
         "models/gene_disease_association.py",
         "services/gene_disease_association_service.py",
+        "services/gene_curator_import.py",  # admin-triggered, drafts only (#448)
         "api/endpoints/gene_disease_associations.py",
         "schemas/gene_disease_association.py",
         "main.py",

@@ -1,7 +1,7 @@
 # Kidney Genetics Database - Development Makefile
 # Usage: make [command]
 
-.PHONY: help install install-backend install-frontend install-mcp check check-backend check-frontend check-mcp dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend worker mcp mcp-build mcp-test lint lint-backend lint-frontend lint-mcp lint-fix lint-fix-backend lint-fix-frontend lint-fix-mcp format format-backend format-frontend format-mcp format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed test-frontend prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci ci-backend ci-frontend ci-mcp benchmark-pipeline benchmark-pipeline-fresh
+.PHONY: help install install-backend install-frontend install-mcp check check-backend check-frontend check-mcp dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend worker mcp mcp-build mcp-test lint lint-backend lint-frontend lint-mcp lint-fix lint-fix-backend lint-fix-frontend lint-fix-mcp format format-backend format-frontend format-mcp format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed test-frontend prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci ci-backend ci-frontend ci-mcp benchmark-pipeline benchmark-pipeline-fresh gene-curator-contract-verify
 
 # Docker Compose v2 is the supported repository baseline.
 DOCKER_COMPOSE := docker compose
@@ -23,6 +23,7 @@ help:
 	@echo "  make check-backend   - Lock, lint, format, and backend tests (requires PostgreSQL)"
 	@echo "  make check-frontend  - Lint, format, build, and Vitest"
 	@echo "  make check-mcp       - Lock, lint, format, mypy, pytest, and contract drift"
+	@echo "  make gene-curator-contract-verify GENE_CURATOR_OPENAPI=<url|file> - GC export drift"
 	@echo "  make lint            - Non-mutating lint checks for all components"
 	@echo "  make lint-fix        - Apply lint fixes (ruff --fix; frontend eslint --fix)"
 	@echo "  make format-check    - Non-mutating formatting checks for all components"
@@ -222,6 +223,12 @@ install-frontend:
 install-mcp:
 	@echo "📦 Installing MCP dependencies from mcp/uv.lock..."
 	@cd mcp && uv sync --locked --group dev
+
+# Gene Curator export contract (#448): no-write drift check of the pinned snapshot against
+# Gene Curator's OpenAPI (URL or file). Added fields pass; removed or changed fields fail.
+gene-curator-contract-verify:
+	@test -n "$(GENE_CURATOR_OPENAPI)" || { echo "Set GENE_CURATOR_OPENAPI=<gene-curator>/openapi.json (URL or file)"; exit 2; }
+	@cd backend && uv run python scripts/gene_curator_contract.py "$(GENE_CURATOR_OPENAPI)" --check
 
 # Compatibility alias for the historical MCP bootstrap target.
 mcp-build: install-mcp
