@@ -80,10 +80,12 @@ const props = defineProps({
   renalNeoplasia: { type: Boolean, default: false }
 })
 
-const formattedScore = computed(() => (props.score == null ? 'N/A' : props.score.toFixed(1)))
+// Round down: 99.97 must not read as a perfect 100.0
+const floor1 = v => (Math.floor(v * 10) / 10).toFixed(1)
+const formattedScore = computed(() => (props.score == null ? 'N/A' : floor1(props.score)))
 
 /** One format for per-source scores everywhere (evidence cards use the same) */
-const formatPercent = value => `${(value * 100).toFixed(1)}%`
+const formatPercent = value => `${floor1(value * 100)}%`
 
 // Label, color and icon come only from the backend evidence_tier (issue 314)
 const tierConfig = computed(() => getTierConfig(props.tier))

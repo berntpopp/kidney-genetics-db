@@ -109,10 +109,10 @@
 import { RouterLink } from 'vue-router'
 import { ChartScatter, ChartBar, Check, Circle } from 'lucide-vue-next'
 import ErrorBoundary from '@/components/ui/error-boundary/ErrorBoundary.vue'
-import { ref, watch, onMounted, computed, defineAsyncComponent } from 'vue'
+import { computed, defineAsyncComponent } from 'vue'
 import ComponentSkeleton from '@/components/ui/ComponentSkeleton.vue'
 import ComponentError from '@/components/ui/ComponentError.vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useQueryParam, useQueryList } from '@/composables/useQueryParam'
 const UpSetChart = defineAsyncComponent({
   loader: () => import('@/components/visualizations/UpSetChart.vue'),
   loadingComponent: ComponentSkeleton,
@@ -159,9 +159,6 @@ defineOptions({
   name: 'Dashboard'
 })
 
-const route = useRoute()
-const router = useRouter()
-
 const breadcrumbs = PUBLIC_BREADCRUMBS.dashboard
 
 useJsonLd(getBreadcrumbSchema(breadcrumbs))
@@ -173,11 +170,20 @@ useSeoMeta({
   canonicalPath: '/dashboard'
 })
 
-const activeTab = ref('overlaps')
-const selectedTiers = ref<string[]>([])
-const showInsufficientEvidence = ref(false)
-
 const validTabs = ['overlaps', 'distributions', 'composition']
+
+// Every setting lives in the URL so a view can be shared as a link
+const tabParam = useQueryParam('tab', 'overlaps', { push: true })
+const activeTab = computed({
+  get: () => (validTabs.includes(tabParam.value) ? tabParam.value : 'overlaps'),
+  set: v => (tabParam.value = v)
+})
+const selectedTiers = useQueryList('tiers', () => Object.keys(TIER_CONFIG))
+const insufficientParam = useQueryParam('insufficient')
+const showInsufficientEvidence = computed({
+  get: () => insufficientParam.value === '1',
+  set: v => (insufficientParam.value = v ? '1' : '')
+})
 
 const tierOptions = computed(() => {
   return Object.entries(TIER_CONFIG).map(([key, config]) => ({
@@ -196,29 +202,4 @@ const toggleTier = (value: string) => {
     selectedTiers.value = selectedTiers.value.filter(t => t !== value)
   }
 }
-
-onMounted(() => {
-  const urlTab = route.query.tab as string
-  if (urlTab && validTabs.includes(urlTab)) {
-    activeTab.value = urlTab
-  }
-})
-
-watch(activeTab, newTab => {
-  if (route.query.tab !== newTab) {
-    router.push({
-      path: route.path,
-      query: { ...route.query, tab: newTab }
-    })
-  }
-})
-
-watch(
-  () => route.query.tab,
-  newTab => {
-    if (newTab && validTabs.includes(newTab as string) && activeTab.value !== newTab) {
-      activeTab.value = newTab as string
-    }
-  }
-)
 </script>

@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
+
+vi.mock('vue-router', () => import('@/test/routerStub'))
 import { mount } from '@vue/test-utils'
 import UpSetChart from '../UpSetChart.vue'
 

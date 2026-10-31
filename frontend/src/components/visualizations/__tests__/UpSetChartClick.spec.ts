@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
+
+vi.mock('vue-router', () => import('@/test/routerStub'))
 import { mount, flushPromises } from '@vue/test-utils'
 
 const overlaps = {

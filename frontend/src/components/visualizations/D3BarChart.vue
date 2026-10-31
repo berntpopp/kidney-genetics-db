@@ -66,7 +66,9 @@ const ariaLabel = computed(
       .join('; ')
 )
 
-const renderChart = () => {
+// Animate only when the data changes: a resize (even a scrollbar appearing) redraws in place
+const renderChart = (animate = true) => {
+  const ms = animate && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 750 : 0
   if (!chartContainer.value || !props.data || props.data.length === 0) {
     return
   }
@@ -83,9 +85,14 @@ const renderChart = () => {
   const margin = {
     top: 20,
     right: isNarrow ? 10 : 20,
+    // Room for the x labels, rotated -35° only when needed (see below); ~6.5px per char
     bottom: isNarrow ? 60 : 80,
-    left: isNarrow ? 40 : 70
+    left: isNarrow ? 52 : 70
   }
+  const labelPx = (max(props.data, d => String(d.category).length) || 0) * 6.5
+  const roughBand = (containerWidth - margin.left - margin.right) / Math.max(props.data.length, 1)
+  if (labelPx > roughBand * 0.8)
+    margin.bottom = Math.min(160, Math.max(margin.bottom, labelPx * 0.58 + 40))
   const width = containerWidth - margin.left - margin.right
   const height = containerHeight - margin.top - margin.bottom
 
@@ -161,15 +168,15 @@ const renderChart = () => {
     .attr('transform', `translate(0,${height})`)
     .call(axisBottom(xScale))
 
-  // Style X axis
-  xAxis
-    .selectAll('text')
-    .style('fill', textColor)
-    .style('font-size', '11px')
-    .attr('transform', 'rotate(-45)')
-    .style('text-anchor', 'end')
-    .attr('dx', '-0.5em')
-    .attr('dy', '0.25em')
+  // Style X axis; rotate only when the longest label (~6.5px per char) cannot fit its band
+  const xLabels = xAxis.selectAll('text').style('fill', textColor).style('font-size', '11px')
+  if (labelPx > xScale.bandwidth()) {
+    xLabels
+      .attr('transform', 'rotate(-35)')
+      .style('text-anchor', 'end')
+      .attr('dx', '-0.5em')
+      .attr('dy', '0.25em')
+  }
 
   xAxis.selectAll('path, line').style('stroke', gridColor)
 
@@ -200,8 +207,8 @@ const renderChart = () => {
     .attr('y', height) // Start from bottom
     .attr('height', 0) // Start with 0 height
     .attr('rx', 2) // Rounded corners
-    .style('fill', props.barColor)
-    .style('stroke', markOutline(props.barColor))
+    .style('fill', d => d.color ?? props.barColor)
+    .style('stroke', d => markOutline(d.color ?? props.barColor))
     .style('stroke-width', 1)
     .on('mouseover', function (event, d) {
       select(this).style('fill-opacity', 0.8)
@@ -215,8 +222,8 @@ const renderChart = () => {
   // Animate bars
   bars
     .transition()
-    .duration(750)
-    .delay((d, i) => i * 50) // Stagger animation
+    .duration(ms)
+    .delay((d, i) => (ms ? i * 50 : 0)) // Stagger animation
     .attr('y', d => yScale(d.gene_count))
     .attr('height', d => height - yScale(d.gene_count))
 
@@ -251,7 +258,7 @@ const renderChart = () => {
     .append('text')
     .attr('transform', 'rotate(-90)')
     .attr('x', -(margin.top + height / 2))
-    .attr('y', 15)
+    .attr('y', 12)
     .style('text-anchor', 'middle')
     .style('fill', textColor)
     .style('font-size', '12px')
@@ -285,7 +292,7 @@ const showTooltip = (event, d) => {
       `
     <div>
       <strong style="display: block; margin-bottom: 4px; font-weight: 600;">
-        ${d.category}
+        ${props.xAxisLabel}: ${d.category}
       </strong>
       <div>${props.valueFormatter(d.gene_count)} ${props.valueLabel}</div>
     </div>
@@ -304,7 +311,7 @@ const hideTooltip = () => {
 // Setup resize observer
 onMounted(() => {
   resizeObserver = new window.ResizeObserver(() => {
-    renderChart()
+    renderChart(false)
   })
   resizeObserver.observe(chartContainer.value)
 

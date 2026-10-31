@@ -184,6 +184,7 @@ import { resolveCssColor, sourceDisplayName } from '@/utils/sources'
 import ChartSkeleton from './ChartSkeleton.vue'
 import { Separator } from '@/components/ui/separator'
 import { statisticsApi } from '@/api/statistics'
+import { useQueryList } from '@/composables/useQueryParam'
 import { renderUpSet } from '@upsetjs/bundle'
 import { buildUpSetCombinations, UPSET_COMBINATION_LIMIT } from './upsetData'
 import { useAppTheme } from '@/composables/useAppTheme'
@@ -208,15 +209,27 @@ const error = ref(null)
 const data = ref(null)
 const selectedIntersection = ref(null)
 const upsetContainer = ref(null)
-const selectedSources = ref([])
+// ?sources= in the URL; absent = all sources, 'none' = an explicitly empty selection
+const sourcesParam = useQueryList('sources')
+const selectedSources = computed({
+  get: () =>
+    sourcesParam.value.length
+      ? availableSources.value.filter(s => sourcesParam.value.includes(s))
+      : [...availableSources.value],
+  set: list => {
+    const all = list.length === availableSources.value.length
+    sourcesParam.value = all ? [] : list.length ? list : ['none']
+  }
+})
 const availableSources = ref([])
 const totalGenes = ref(0)
 let resizeObserver = null
+let loadSeq = 0
 
 // Computed properties
 // Counts are defined by the API; this only labels them
 const summaryStats = computed(() =>
-  data.value
+  data.value && selectedSources.value.length
     ? [
         { label: 'Data Sources', value: data.value.sets.length },
         { label: 'Intersections', value: data.value.intersections.length },
@@ -247,10 +260,6 @@ const loadAvailableSources = async () => {
         .sort((a, b) => b.cardinality - a.cardinality)
         .map(set => set.name)
       availableSources.value = sources
-      // Select all sources by default on first load
-      if (selectedSources.value.length === 0) {
-        selectedSources.value = [...sources]
-      }
     }
   } catch (err) {
     // A failed source list must not leave a blank card
@@ -268,6 +277,7 @@ const loadData = async () => {
   }
   loading.value = true
   error.value = null
+  const request = ++loadSeq // a slower earlier response must not overwrite a newer one
 
   try {
     window.logService.info('Calling API with sources', {
@@ -281,7 +291,7 @@ const loadData = async () => {
       props.selectedTiers,
       !props.showInsufficientEvidence
     )
-    window.logService.info('API response received', { data: response.data })
+    if (request !== loadSeq) return
     data.value = response.data
 
     // Render UpSet plot after data is loaded
@@ -297,7 +307,7 @@ const loadData = async () => {
     error.value = err.message || 'Failed to load source overlap data'
     window.logService.error('Error loading source overlaps:', err)
   } finally {
-    loading.value = false
+    if (request === loadSeq) loading.value = false
   }
 }
 
@@ -330,22 +340,13 @@ const selectAllSources = () => {
   selectedSources.value = [...availableSources.value]
 }
 
-// Watch for changes in selectedSources and reload data
+// Reload on any user change of the selection (incl. "Select all" after removing every source);
+// a changed source list (tier filter) reloads in its own watcher
 watch(
-  selectedSources,
-  async (newSources, oldSources) => {
-    // Only reload if we have old sources (not initial load) and the count changed
-    if (oldSources && oldSources.length > 0 && newSources.length !== oldSources.length) {
-      window.logService.info('Source count changed', {
-        from: oldSources.length,
-        to: newSources.length,
-        removed: oldSources.filter(s => !newSources.includes(s)),
-        added: newSources.filter(s => !oldSources.includes(s))
-      })
-      await loadData()
-    }
-  },
-  { immediate: false }
+  () => [selectedSources.value.join(), availableSources.value.join()],
+  ([sources, available], [oldSources, oldAvailable]) => {
+    if (available === oldAvailable && sources !== oldSources) loadData()
+  }
 )
 
 // Watch for tier changes and reload data

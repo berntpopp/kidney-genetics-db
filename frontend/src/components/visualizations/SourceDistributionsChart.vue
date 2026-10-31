@@ -24,7 +24,8 @@
         </Tooltip>
       </TooltipProvider>
       <div class="flex-1" />
-      <Select v-if="data && Object.keys(data).length > 0" v-model="selectedSource">
+      <!-- Always rendered (disabled until loaded) so the header does not jump -->
+      <Select v-model="selectedSource" :disabled="sourceOptions.length === 0">
         <SelectTrigger aria-label="Data source" class="h-8 w-full sm:w-[200px]">
           <SelectValue placeholder="Select source" />
         </SelectTrigger>
@@ -38,7 +39,7 @@
 
     <CardContent>
       <DataState
-        :loading="loading"
+        :loading="loading && !data"
         :error="error"
         :empty="!data || Object.keys(data).length === 0"
         error-title="Could not load source distributions"
@@ -47,7 +48,20 @@
       >
         <template #loading><ChartSkeleton /></template>
 
-        <div v-if="selectedSource && sourceData">
+        <div
+          v-if="selectedSource && sourceData"
+          :class="['transition-opacity', loading && 'opacity-60']"
+          :aria-busy="loading"
+        >
+          <!-- A shared link's source with no genes in these tiers: say so, don't swap silently -->
+          <p
+            v-if="sourceParam && sourceParam !== selectedSource"
+            class="mb-3 text-center text-xs text-muted-foreground"
+            role="status"
+          >
+            {{ sourceDisplayName(sourceParam) }} has no genes in the selected tiers; showing
+            {{ sourceDisplayName(selectedSource) }}.
+          </p>
           <!-- Source metadata -->
           <dl class="mb-4 flex flex-wrap justify-center gap-x-12 gap-y-4 text-center">
             <div v-for="(value, key) in displayedMetadata" :key="key" class="flex flex-col-reverse">
@@ -62,22 +76,21 @@
             :empty="!hasDistributionData"
             empty-message="No distribution data available for this source."
           >
-            <!-- ClinGen/GenCC: classifications on the strength ramp -->
-            <D3DonutChart
-              v-if="visualizationType === 'classification_donut'"
-              :data="d3ChartData"
-              :total="sourceMetadata.total_genes"
-              :average="sourceMetadata.average"
-              center-label="Total"
-            />
-            <!-- Counts per gene in the source's chart colour -->
+            <!-- Bars for every source: classifications are multi-label (a gene can hold
+                 several), so they cannot be parts of a whole as a donut would claim -->
             <D3BarChart
-              v-else
               :data="d3ChartData"
               :x-axis-label="getXAxisLabel(selectedSource)"
-              y-axis-label="Gene Count"
+              y-axis-label="Genes"
               :bar-color="getSourceConfig(selectedSource).chartColor"
             />
+            <p
+              v-if="visualizationType === 'classification_donut'"
+              class="mt-2 text-center text-xs text-muted-foreground"
+            >
+              A gene can hold several classifications (one per disease or submitter), so bars can
+              sum to more than the total genes.
+            </p>
           </DataState>
         </div>
       </DataState>
@@ -89,7 +102,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { ChartBar, CircleHelp } from 'lucide-vue-next'
 import { statisticsApi } from '@/api/statistics'
-import D3DonutChart from './D3DonutChart.vue'
+import { useQueryParam } from '@/composables/useQueryParam'
 import D3BarChart from './D3BarChart.vue'
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -105,6 +118,7 @@ import { DataState } from '@/components/shared'
 import { getClassificationConfig } from '@/utils/evidenceTiers'
 import { getSourceConfig, sourceDisplayName } from '@/utils/sources'
 import ChartSkeleton from './ChartSkeleton.vue'
+import { binCounts } from './histogramBins'
 
 // Props
 const props = defineProps({
@@ -122,7 +136,15 @@ const props = defineProps({
 const loading = ref(true) // until the first load settles, so nothing flashes "empty"
 const error = ref(null)
 const data = ref(null)
-const selectedSource = ref(null)
+// Selected source is the ?source= URL parameter; falls back to the first available source
+const sourceParam = useQueryParam('source')
+const selectedSource = computed({
+  get: () => {
+    const sources = data.value ? Object.keys(data.value) : []
+    return sources.includes(sourceParam.value) ? sourceParam.value : (sources[0] ?? null)
+  },
+  set: v => (sourceParam.value = v)
+})
 
 // Computed properties
 const sourceOptions = computed(() => {
@@ -141,7 +163,9 @@ const sourceMetadata = computed(() => {
 // Metadata shown to users; visualization_type is an internal chart id
 const displayedMetadata = computed(() =>
   Object.fromEntries(
-    Object.entries(sourceMetadata.value).filter(([key]) => key !== 'visualization_type')
+    Object.entries(sourceMetadata.value).filter(
+      ([key]) => !['visualization_type', 'total_classifications', 'total_ranges'].includes(key)
+    )
   )
 )
 
@@ -167,7 +191,7 @@ const d3ChartData = computed(() => {
   const rows = sourceData.value.distribution
     .filter(d => d && d.category !== undefined && d.gene_count !== undefined)
     .map(d => ({ category: String(d.category), gene_count: Number(d.gene_count) }))
-  if (visualizationType.value !== 'classification_donut') return rows
+  if (visualizationType.value !== 'classification_donut') return binCounts(rows)
 
   // Classifications: ordinal strength colour and icon, strongest first (not index-based)
   return rows
@@ -179,26 +203,22 @@ const d3ChartData = computed(() => {
 })
 
 // Methods
+let loadSeq = 0
 const loadData = async () => {
   loading.value = true
   error.value = null
+  const request = ++loadSeq // ignore a slower, older response
 
   try {
     const response = await statisticsApi.getSourceDistributions(
       props.selectedTiers,
       !props.showInsufficientEvidence
     )
+    if (request !== loadSeq) return
     data.value = response.data
 
-    // Set default selected source only if not already set or if current selection is no longer available
     if (data.value && Object.keys(data.value).length > 0) {
       const availableSources = Object.keys(data.value)
-
-      // Only reset selectedSource if it's not set OR if it's no longer in the available sources
-      if (!selectedSource.value || !availableSources.includes(selectedSource.value)) {
-        selectedSource.value = availableSources[0]
-      }
-
       window.logService.info('Source distribution data loaded', {
         source: selectedSource.value,
         availableSources: availableSources,
@@ -211,15 +231,21 @@ const loadData = async () => {
     error.value = err.message || 'Failed to load source distribution data'
     window.logService.error('Error loading source distributions:', err)
   } finally {
-    loading.value = false
+    if (request === loadSeq) loading.value = false
   }
 }
 
 const formatMetadataValue = value => (typeof value === 'number' ? value.toLocaleString() : value)
 
-const formatMetadataLabel = key => {
-  return key.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase())
+// Plain-language labels; counts of chart categories (total_classifications/ranges) are not shown
+const METADATA_LABELS = {
+  total_genes: 'Genes',
+  max_panels: 'Most panels for one gene',
+  max_providers: 'Most providers for one gene',
+  max_publications: 'Most publications for one gene'
 }
+const formatMetadataLabel = key =>
+  METADATA_LABELS[key] ?? key.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())
 
 const getSourceDescription = source => {
   const descriptions = {
@@ -229,19 +255,21 @@ const getSourceDescription = source => {
       'Shows distribution of genes by number of commercial diagnostic providers offering tests',
     ClinGen: 'Shows distribution of genes by ClinGen classification level',
     GenCC: 'Shows distribution of genes by GenCC classification level',
-    HPO: 'Shows distribution of genes by number of HPO term associations'
+    HPO: 'Shows distribution of genes by number of HPO term associations (bins of unequal width)',
+    Literature: 'Shows distribution of genes by number of curated publications'
   }
   return descriptions[source] || `Distribution for ${source} data source`
 }
 
 const getXAxisLabel = source => {
   const labels = {
-    PanelApp: 'Panel Count',
-    PubTator: 'Publication Count',
-    DiagnosticPanels: 'Provider Count',
+    PanelApp: 'Panels per gene',
+    PubTator: 'Publications per gene',
+    Literature: 'Curated publications per gene',
+    DiagnosticPanels: 'Diagnostic providers per gene',
     ClinGen: 'Classification',
     GenCC: 'Classification',
-    HPO: 'HPO Term Count Range'
+    HPO: 'HPO terms per gene (unequal bins)'
   }
   return labels[source] || 'Category'
 }

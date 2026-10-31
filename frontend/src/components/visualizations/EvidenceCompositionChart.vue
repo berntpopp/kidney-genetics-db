@@ -43,7 +43,7 @@
 
     <CardContent>
       <DataState
-        :loading="loading"
+        :loading="loading && !data"
         :error="error"
         :empty="!data"
         error-title="Could not load evidence composition"
@@ -52,14 +52,22 @@
       >
         <template #loading><ChartSkeleton :stats="0" /></template>
 
-        <div v-if="activeView === 'tiers'">
+        <div
+          v-if="activeView === 'tiers'"
+          :class="['transition-opacity', loading && 'opacity-60']"
+          :aria-busy="loading"
+        >
           <h3 class="mb-4 text-base font-semibold">Evidence Tier Distribution</h3>
           <DataState :empty="tierChartData.length === 0" empty-message="No tier distribution data.">
             <D3DonutChart :data="tierChartData" :total="totalGenes" center-label="Total Genes" />
           </DataState>
         </div>
 
-        <div v-else-if="activeView === 'coverage'">
+        <div
+          v-else-if="activeView === 'coverage'"
+          :class="['transition-opacity', loading && 'opacity-60']"
+          :aria-busy="loading"
+        >
           <h3 class="mb-4 text-base font-semibold">Source Coverage Distribution</h3>
           <DataState
             :empty="coverageChartData.length === 0"
@@ -67,26 +75,9 @@
           >
             <D3BarChart
               :data="coverageChartData"
-              x-axis-label="Number of Sources"
-              y-axis-label="Gene Count"
+              x-axis-label="Number of sources"
+              y-axis-label="Genes"
               value-label="genes"
-            />
-          </DataState>
-        </div>
-
-        <div v-else-if="activeView === 'weights'">
-          <h3 class="mb-4 text-base font-semibold">Source Contribution Weights</h3>
-          <DataState
-            :empty="weightsChartData.length === 0"
-            empty-message="No weight distribution data."
-          >
-            <D3DonutChart
-              :data="weightsChartData"
-              :show-total="true"
-              :total="100"
-              :center-label="`Total Coverage (${totalGenes.toLocaleString()} genes)`"
-              :is-percentage="true"
-              :value-formatter="v => v.toFixed(1)"
             />
           </DataState>
         </div>
@@ -99,6 +90,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { Circle, CircleHelp } from 'lucide-vue-next'
 import { statisticsApi } from '@/api/statistics'
+import { useQueryParam } from '@/composables/useQueryParam'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -107,12 +99,10 @@ import ChartSkeleton from './ChartSkeleton.vue'
 import D3DonutChart from './D3DonutChart.vue'
 import D3BarChart from './D3BarChart.vue'
 import { TIER_CONFIG } from '@/utils/evidenceTiers'
-import { getSourceConfig, SOURCE_NAMES } from '@/utils/sources'
 
 const views = [
   { value: 'tiers', label: 'Tiers' },
-  { value: 'coverage', label: 'Coverage' },
-  { value: 'weights', label: 'Weights' }
+  { value: 'coverage', label: 'Coverage' }
 ]
 
 // Props
@@ -131,7 +121,11 @@ const props = defineProps({
 const loading = ref(true) // until the first load settles, so nothing flashes "empty"
 const error = ref(null)
 const data = ref(null)
-const activeView = ref('tiers') // Default to tiers view
+const viewParam = useQueryParam('view', 'tiers')
+const activeView = computed({
+  get: () => (views.some(v => v.value === viewParam.value) ? viewParam.value : 'tiers'),
+  set: v => (viewParam.value = v)
+})
 
 // Computed properties
 const tierChartData = computed(() => {
@@ -157,38 +151,20 @@ const coverageChartData = computed(() => {
   // Sort by source_count ascending (1 → 7) for natural left-to-right reading
   return data.value.source_coverage_distribution
     .map(item => ({
-      category: `${item.source_count} source${item.source_count !== 1 ? 's' : ''}`,
+      category: String(item.source_count),
       gene_count: item.gene_count,
       source_count: item.source_count // Keep for sorting
     }))
     .sort((a, b) => a.source_count - b.source_count) // Ascending order
 })
 
-const weightsChartData = computed(() => {
-  if (!data.value?.source_contribution_weights) return []
-
-  // Fixed source order and chart colours from utils/sources.ts, as on every chart
-  const order = source => {
-    const i = SOURCE_NAMES.indexOf(source)
-    return i === -1 ? SOURCE_NAMES.length : i
-  }
-  return Object.entries(data.value.source_contribution_weights)
-    .sort(([a], [b]) => order(a) - order(b))
-    .map(([source, weight]) => {
-      const config = getSourceConfig(source)
-      return {
-        category: config.displayName,
-        gene_count: parseFloat((weight * 100).toFixed(1)), // Keep 1 decimal for display
-        color: config.chartColor
-      }
-    })
-})
-
 // Methods
+let loadSeq = 0
 const loadData = async () => {
   loading.value = true
   error.value = null
 
+  const request = ++loadSeq // ignore a slower, older response
   try {
     window.logService.info('Loading evidence composition', {
       selectedTiers: props.selectedTiers,
@@ -198,12 +174,13 @@ const loadData = async () => {
       props.selectedTiers,
       !props.showInsufficientEvidence
     )
+    if (request !== loadSeq) return
     data.value = response.data
   } catch (err) {
     error.value = err.message || 'Failed to load evidence composition data'
     window.logService.error('Error loading evidence composition:', err)
   } finally {
-    loading.value = false
+    if (request === loadSeq) loading.value = false
   }
 }
 
@@ -212,9 +189,7 @@ const getViewDescription = () => {
     tiers:
       'Distribution of genes across evidence tiers based on aggregated scores from all sources. Higher tiers indicate stronger evidence.',
     coverage:
-      'Distribution showing how many sources each gene appears in. Genes in more sources generally have stronger evidence.',
-    weights:
-      'Relative contribution of each data source to the overall evidence base, calculated by evidence record counts.'
+      'Distribution showing how many sources each gene appears in. Genes in more sources generally have stronger evidence.'
   }
   return descriptions[activeView.value] || ''
 }

@@ -141,6 +141,7 @@ describe('Dashboard tier chips', () => {
     expect(chips[0].attributes('aria-pressed')).toBe('false')
 
     await chips[0].trigger('click')
+    await flushPromises() // tiers live in the URL; the navigation is async
     expect(w.findAll('button[aria-pressed]')[0].attributes('aria-pressed')).toBe('true')
   })
 })

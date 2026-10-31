@@ -66,7 +66,12 @@ onUnmounted(() => {
         Skip to main content
       </a>
       <AppHeader />
-      <main id="main-content" tabindex="-1" class="flex-1 focus:outline-none">
+      <!-- Fills the viewport below the h-14 header, so the footer starts off-screen and loading content never pushes it (layout shift) -->
+      <main
+        id="main-content"
+        tabindex="-1"
+        class="min-h-[calc(100dvh-3.5rem)] flex-1 focus:outline-none"
+      >
         <!-- No route transition: an out-in fade emptied <main> and shifted the page on every navigation -->
         <router-view v-slot="{ Component }">
           <!-- Keyed by path: symbol changes remount gene views; query-only changes do not -->

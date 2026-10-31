@@ -124,7 +124,9 @@ export function parsePanelAppPhenotypes(raw: string[] = []): PanelAppPhenotype[]
   const byName = new Map<string, PanelAppPhenotype>()
   for (const text of raw) {
     const omim = text.match(/(?<!\d)(\d{6})(?!\d)/)?.[1] ?? null
-    const name = text
+    // OMIM braces mark susceptibility ({Renal cell carcinoma}); keep that meaning in words
+    const susceptibility = /\{[^}]+\}/.test(text)
+    const base = text
       .replace(/(?<!\d)\d{6}(?!\d)/g, '')
       .replace(/\b(?:OMIM|MIM)\s*#?:?/gi, '')
       .replace(/[{}]/g, '')
@@ -132,6 +134,7 @@ export function parsePanelAppPhenotypes(raw: string[] = []): PanelAppPhenotype[]
       .replace(/[\s,;:#]+$/g, '')
       .replace(/\s+/g, ' ')
       .trim()
+    const name = base && susceptibility ? `${base} (susceptibility)` : base
     if (!name) continue
     const key = name.toLowerCase()
     const seen = byName.get(key)

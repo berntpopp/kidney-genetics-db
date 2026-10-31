@@ -63,8 +63,14 @@ describe('MondoDiseases (#28)', () => {
     expect(attribution.text()).toContain('CC BY 4.0')
   })
 
+  it('says "not yet computed" when the MONDO annotation is missing, not "no mappings"', () => {
+    const missing = mountWith()
+    expect(missing.find('[data-testid="mondo-missing"]').exists()).toBe(true)
+    expect(missing.find('[data-testid="mondo-empty"]').exists()).toBe(false)
+  })
+
   it('shows one quiet line instead of a card when a gene has no mapping', () => {
-    const empty = mountWith()
+    const empty = mountWith({ mondo_diseases: [] } as unknown as MondoAnnotation)
     expect(empty.find('[data-testid="mondo-empty"]').text()).toBe(
       'Diseases (MONDO): no mappings for this gene.'
     )

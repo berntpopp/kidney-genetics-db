@@ -41,6 +41,20 @@ export interface SummaryStatisticsData {
   [key: string]: unknown
 }
 
+// Statistics change only with pipeline runs: tab switches and toggles back to a seen view
+// reuse the response instead of refetching (and hitting the rate limit). Failures are not kept.
+const CACHE_TTL_MS = 5 * 60 * 1000
+const cache = new Map<string, { at: number; promise: Promise<unknown> }>()
+
+function cachedGet<T>(url: string): Promise<T> {
+  const hit = cache.get(url)
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.promise as Promise<T>
+  const promise = apiClient.get<T>(url).then(r => r.data)
+  promise.catch(() => cache.delete(url))
+  cache.set(url, { at: Date.now(), promise })
+  return promise
+}
+
 export const statisticsApi = {
   /**
    * Get gene intersections between data sources for UpSet plot
@@ -70,11 +84,8 @@ export const statisticsApi = {
       ? `/api/statistics/source-overlaps?${queryString}`
       : '/api/statistics/source-overlaps'
 
-    const response = await apiClient.get<StatisticsResult<SourceOverlapData>>(url)
-    return {
-      data: response.data.data,
-      meta: response.data.meta
-    }
+    const body = await cachedGet<StatisticsResult<SourceOverlapData>>(url)
+    return { data: body.data, meta: body.meta }
   },
 
   /**
@@ -99,11 +110,8 @@ export const statisticsApi = {
       ? `/api/statistics/source-distributions?${queryString}`
       : '/api/statistics/source-distributions'
 
-    const response = await apiClient.get<StatisticsResult<SourceDistributionItem[]>>(url)
-    return {
-      data: response.data.data,
-      meta: response.data.meta
-    }
+    const body = await cachedGet<StatisticsResult<SourceDistributionItem[]>>(url)
+    return { data: body.data, meta: body.meta }
   },
 
   /**
@@ -126,11 +134,8 @@ export const statisticsApi = {
     const queryString = params.toString()
     const url = `/api/statistics/evidence-composition?${queryString}`
 
-    const response = await apiClient.get<StatisticsResult<EvidenceCompositionItem[]>>(url)
-    return {
-      data: response.data.data,
-      meta: response.data.meta
-    }
+    const body = await cachedGet<StatisticsResult<EvidenceCompositionItem[]>>(url)
+    return { data: body.data, meta: body.meta }
   },
 
   /**

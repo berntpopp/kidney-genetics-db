@@ -42,6 +42,9 @@ def _escape_uniprot_query(symbol: str) -> str:
     return symbol.replace(":", "\\:").replace("(", "\\(").replace(")", "\\)")
 
 
+DOMAIN_FEATURE_TYPES = {"Domain", "DNA binding", "Zinc finger"}
+
+
 class UniProtAnnotationSource(BaseAnnotationSource):
     """
     UniProt protein domain annotation source.
@@ -228,7 +231,8 @@ class UniProtAnnotationSource(BaseAnnotationSource):
             "organism": data.get("organism", {}).get("scientificName", ""),
             "function": function_text,
             "domains": domains,
-            "domain_count": len(domains),
+            # Structural domains only; chains, regions and motifs are not domains
+            "domain_count": sum(d["type"] in DOMAIN_FEATURE_TYPES for d in domains),
             "pfam_refs": pfam_refs,
             "interpro_refs": interpro_refs,
             "has_transmembrane": any(d["type"] == "Transmembrane" for d in domains),
@@ -240,7 +244,7 @@ class UniProtAnnotationSource(BaseAnnotationSource):
             "Successfully parsed UniProt data",
             gene_symbol=gene_symbol,
             accession=accession,
-            domain_count=len(domains),
+            feature_count=len(domains),
         )
 
         return annotation
@@ -261,6 +265,9 @@ class UniProtAnnotationSource(BaseAnnotationSource):
         # Feature types to extract
         domain_types = {
             "Domain": "Domain",
+            # Nucleic-acid binding domains are separate UniProt feature types (HNF1B homeobox)
+            "DNA binding": "DNA binding",
+            "Zinc finger": "Zinc finger",
             "Region": "Region",
             "Motif": "Motif",
             "Transmembrane": "Transmembrane",
