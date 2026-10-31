@@ -182,6 +182,8 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
     ai_agents = Column(JSONB(none_as_null=True), nullable=True)
     citations = Column(JSONB, nullable=False)
     evidence_summary = Column(Text, nullable=True)
+    # Why the final class departs from the point model or ClinGen; kept out of the synopsis
+    classification_rationale = Column(Text, nullable=True)
     status = Column(String(20), nullable=False, server_default="draft", index=True)
     curator_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     reviewer_id = Column(BigInteger, ForeignKey("users.id"), nullable=True)

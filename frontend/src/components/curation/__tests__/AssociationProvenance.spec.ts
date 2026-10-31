@@ -105,6 +105,10 @@ describe('AssociationProvenance', () => {
       /ClinGenDefinitive \(opens in a new tab\)\s+· Glomerulopathy GCEP · classified/
     )
     expect(text).toContain('differs from this curation')
+    const why = { ...record, classification_rationale: 'Two newer families' } as Association
+    expect(mount(AssociationProvenance, { props: { record: why } }).text()).toContain(
+      'Why this classTwo newer families'
+    )
     const same = { ...record, evidence_strength: 'Definitive' } as Association
     expect(mount(AssociationProvenance, { props: { record: same } }).text()).not.toContain(
       'differs'

@@ -302,18 +302,15 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
     summary = evidence.get("evidence_summary") or None
     computed, rationale = item.get("computed_verdict"), item.get("curator_classification_rationale")
     final = _key(item["final_classification"])
-    departs = []  # what the curator's final class departs from, with one shared reason
+    departs = []  # what the final class departs from; the reason is stored apart from the synopsis
     if not adopted and rationale and _key(computed) != final:
-        departs.append(f"the point model (computed: {computed})")
+        departs.append("point model")
     if reference and (relationship != "mendelian" or _key(reference["classification"]) != final):
         if not rationale:
             raise ValueError(
                 f"differs from ClinGen ({reference['classification']}) without a written reason"
             )
-        departs.append(f"ClinGen ({reference['classification']})")
-    if departs:
-        note = f"Curator's call differs from {' and from '.join(departs)}: {rationale}"
-        summary = f"{summary}\n\n{note}" if summary else note
+        departs.append("ClinGen")
     fields: dict[str, Any] = {
         "gene_symbol": item["approved_symbol"],
         "disease_id": (item.get("mondo_id") or "").replace("_", ":", 1),  # GC keeps MONDO_ as typed
@@ -339,6 +336,7 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
         "diagnostics": _diagnostics(evidence, dropped),
         "citations": item.get("pmids") or [],
         "evidence_summary": summary,
+        "classification_rationale": rationale if departs else None,
         "adopted_clingen": adopted or reference,
     }
     try:

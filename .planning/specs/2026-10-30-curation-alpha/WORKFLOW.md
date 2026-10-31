@@ -25,12 +25,13 @@ and is edited only in KGDB. GC never updates or retracts it; a new curation is a
 - Our own curation of a ClinGen-curated entity carries ClinGen's statement in `clingen_reference`
   (same shape as `adoption`). It imports with our methodology, points and PMIDs, and ClinGen's panel,
   class, date and link in `adopted_clingen`, shown as "ClinGen: <class>". A final class that differs
-  from ClinGen's needs `curator_classification_rationale` (else the row is rejected); the reason is
-  appended to the summary as "Differs from ClinGen (<class>): …".
+  from ClinGen's needs `curator_classification_rationale` (else the row is rejected).
+- The rationale (when the final class differs from the point model or ClinGen) is stored in
+  `classification_rationale` and shown as "Why this class"; the synopsis is imported unchanged.
 - A legacy adoption (GC `adoption`) imports as methodology "ClinGen gene-disease validity (adopted)"
   with no points and possibly no PMIDs. Only an adoption may have no PMIDs.
 - Software agents GC credits (`contributions`, agentType software) are stored in `ai_agents` and
-  shown as "AI-assisted (…)" next to the curator. A curator override of the point model is appended to the summary with its reason.
+  shown as "AI-assisted (…)" next to the curator. A curator override of the point model keeps its reason in `classification_rationale`.
 - Susceptibility association points come from `scores.association_total` (`scores.association`).
 - Diagnostics that fail KGDB's schema are dropped and reported; the classification still imports.
 - Re-uploading a curation_id is skipped. A GC re-curation (new curation_id) on an entity already in

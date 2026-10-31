@@ -210,6 +210,8 @@ export interface Association extends AssociationDetails {
   evidence_strength: EvidenceStrength
   citations: string[]
   evidence_summary: string | null
+  /** Why the final class departs from the point model or ClinGen (kept out of the synopsis) */
+  classification_rationale?: string | null
   moi_label: string | null
   adopted_clingen?: AdoptedClinGen | null
   // Software agents Gene Curator credits for the evidence (AI-assisted curation)

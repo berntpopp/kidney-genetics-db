@@ -226,7 +226,18 @@ genotype per entity. Following the ClinGen risk-allele framework (PMID 38054408)
   (`create_precuration`: MONDO entity, MOI, lump/split with rationale, binning, mechanism,
   relationship type) and curation (`create_curation`, then save drafts as the server instructions
   describe). Check all PMIDs with `validate_pmids` before saving.
-- Record your expert call and rationale, the "reported, not scored" note, and these **reviewer
+- **Synopsis** (`evidence_summary`, shown publicly on KGDB): 3–6 plain sentences, under about 800
+  characters, about the gene, the disease and the evidence only: mechanism, number and kind of
+  unrelated probands, key variants, segregation, models and assays. No points, classes, verdicts,
+  ClinGen/GenCC classes, reviewer flags, tool notes, PMID lists or disclaimers; those have their
+  own fields.
+- **Classification rationale** (`curator_classification_rationale`): only when your call differs
+  from the computed class or from ClinGen; at most 2–3 sentences naming the decisive evidence.
+  KGDB shows it as "Why this class", never in the synopsis.
+- A reviewing or judge agent corrects what it finds (rows, points, class) through the curation
+  tools, and posts a review comment only for what a human must decide; it does not add prose to
+  the synopsis or rationale.
+- Record your expert call, the "reported, not scored" note, and these **reviewer
   flags**: calculated class ≠ your call; total within 1 point of a band edge; experimental points
   exceed genetic points; ≥50% of genetic points from ≤2 variants; susceptibility; any unchecked AF
   on a point-carrying variant; any key paper you could not read.

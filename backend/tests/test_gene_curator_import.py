@@ -448,7 +448,7 @@ def test_adopted_clingen_imports_without_points_or_pmids(db_session, genes, admi
     assert record.methodology == gc.ADOPTED and record.methodology_version is None
     assert record.adopted_clingen["expert_panel"].startswith("Kidney Cystic")
     assert record.adopted_clingen["classified_date"] == "2023-10-25"
-    assert "differs" not in (record.evidence_summary or "")
+    assert record.classification_rationale is None
     with pytest.raises(ValueError, match="malformed"):
         gc._values(_row(row, adoption={"id": "x"}), [])
 
@@ -458,7 +458,7 @@ def test_values_cite_clingen_beside_our_own_curation() -> None:
     values = gc._values(row, [])
     assert values["methodology"] != gc.ADOPTED and values["scores"] is not None
     assert values["adopted_clingen"]["classification"] == "Definitive"
-    assert "ClinGen" not in (values["evidence_summary"] or "")
+    assert values["classification_rationale"] is None
 
 
 def test_values_need_a_reason_to_differ_from_clingen() -> None:
@@ -472,9 +472,8 @@ def test_values_need_a_reason_to_differ_from_clingen() -> None:
     with pytest.raises(ValueError, match="differs from ClinGen"):
         gc._values(row, [])
     values = gc._values(_row(row, curator_classification_rationale="no replication"), [])
-    assert values["evidence_summary"].endswith(
-        "Curator's call differs from ClinGen (Definitive): no replication"
-    )
+    assert values["classification_rationale"] == "no replication"
+    assert values["evidence_summary"] == MENDELIAN["evidence"]["evidence_summary"]
     both = gc._values(
         _row(
             row,
@@ -484,8 +483,7 @@ def test_values_need_a_reason_to_differ_from_clingen() -> None:
         ),
         [],
     )
-    assert both["evidence_summary"].count("no replication") == 1
-    assert "point model (computed: definitive) and from ClinGen" in both["evidence_summary"]
+    assert both["classification_rationale"] == "no replication"
     with pytest.raises(ValueError, match="at least one PMID"):
         gc._values(_row(row, pmids=[], curator_classification_rationale="x"), [])
 
@@ -502,9 +500,10 @@ def test_values_credit_software_agents_and_keep_the_override_reason() -> None:
     values = gc._values(row, [])
     assert values["ai_agents"] == ["claude-opus"]
     assert values["external_curator"] == MENDELIAN["curator_name"]
-    assert values["evidence_summary"].endswith(
-        "differs from the point model (computed: limited): two large families"
-    )
+    assert values["classification_rationale"] == "two large families"
+    assert "two large families" not in values["evidence_summary"]
+    agreed = gc._values(_row(row, final_classification="limited"), [])
+    assert agreed["classification_rationale"] is None  # nothing departs, nothing to explain
 
 
 @pytest.mark.integration
@@ -524,16 +523,9 @@ def test_each_named_risk_allele_is_its_own_entity(db_session, genes, admin) -> N
         gc._values(_row(MENDELIAN, risk_allele="rs1 A"), [])
 
 
-def test_values_keep_a_long_synopsis_with_its_override_note() -> None:
-    evidence = {**copy.deepcopy(MENDELIAN["evidence"]), "evidence_summary": "x" * 2000}
-    row = _row(
-        MENDELIAN,
-        evidence=evidence,
-        computed_verdict="limited",
-        final_classification="moderate",
-        curator_classification_rationale="r" * 300,
-    )
-    assert len(gc._values(row, [])["evidence_summary"]) > 2000
+def test_values_keep_a_long_synopsis() -> None:
+    evidence = {**copy.deepcopy(MENDELIAN["evidence"]), "evidence_summary": "x" * 3000}
+    assert len(gc._values(_row(MENDELIAN, evidence=evidence), [])["evidence_summary"]) == 3000
 
 
 def test_values_read_gc_iteration8_fields() -> None:

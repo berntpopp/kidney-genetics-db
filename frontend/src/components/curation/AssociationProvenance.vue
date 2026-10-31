@@ -56,6 +56,7 @@ const points = computed(() => {
       curator ||
       record.external_reviewer ||
       adopted ||
+      record.classification_rationale ||
       points ||
       $slots.default
     "
@@ -105,6 +106,10 @@ const points = computed(() => {
           · differs from this curation</span
         >
       </dd>
+    </template>
+    <template v-if="record.classification_rationale">
+      <dt class="text-muted-foreground">Why this class</dt>
+      <dd class="max-w-prose">{{ record.classification_rationale }}</dd>
     </template>
     <template v-if="fromGeneCurator">
       <dt class="text-muted-foreground">Provenance</dt>

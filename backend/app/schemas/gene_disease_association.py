@@ -62,7 +62,7 @@ def _http_link(value: str) -> str:
 DiseaseId = Annotated[str, AfterValidator(_disease_id)]
 DiseaseName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
 Citations = Annotated[list[str], Field(max_length=100), AfterValidator(_citations)]
-Summary = Annotated[str, Field(max_length=4000)]  # a GC synopsis (2000) plus an override note
+Summary = Annotated[str, Field(max_length=4000)]
 OddsRatio = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 HttpLink = Annotated[str, Field(max_length=2000), AfterValidator(_http_link)]
 
@@ -195,6 +195,8 @@ class _Provenance(BaseModel):
     odds_ratio: OddsRatio | None = None  # headline OR of the risk allele, with optional 95% CI
     odds_ratio_ci_low: OddsRatio | None = None
     odds_ratio_ci_high: OddsRatio | None = None
+    # why the final class departs from the point model or ClinGen (not part of the synopsis)
+    classification_rationale: _text(2000, 1) | None = None
     methodology: _text(100, 1) | None = None
     methodology_version: _text(50, 1) | None = None
     external_id: _text(100, 1) | None = None
@@ -290,6 +292,7 @@ class AssociationResponse(BaseModel):
     methodology_version: str | None = None
     citations: list[str]
     evidence_summary: str | None = None
+    classification_rationale: str | None = None
     source: Source
     external_id: str | None = None
     external_url: str | None = None
