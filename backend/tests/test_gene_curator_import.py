@@ -369,3 +369,20 @@ def test_first_import_race_reuses_the_account(db_session, genes, admin, monkeypa
     [record] = _records(db_session)
     assert record.curator_id == existing.id
     assert db_session.query(User).filter(User.username == "gene-curator-import").count() == 1
+
+
+@pytest.mark.parametrize(
+    "key, strength",
+    [
+        ("established", "Established association"),
+        ("likely", "Likely association"),
+        ("uncertain", "Uncertain association"),
+        ("refuted", "Refuted association"),
+    ],
+)
+def test_susceptibility_classes_map_to_kgdb_tiers(key, strength) -> None:
+    values = gc._values(_row(SUSCEPTIBILITY, final_classification=key), [])
+    assert (values["relationship_type"], values["evidence_strength"]) == (
+        "susceptibility",
+        strength,
+    )

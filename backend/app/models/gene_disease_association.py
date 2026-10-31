@@ -31,11 +31,12 @@ MENDELIAN_STRENGTHS = (
     "Refuted",
     "No Known Disease Relationship",
 )
-# Alpha draft, modelled on the ClinGen risk-allele tiers (#437, #439)
+# ClinGen risk-allele tiers plus Refuted association (Schmidt 2024; #437, #439, #473)
 SUSCEPTIBILITY_STRENGTHS = (
     "Established association",
     "Likely association",
     "Uncertain association",
+    "Refuted association",
 )
 EVIDENCE_STRENGTHS = MENDELIAN_STRENGTHS + SUSCEPTIBILITY_STRENGTHS
 STATUSES = ("draft", "in_review", "published")

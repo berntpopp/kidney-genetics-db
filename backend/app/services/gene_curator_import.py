@@ -59,11 +59,12 @@ CLASSES = {
         "no_known": "No Known Disease Relationship",
         "no_known_disease_relationship": "No Known Disease Relationship",  # the label as a key
     },
-    # Provisional tiers (#473), imported as-is from KGDB's SUSCEPTIBILITY_STRENGTHS
+    # KGDB's SUSCEPTIBILITY_STRENGTHS (#473)
     "susceptibility": {
         "established": "Established association",
         "likely": "Likely association",
         "uncertain": "Uncertain association",
+        "refuted": "Refuted association",
     },
 }
 SCOPE = "kidney-genetics"  # the only Gene Curator scope KGDB imports
