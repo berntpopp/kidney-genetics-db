@@ -78,6 +78,9 @@ class AssociationResponse(BaseModel):
     gene_id: Annotated[int, Field(title="Gene Id")]
     gene_symbol: Annotated[str, Field(title="Gene Symbol")]
     id: Annotated[int, Field(title="Id")]
+    imported_unclaimed: Annotated[bool | None, Field(title="Imported Unclaimed")] = (
+        False
+    )
     methodology: Annotated[str | None, Field(title="Methodology")] = None
     methodology_version: Annotated[str | None, Field(title="Methodology Version")] = (
         None
