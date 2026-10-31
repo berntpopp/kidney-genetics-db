@@ -357,3 +357,12 @@ def test_dna_binding_kept_and_domain_count_excludes_chain_and_regions() -> None:
     assert parsed is not None
     assert "DNA binding" in {d["type"] for d in parsed["domains"]}
     assert parsed["domain_count"] == 3
+
+
+def test_requested_fields_include_dna_binding_and_zinc_finger() -> None:
+    """The parser keeps these feature types only if the API is asked for them."""
+    from app.pipeline.sources.annotations.uniprot import _UNIPROT_FIELDS
+
+    fields = _UNIPROT_FIELDS.split(",")
+    assert "ft_dna_bind" in fields
+    assert "ft_zn_fing" in fields
