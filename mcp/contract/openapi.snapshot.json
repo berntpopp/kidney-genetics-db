@@ -7948,6 +7948,65 @@
         ]
       }
     },
+    "/api/genes/{gene_symbol}/position-statistics": {
+      "get": {
+        "description": "Variant-position statistics: P/LP ClinVar vs gnomAD missense (domains, scan, 3D).",
+        "operationId": "get_position_statistics_api_genes__gene_symbol__position_statistics_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gene_symbol",
+            "required": true,
+            "schema": {
+              "title": "Gene Symbol",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Minimum ClinVar review stars",
+            "in": "query",
+            "name": "min_stars",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "Minimum ClinVar review stars",
+              "maximum": 4,
+              "minimum": 0,
+              "title": "Min Stars",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Position Statistics Api Genes  Gene Symbol  Position Statistics Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Position Statistics",
+        "tags": [
+          "Core Resources - Genes"
+        ]
+      }
+    },
     "/api/ingestion/": {
       "get": {
         "description": "List all available hybrid sources.\n\nReturns:\n    List of hybrid sources and their capabilities",

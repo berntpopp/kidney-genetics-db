@@ -1,0 +1,259 @@
+"""Upstream inputs for position statistics (gnomAD, UniProt, AlphaFold DB) and the orchestrator.
+
+Upstream payloads are cached 30 days (CacheService); the final result per gene, min_stars and
+annotation timestamps. The statistics run in a worker thread, never on the event loop.
+"""
+
+import asyncio
+import re
+from typing import Any
+
+import httpx
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
+
+from app.core.cache_service import get_cache_service
+from app.core.exceptions import GeneNotFoundError
+from app.core.logging import get_logger
+from app.core.retry_utils import RetryableHTTPClient, RetryConfig
+from app.core.version import get_package_version
+from app.models.gene import Gene
+from app.models.gene_annotation import GeneAnnotation
+from app.services.position_stats import STATS_VERSION, compute_position_statistics
+
+logger = get_logger(__name__)
+
+TTL = 30 * 24 * 3600
+GNOMAD_URL = "https://gnomad.broadinstitute.org/api"
+GNOMAD_QUERY = (
+    "query($g:String!){ gene(gene_symbol:$g, reference_genome:GRCh38){ variants(dataset: "
+    "gnomad_r4){ variant_id consequence hgvsp exome{ ac filters } genome{ ac filters } } } }"
+)
+GNOMAD_RELEASE = "gnomAD v4.1 (gnomad_r4)"
+AF_FILES = "https://alphafold.ebi.ac.uk/files/"
+MAX_CIF_BYTES = 50 * 1024 * 1024
+_TOKEN = re.compile(r"'[^']*'|\"[^\"]*\"|\S+")
+
+
+class UpstreamError(Exception):
+    """An upstream source failed; the message names the source (shown to the user, HTTP 502)."""
+
+
+def _client() -> RetryableHTTPClient:
+    ua = f"kidney-genetics-db/{get_package_version()} (+https://kidney-genetics.org)"
+    return RetryableHTTPClient(
+        httpx.AsyncClient(timeout=20.0, headers={"User-Agent": ua}, follow_redirects=True),
+        RetryConfig(max_retries=2, max_delay=5.0),
+    )
+
+
+async def _request(source: str, send: Any, url: str, **kwargs: Any) -> httpx.Response:
+    try:
+        response: httpx.Response = await send(url, **kwargs)
+        return response
+    except httpx.HTTPStatusError as e:
+        raise UpstreamError(f"{source} responded {e.response.status_code}") from e
+    except httpx.HTTPError as e:
+        raise UpstreamError(f"{source} request failed ({type(e).__name__})") from e
+
+
+async def fetch_gnomad_missense(client: RetryableHTTPClient, symbol: str) -> list[dict[str, Any]]:
+    res = await _request("gnomAD", client.post, GNOMAD_URL,
+                         json={"query": GNOMAD_QUERY, "variables": {"g": symbol}})  # fmt: skip
+    try:
+        body = res.json()
+    except ValueError as e:
+        raise UpstreamError("gnomAD returned an unreadable response") from e
+    if not isinstance(body, dict):
+        raise UpstreamError("gnomAD returned an unreadable response")
+    # Partial data would silently give the statistics an incomplete control set.
+    if body.get("errors"):
+        raise UpstreamError(f"gnomAD returned an error: {body['errors'][0].get('message')}")
+    gene = (body.get("data") or {}).get("gene")
+    if not gene:
+        raise UpstreamError(f"gnomAD has no data for {symbol}")
+    return [v for v in gene.get("variants") or [] if v.get("consequence") == "missense_variant"]
+
+
+async def fetch_uniprot_sequence(client: RetryableHTTPClient, accession: str) -> str:
+    res = await _request("UniProt", client.get,
+                         f"https://rest.uniprot.org/uniprotkb/{accession}.fasta")  # fmt: skip
+    seq = "".join(line.strip() for line in res.text.splitlines() if not line.startswith(">"))
+    if not seq:
+        raise UpstreamError(f"UniProt returned no sequence for {accession}")
+    return seq
+
+
+def parse_ca_atoms(cif: str) -> list[dict[str, Any]]:
+    """C-alpha atoms from an mmCIF atom_site loop: resno, x, y, z and pLDDT (B_iso_or_equiv)."""
+    cols: list[str] = []
+    out: list[dict[str, Any]] = []
+    in_loop = False
+    for line in cif.splitlines():
+        if line.startswith("_atom_site."):
+            cols.append(line.split()[0][len("_atom_site.") :])
+            in_loop = True
+            continue
+        if not in_loop or not cols:
+            continue
+        if not line.startswith(("ATOM", "HETATM")):
+            if line.startswith(("loop_", "#", "_")):
+                break
+            continue
+        row = dict(zip(cols, _TOKEN.findall(line), strict=False))
+        if row.get("group_PDB") == "ATOM" and row.get("label_atom_id") == "CA":
+            out.append({"resno": int(row["label_seq_id"]), "x": float(row["Cartn_x"]),
+                        "y": float(row["Cartn_y"]), "z": float(row["Cartn_z"]),
+                        "plddt": float(row["B_iso_or_equiv"])})  # fmt: skip
+    return out
+
+
+async def fetch_alphafold_model(
+    client: RetryableHTTPClient, accession: str, length: int
+) -> dict[str, Any]:
+    """Canonical model (own accession, prefer F1); C-alpha residues only for a full-length model.
+    {} = no prediction (a cacheable value, unlike None)."""
+    try:
+        res = await client.get(f"https://alphafold.ebi.ac.uk/api/prediction/{accession}")
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code in (400, 404):  # no prediction
+            return {}
+        raise
+    entries = res.json()
+    own = [
+        e for e in (entries if isinstance(entries, list) else [])
+        if isinstance(e, dict) and e.get("uniprotAccession") == accession
+        and isinstance(e.get("cifUrl"), str)
+    ]  # fmt: skip
+    entry = next((e for e in own if str(e.get("entryId", "")).endswith("-F1")), None) or (
+        own[0] if own else None
+    )
+    if entry is None:
+        return {}
+    model = {"entryId": entry["entryId"], "version": entry.get("latestVersion"), "residues": None}
+    # Never mix fragments: 3D statistics only on a model covering the whole protein.
+    if entry.get("uniprotStart") == 1 and entry.get("uniprotEnd") == length:
+        cif = await _download_cif(client, entry["cifUrl"])
+        if cif is None:
+            return {}
+        model["residues"] = parse_ca_atoms(cif)
+    return model
+
+
+async def _download_cif(client: RetryableHTTPClient, url: str) -> str | None:
+    """The model file, only from AlphaFold DB's file host, no redirects, at most 50 MB."""
+    if not url.startswith(AF_FILES):
+        logger.sync_warning("Ignoring AlphaFold cifUrl outside the file host", url=url)
+        return None
+    body = bytearray()
+    async with client.client.stream("GET", url, follow_redirects=False) as res:
+        res.raise_for_status()
+        async for chunk in res.aiter_bytes():
+            body += chunk
+            if len(body) > MAX_CIF_BYTES:
+                logger.sync_warning("AlphaFold model file over the size cap", url=url)
+                return None
+    return body.decode()
+
+
+async def _cached(namespace: str, key: str, load: Any) -> Any:
+    cache = get_cache_service()
+    hit = await cache.get(key, namespace=namespace)
+    if hit is not None:
+        return hit
+    value = await load()
+    await cache.set(key, value, namespace=namespace, ttl=TTL)
+    return value
+
+
+def _annotation(db: Session, gene_id: Any, source: str) -> GeneAnnotation | None:
+    return (
+        db.query(GeneAnnotation)
+        .filter(GeneAnnotation.gene_id == gene_id, GeneAnnotation.source == source)
+        .order_by(GeneAnnotation.updated_at.desc())
+        .first()
+    )
+
+
+def _load_gene(db: Session, symbol: str) -> dict[str, Any]:
+    gene = db.query(Gene).filter(func.upper(Gene.approved_symbol) == symbol.upper()).first()
+    if not gene:
+        raise GeneNotFoundError(symbol)
+    clinvar = _annotation(db, gene.id, "clinvar")
+    uniprot = _annotation(db, gene.id, "uniprot")
+    return {
+        "symbol": gene.approved_symbol,
+        "clinvar": (clinvar.annotations or {}) if clinvar else {},
+        "clinvar_at": clinvar.updated_at.isoformat() if clinvar and clinvar.updated_at else None,
+        "uniprot": (uniprot.annotations or {}) if uniprot else {},
+        "uniprot_at": uniprot.updated_at.isoformat() if uniprot and uniprot.updated_at else None,
+    }
+
+
+async def get_position_statistics(db: Session, symbol: str, min_stars: int) -> dict[str, Any]:
+    """Position statistics for a gene; raises GeneNotFoundError, LookupError or UpstreamError."""
+    g = await run_in_threadpool(_load_gene, db, symbol)
+    accession = g["uniprot"].get("accession")
+    if not accession:
+        raise LookupError(f"No UniProt accession for {g['symbol']}")
+    # UniProt timestamp too: a domain refresh changes the domain tests.
+    key = f"v{STATS_VERSION}:{g['symbol']}:{min_stars}:{g['clinvar_at']}:{g['uniprot_at']}"
+    cache = get_cache_service(db)
+    hit = await cache.get(key, namespace="position_stats")
+    if hit is not None:
+        return dict(hit)
+
+    client = _client()
+    try:
+        sequence = await _cached("uniprot_fasta", f"{accession}:{g['uniprot_at']}",
+                                 lambda: fetch_uniprot_sequence(client, accession))  # fmt: skip
+        length = int(g["uniprot"].get("length") or len(sequence))
+        gnomad: Any
+        model: Any
+        gnomad, model = await asyncio.gather(
+            _cached("gnomad_missense", g["symbol"],
+                    lambda: fetch_gnomad_missense(client, g["symbol"])),
+            _cached("alphafold_ca", f"{accession}:{length}",
+                    lambda: fetch_alphafold_model(client, accession, length)),
+            return_exceptions=True,
+        )  # fmt: skip
+        if isinstance(gnomad, BaseException):
+            raise gnomad
+    finally:
+        await client.close()
+
+    # Linear statistics need only gnomAD/UniProt; an AlphaFold failure only drops 3D.
+    spatial_error = None
+    if isinstance(model, httpx.HTTPStatusError):
+        spatial_error = f"AlphaFold responded {model.response.status_code}"
+    elif isinstance(model, httpx.HTTPError):
+        spatial_error = "AlphaFold did not respond"
+    elif isinstance(model, Exception):  # unreadable reply or model file: still only 3D lost
+        spatial_error = "AlphaFold returned an unreadable response"
+    elif isinstance(model, BaseException):
+        raise model
+    if spatial_error:
+        logger.sync_warning("AlphaFold unavailable for position statistics",
+                            gene=g["symbol"], error=spatial_error)  # fmt: skip
+        model = None
+
+    result = await run_in_threadpool(
+        lambda: compute_position_statistics(
+            gene=g["symbol"],
+            accession=accession,
+            length=length,
+            sequence=sequence,
+            clinvar_residues=g["clinvar"].get("missense_residues"),
+            gnomad=gnomad,
+            domains=g["uniprot"].get("domains"),
+            model=model,
+            min_stars=min_stars,
+            provenance={"clinvar": g["clinvar_at"], "gnomad": GNOMAD_RELEASE, "uniprot": accession},
+            spatial_error=spatial_error,
+        )
+    )
+    if not spatial_error:  # a transient AlphaFold outage must not stick for 30 days
+        await cache.set(key, result, namespace="position_stats", ttl=TTL)
+    logger.sync_info("Computed position statistics", gene=g["symbol"], status=result["status"])
+    return result

@@ -5,7 +5,9 @@ All functions are stateless with no DB/session dependencies,
 making them easy to test in isolation.
 """
 
+import bisect
 import re
+import zlib
 from typing import Any
 
 # Pre-compiled regexes
@@ -42,6 +44,20 @@ _AMINO_ACIDS_3 = {
 
 # Missense pattern: p.Xxx###Yyy where Xxx and Yyy are amino acids
 _MISSENSE_RE = re.compile(r"p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})")
+
+# Strict single-residue missense (Python twin of the frontend regex)
+_MISSENSE_RESIDUE_RE = re.compile(r"^p\.\(?([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})\)?$")
+
+# Detail-list fill order: categories are interleaved round-robin in this order
+_CATEGORY_ORDER = (
+    "pathogenic",
+    "likely_pathogenic",
+    "conflicting",
+    "vus",
+    "likely_benign",
+    "benign",
+    "other",
+)
 
 
 def parse_protein_change(name: str) -> str:
@@ -308,6 +324,9 @@ class GeneAccumulator:
         "consequence_categories",
         "protein_variants",
         "genomic_variants",
+        "protein_variants_total",
+        "genomic_variants_total",
+        "missense_residues",
         "_confidence_levels",
         "_max_detail",
     )
@@ -340,10 +359,32 @@ class GeneAccumulator:
             "synonymous": 0,
             "other": 0,
         }
-        self.protein_variants: list[dict[str, Any]] = []
-        self.genomic_variants: list[dict[str, Any]] = []
+        # category -> sorted [(key, output_key, detail)], each bounded to max_detail
+        self.protein_variants: dict[str, list[Any]] = {}
+        self.genomic_variants: dict[str, list[Any]] = {}
+        self.protein_variants_total = 0
+        self.genomic_variants_total = 0
+        self.missense_residues: dict[tuple[int, str], dict[str, dict[str, int]]] = {}
         self._confidence_levels = confidence_levels
         self._max_detail = max_detail
+
+    def _keep(self, buckets: dict[str, list[Any]], detail: dict[str, Any], position: int) -> None:
+        """Insert into the variant's category bucket, keeping its best *max_detail*.
+
+        The key is a total order within a bucket, so the kept set does not
+        depend on input order.
+        """
+        # crc32 (not salted hash()) spreads ties uniformly along the protein, reproducibly
+        accession = detail["accession"]
+        tail = (detail["protein_change"], detail["genomic_start"] or 0)
+        key = (-detail["confidence"], zlib.crc32(accession.encode()), accession, position, *tail)
+        out_key = (position, accession, *tail)
+        kept = buckets.setdefault(detail["category"], [])
+        if len(kept) >= self._max_detail and (not kept or key >= kept[-1][0]):
+            return
+        bisect.insort(kept, (key, out_key, detail), key=lambda e: e[0])
+        if len(kept) > self._max_detail:
+            kept.pop()
 
     # ------------------------------------------------------------------ #
 
@@ -404,52 +445,41 @@ class GeneAccumulator:
                 if effect_category == "other":
                     effect_category = "synonymous"
 
-        # --- Protein variants (capped) ---
+        # --- Missense residue counts (uncapped) ---
         protein_change = variant.get("protein_change", "")
         position = parse_protein_position(protein_change)
-        if position and len(self.protein_variants) < self._max_detail:
-            self.protein_variants.append(
-                {
-                    "position": position,
-                    "protein_change": protein_change,
-                    "cdna_change": variant.get("cdna_change", ""),
-                    "accession": variant.get("accession", ""),
-                    "classification": variant.get("classification", ""),
-                    "category": category,
-                    "effect_category": effect_category,
-                    "review_status": variant.get("review_status", ""),
-                    "confidence": confidence,
-                    "molecular_consequences": mol_consequences,
-                    "variant_type": variant.get("variant_type", ""),
-                    "title": variant.get("title", ""),
-                    "chromosome": variant.get("chromosome"),
-                    "genomic_start": variant.get("genomic_start"),
-                    "genomic_end": variant.get("genomic_end"),
-                }
-            )
+        if any("missense variant" == c.lower() for c in mol_consequences):
+            m = _MISSENSE_RESIDUE_RE.match(protein_change)
+            if m and m.group(1) != m.group(3) and m.group(3) in _AMINO_ACIDS_3:
+                by_star = self.missense_residues.setdefault((int(m.group(2)), m.group(1)), {})
+                stars = by_star.setdefault(category, {})
+                stars[str(confidence)] = stars.get(str(confidence), 0) + 1
 
-        # --- Genomic variants (capped) ---
+        # --- Detail lists (bounded, highest priority kept) ---
         genomic_start = variant.get("genomic_start")
-        if genomic_start is not None and len(self.genomic_variants) < self._max_detail:
-            self.genomic_variants.append(
-                {
-                    "position": position,
-                    "protein_change": protein_change,
-                    "cdna_change": variant.get("cdna_change", ""),
-                    "accession": variant.get("accession", ""),
-                    "classification": variant.get("classification", ""),
-                    "category": category,
-                    "effect_category": effect_category,
-                    "review_status": variant.get("review_status", ""),
-                    "confidence": confidence,
-                    "molecular_consequences": mol_consequences,
-                    "variant_type": variant.get("variant_type", ""),
-                    "title": variant.get("title", ""),
-                    "chromosome": variant.get("chromosome"),
-                    "genomic_start": genomic_start,
-                    "genomic_end": variant.get("genomic_end"),
-                }
-            )
+        detail = {
+            "position": position,
+            "protein_change": protein_change,
+            "cdna_change": variant.get("cdna_change", ""),
+            "accession": variant.get("accession", ""),
+            "classification": variant.get("classification", ""),
+            "category": category,
+            "effect_category": effect_category,
+            "review_status": variant.get("review_status", ""),
+            "confidence": confidence,
+            "molecular_consequences": mol_consequences,
+            "variant_type": variant.get("variant_type", ""),
+            "title": variant.get("title", ""),
+            "chromosome": variant.get("chromosome"),
+            "genomic_start": genomic_start,
+            "genomic_end": variant.get("genomic_end"),
+        }
+        if position:
+            self.protein_variants_total += 1
+            self._keep(self.protein_variants, detail, position)
+        if genomic_start is not None:
+            self.genomic_variants_total += 1
+            self._keep(self.genomic_variants, detail, position or genomic_start)
 
         # --- Other classification counts ---
         if not is_pathogenic and "benign" in classification:
@@ -504,6 +534,21 @@ class GeneAccumulator:
 
     # ------------------------------------------------------------------ #
 
+    def _select(self, buckets: dict[str, list[Any]]) -> list[dict[str, Any]]:
+        """Fill max_detail slots by interleaving categories, then sort by position."""
+        order = [c for c in _CATEGORY_ORDER if c in buckets]
+        order += sorted(c for c in buckets if c not in _CATEGORY_ORDER)
+        picked: list[Any] = []
+        for rank in range(self._max_detail):
+            row = [buckets[c][rank] for c in order if rank < len(buckets[c])]
+            if not row:
+                break
+            picked.extend(row[: self._max_detail - len(picked)])
+            if len(picked) >= self._max_detail:
+                break
+        picked.sort(key=lambda e: e[1])
+        return [e[2] for e in picked]
+
     def finalize(self) -> dict[str, Any]:
         """Return the same stats dict that ``_aggregate_variants()`` produces."""
         total = self.total_count
@@ -550,8 +595,18 @@ class GeneAccumulator:
             "high_confidence_count": self.high_confidence_count,
             "variant_type_counts": self.variant_type_counts,
             "molecular_consequences": self.molecular_consequences,
-            "protein_variants": self.protein_variants,
-            "genomic_variants": self.genomic_variants,
+            "protein_variants": self._select(self.protein_variants),
+            "genomic_variants": self._select(self.genomic_variants),
+            "protein_variants_total": self.protein_variants_total,
+            "genomic_variants_total": self.genomic_variants_total,
+            "missense_residues": [
+                {
+                    "residue": residue,
+                    "ref": ref,
+                    "counts": {cat: dict(sorted(stars.items())) for cat, stars in counts.items()},
+                }
+                for (residue, ref), counts in sorted(self.missense_residues.items())
+            ],
             "consequence_categories": self.consequence_categories,
             "top_molecular_consequences": top_molecular_consequences,
             "top_traits": top_traits,

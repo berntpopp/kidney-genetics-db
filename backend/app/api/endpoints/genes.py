@@ -6,7 +6,7 @@ import time
 from functools import lru_cache
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
@@ -25,7 +25,7 @@ from app.core.jsonapi import (
     jsonapi_endpoint,
 )
 from app.core.logging import get_logger
-from app.core.rate_limit import LIMIT_GENE_LIST, limiter
+from app.core.rate_limit import LIMIT_GENE_LIST, LIMIT_NETWORK, limiter
 from app.models.gene import Gene, GeneEvidence
 from app.models.user import User
 from app.schemas.gene import GeneCreate
@@ -806,6 +806,27 @@ async def get_gene_evidence(
             "evidence_count": len(evidence_data),
         },
     }
+
+
+@router.get("/{gene_symbol}/position-statistics", response_model=dict)
+@limiter.limit(LIMIT_NETWORK)  # compute + upstream heavy when uncached
+async def get_position_statistics(
+    request: Request,
+    response: Response,
+    gene_symbol: str,
+    min_stars: int = Query(1, ge=0, le=4, description="Minimum ClinVar review stars"),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Variant-position statistics: P/LP ClinVar vs gnomAD missense (domains, scan, 3D)."""
+    from app.services.position_stats_sources import UpstreamError
+    from app.services.position_stats_sources import get_position_statistics as compute
+
+    try:
+        return await compute(db, gene_symbol, min_stars)
+    except UpstreamError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.post("/", response_model=dict)
