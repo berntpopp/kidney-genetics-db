@@ -228,6 +228,37 @@ class TestPKD1Disambiguation:
         assert parsed["PKD1"]["accession"] == "P98161"
         assert parsed["PRKD1"]["accession"] == "Q15139"
 
+    def test_synonym_hit_never_overrides_primary_name(self) -> None:
+        """Real UniProt answers PKD1 with P98161 and PRKD1 (synonym PKD1), PRKD1 last."""
+        source = _make_source()
+        prkd1 = {
+            **_PKD2_ENTRY,
+            "primaryAccession": "Q15139",
+            "genes": [{"geneName": {"value": "PRKD1"}, "synonyms": [{"value": "PKD1"}]}],
+        }
+        for order in ([_PKD1_ENTRY, prkd1], [prkd1, _PKD1_ENTRY]):
+            parsed = source._parse_id_mapping_results(
+                {"results": [{"from": "PKD1", "to": e} for e in order]}
+            )
+            assert parsed["PKD1"]["accession"] == "P98161"
+
+    def test_lone_synonym_hit_is_kept(self) -> None:
+        """A single synonym-only hit (UniProt lagging an HGNC rename) still maps."""
+        source = _make_source()
+        parsed = source._parse_id_mapping_results(
+            {"results": [{"from": "NEWSYM", "to": _PKD2_ENTRY}]}
+        )
+        assert parsed["NEWSYM"]["accession"] == "Q13563"
+
+    def test_ambiguous_synonym_hits_are_dropped(self) -> None:
+        """Several hits, none with the primary name: no guess."""
+        source = _make_source()
+        other = {**_PKD2_ENTRY, "primaryAccession": "Q00000"}
+        parsed = source._parse_id_mapping_results(
+            {"results": [{"from": "PKD9", "to": _PKD2_ENTRY}, {"from": "PKD9", "to": other}]}
+        )
+        assert "PKD9" not in parsed
+
 
 # ---------------------------------------------------------------------------
 # Tests: fetch_batch with ID Mapping
