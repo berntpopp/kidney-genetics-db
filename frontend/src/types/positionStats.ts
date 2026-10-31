@@ -69,6 +69,10 @@ export type VariantSetSummary = {
   benign: number
   dropped: { clinvar: number; gnomad: number }
   checked: { clinvar: number; gnomad: number }
+  /** Variants on a sequence segment absent from canonical UniProt (alternative exon) */
+  unplaced?: { clinvar: number; gnomad: number }
+  /** Sequence each source's positions were mapped from (null = canonical); ClinVar per transcript */
+  isoforms?: { clinvar: Record<string, string | null>; gnomad: string | null }
 }
 
 export type PositionStatistics = {

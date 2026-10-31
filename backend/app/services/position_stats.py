@@ -6,6 +6,7 @@ clustering/hotspots on a full-length AlphaFold model. Permutations shuffle case/
 over fixed variant positions, vectorised in batches with numpy; deterministic for a seed.
 """
 
+import difflib
 import math
 import re
 from collections.abc import Iterator
@@ -17,7 +18,7 @@ from scipy.spatial.distance import cdist
 from scipy.special import gammaln
 from scipy.stats import hypergeom
 
-STATS_VERSION = 1  # bump when results change, to invalidate cached results
+STATS_VERSION = 2  # bump when results change, to invalidate cached results
 TOO_FEW = 3
 DEFAULT_SEED = 20261031
 ALPHA = 0.05
@@ -134,39 +135,73 @@ def _adjust_by_min_p(p: np.ndarray, sorted_min: np.ndarray) -> np.ndarray:
 # --- variant set and regions ------------------------------------------------------------------
 
 
-def build_variant_set(
-    sequence: str,
-    clinvar: list[dict[str, Any]] | None,
-    gnomad: list[dict[str, Any]],
-    min_stars: int,
-) -> dict[str, Any]:
-    """Cases (P/LP), benign (B/LB) and gnomAD controls as residue lists, ref-AA checked."""
-    cases: list[int] = []
-    controls: list[int] = []
-    benign: list[int] = []
-    dropped = {"clinvar": 0, "gnomad": 0}
-    checked = {"clinvar": 0, "gnomad": 0}
+MIN_BLOCK = 5  # shortest identical isoform/canonical segment trusted for position mapping
 
-    def matches(ref: str, residue: int) -> bool:
-        return 1 <= residue <= len(sequence) and AA.get(ref) == sequence[residue - 1]
+
+def isoform_map(iso: str, canon: str) -> dict[int, int]:
+    """1-based isoform residue -> canonical residue over identical segments (alternative exons).
+
+    ponytail: difflib is roughly quadratic; fine for kidney proteins, slow only for titin-size.
+    """
+    sm = difflib.SequenceMatcher(None, iso, canon, autojunk=False)
+    return {
+        a + k + 1: b + k + 1
+        for a, b, n in sm.get_matching_blocks()
+        if n >= MIN_BLOCK
+        for k in range(n)
+    }
+
+
+def _ref_ok(seq: str, ref: str, residue: int) -> bool:
+    return 1 <= residue <= len(seq) and AA.get(ref) == seq[residue - 1]
+
+
+def _frame(
+    items: list[tuple[str, int, int]], sequence: str, isoforms: dict[str, str] | None
+) -> tuple[str | None, str, dict[int, int] | None]:
+    """The sequence a source's positions follow: canonical, else the best-matching isoform.
+
+    ClinVar HGVS follows MANE, which can be a non-canonical UniProt isoform (PAX2: Q02962-3).
+    """
+    total = sum(n for *_, n in items)
+
+    def bad(seq: str) -> int:
+        return sum(n for ref, res, n in items if not _ref_ok(seq, ref, res))
+
+    canon_bad = bad(sequence)
+    if not total or canon_bad <= MAX_MISMATCH * total or not isoforms:
+        return None, sequence, None
+    name, seq = min(isoforms.items(), key=lambda kv: bad(kv[1]))
+    if bad(seq) >= canon_bad:
+        return None, sequence, None
+    return name, seq, isoform_map(seq, sequence)
+
+
+def clinvar_groups(
+    clinvar: list[dict[str, Any]] | None, min_stars: int
+) -> dict[str, list[tuple[str, int, int, int]]]:
+    """ClinVar rows counted at *min_stars*, by RefSeq transcript: (ref, residue, P/LP, B/LB)."""
 
     def total(c: dict[str, int] | None) -> int:
         return sum(v for star, v in (c or {}).items() if int(star) >= min_stars)
 
+    groups: dict[str, list[tuple[str, int, int, int]]] = {}
     for row in clinvar or []:
         counts = row.get("counts") or {}
-        n_case = [total(counts.get(c)) for c in CASE]
-        n_benign = [total(counts.get(c)) for c in BENIGN]
-        n = sum(n_case) + sum(n_benign)
-        if n == 0:
-            continue
-        checked["clinvar"] += n
-        residue = int(row["residue"])
-        if not matches(row.get("ref", ""), residue):
-            dropped["clinvar"] += n
-            continue
-        cases += [residue] * sum(n_case)
-        benign += [residue] * sum(n_benign)
+        n_case = sum(total(counts.get(c)) for c in CASE)
+        n_benign = sum(total(counts.get(c)) for c in BENIGN)
+        if n_case + n_benign:
+            groups.setdefault(row.get("tx") or "", []).append(
+                (row.get("ref", ""), int(row["residue"]), n_case, n_benign)
+            )
+    return groups
+
+
+def gnomad_rows(gnomad: list[dict[str, Any]]) -> tuple[list[tuple[str, int]], int, int, str]:
+    """PASS missense substitutions as (ref, residue); checked and unparseable counts; MANE tx."""
+    rows: list[tuple[str, int]] = []
+    checked = unparseable = 0
+    tx = ""
 
     def passes(call: dict[str, Any] | None) -> bool:
         return bool(call) and call["ac"] > 0 and not call["filters"]  # type: ignore[index]
@@ -176,17 +211,94 @@ def build_variant_set(
             passes(v.get("exome")) or passes(v.get("genome"))
         ):
             continue
-        checked["gnomad"] += 1
+        checked += 1
+        tx = tx or v.get("tx") or ""
         m = MISSENSE_HGVS.match(v.get("hgvsp") or "")
         # Not a true substitution (unparseable, synonymous, Ter, unknown alt): count, never lose.
         if not m or m[1] == m[3] or m[3] == "Ter" or m[3] not in AA:
-            dropped["gnomad"] += 1
+            unparseable += 1
             continue
-        residue = int(m[2])
-        if not matches(m[1], residue):
-            dropped["gnomad"] += 1
-            continue
-        controls.append(residue)
+        rows.append((m[1], int(m[2])))
+    return rows, checked, unparseable, tx
+
+
+def refseq_needed(
+    sequence: str,
+    clinvar: list[dict[str, Any]] | None,
+    isoforms: dict[str, str] | None,
+    min_stars: int,
+    gnomad: list[dict[str, Any]] | None = None,
+) -> list[str]:
+    """Transcripts (ClinVar, gnomAD MANE) matching neither canonical nor a UniProt isoform."""
+    batches = [(tx, [(r, p, c + b) for r, p, c, b in rows])
+               for tx, rows in clinvar_groups(clinvar, min_stars).items()]  # fmt: skip
+    gn, _, _, gn_tx = gnomad_rows(gnomad or [])
+    batches.append((gn_tx, [(r, p, 1) for r, p in gn]))
+    out = []
+    for tx, items in batches:
+        _, seq, _ = _frame(items, sequence, isoforms)
+        bad = sum(n for ref, res, n in items if not _ref_ok(seq, ref, res))
+        if tx and tx not in out and bad > MAX_MISMATCH * sum(n for *_, n in items):
+            out.append(tx)
+    return out
+
+
+def build_variant_set(
+    sequence: str,
+    clinvar: list[dict[str, Any]] | None,
+    gnomad: list[dict[str, Any]],
+    min_stars: int,
+    isoforms: dict[str, str] | None = None,
+    refseq: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Cases (P/LP), benign (B/LB) and gnomAD controls as canonical residues, ref-AA checked.
+
+    Each ClinVar RefSeq transcript, and the gnomAD MANE transcript, is placed on its own: on the
+    canonical sequence, else on the best-matching UniProt isoform or the transcript's own RefSeq
+    protein, mapped onto canonical. Variants in segments absent from canonical cannot be placed
+    and are counted as unplaced, not as mismatches.
+    """
+    cases: list[int] = []
+    controls: list[int] = []
+    benign: list[int] = []
+    dropped = {"clinvar": 0, "gnomad": 0}
+    checked = {"clinvar": 0, "gnomad": 0}
+    unplaced = {"clinvar": 0, "gnomad": 0}
+    frames: dict[str, Any] = {"clinvar": {}, "gnomad": None}
+
+    groups = clinvar_groups(clinvar, min_stars)
+    gn_rows, checked["gnomad"], dropped["gnomad"], gn_tx = gnomad_rows(gnomad)
+
+    def candidates(tx: str) -> dict[str, str]:
+        return {**(isoforms or {}), **({tx: refseq[tx]} if refseq and tx in refseq else {})}
+
+    def place(key: str, frame: tuple[str | None, str, dict[int, int] | None],
+              ref: str, residue: int, n: int) -> int | None:  # fmt: skip
+        _, seq, mapping = frame
+        if not _ref_ok(seq, ref, residue):
+            dropped[key] += n
+            return None
+        pos = residue if mapping is None else mapping.get(residue)
+        if pos is None:
+            unplaced[key] += n
+        return pos
+
+    for tx, cv_rows in groups.items():
+        cv_frame = _frame([(r, p, c + b) for r, p, c, b in cv_rows], sequence, candidates(tx))
+        frames["clinvar"][tx or "unknown"] = cv_frame[0]
+        for ref, residue, n_case, n_benign in cv_rows:
+            checked["clinvar"] += n_case + n_benign
+            pos = place("clinvar", cv_frame, ref, residue, n_case + n_benign)
+            if pos is not None:
+                cases += [pos] * n_case
+                benign += [pos] * n_benign
+
+    gn_frame = _frame([(r, p, 1) for r, p in gn_rows], sequence, candidates(gn_tx))
+    frames["gnomad"] = gn_frame[0]
+    for ref, residue in gn_rows:
+        pos = place("gnomad", gn_frame, ref, residue, 1)
+        if pos is not None:
+            controls.append(pos)
 
     withheld: str | None = None
     if clinvar is None:
@@ -197,7 +309,7 @@ def build_variant_set(
                 pct = f"{100 * dropped[key] / checked[key]:.1f}"
                 withheld = (
                     f"Statistics withheld: {pct}% of {name} missense variants do not match "
-                    "the UniProt sequence (likely a transcript mismatch)."
+                    "the UniProt sequence or any of its isoforms (likely a transcript mismatch)."
                 )
                 break
     return {
@@ -207,6 +319,8 @@ def build_variant_set(
         "benign": benign,
         "dropped": dropped,
         "checked": checked,
+        "unplaced": unplaced,
+        "isoforms": frames,
         "withheld": withheld,
     }
 
@@ -430,9 +544,11 @@ def compute_position_statistics(
     min_stars: int,
     provenance: dict[str, Any],
     spatial_error: str | None = None,
+    isoforms: dict[str, str] | None = None,
+    refseq: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Assemble the API response (CPU-bound; run in a worker thread)."""
-    vset = build_variant_set(sequence, clinvar_residues, gnomad, min_stars)
+    vset = build_variant_set(sequence, clinvar_residues, gnomad, min_stars, isoforms, refseq)
     status, message = "ready", None
     if vset["withheld"]:
         status, message = "withheld", vset["withheld"]
@@ -464,6 +580,8 @@ def compute_position_statistics(
             "benign": len(vset["benign"]),
             "dropped": vset["dropped"],
             "checked": vset["checked"],
+            "unplaced": vset["unplaced"],
+            "isoforms": vset["isoforms"],
         },
         "linear": linear,
         "spatial": spatial,

@@ -397,3 +397,25 @@ def test_requested_fields_include_dna_binding_and_zinc_finger() -> None:
     fields = _UNIPROT_FIELDS.split(",")
     assert "ft_dna_bind" in fields
     assert "ft_zn_fing" in fields
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_or_query_fallback_follows_every_page() -> None:
+    """Synonym hits push a batch past one page; the second page's gene must not go stale."""
+    import httpx
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "cursor" not in str(request.url):
+            nxt = '<https://rest.uniprot.org/uniprotkb/search?cursor=2>; rel="next"'
+            return httpx.Response(200, json={"results": [_PKD1_ENTRY]}, headers={"Link": nxt})
+        return httpx.Response(200, json={"results": [_PKD2_ENTRY]})
+
+    source = _make_source()
+    source.rate_limiter = MagicMock()
+    source.rate_limiter.wait = AsyncMock()
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with patch.object(source, "get_http_client", AsyncMock(return_value=client)):
+        results = await source._fetch_batch_chunk([_make_gene(1, "PKD1"), _make_gene(2, "PKD2")])
+
+    assert {k: v["accession"] for k, v in results.items()} == {1: "P98161", 2: "Q13563"}
