@@ -8,6 +8,7 @@ writes its outputs to; `<OUT_DIR>` / `<JUDGE_DIR>` for its curation and judge ou
   strict functional support, mandatory discovery steps)
 - `BRIEF_JUDGE.md`: judge-agent brief (verify every row, then complete missing evidence)
 - `BRIEF_ADJUDICATOR.md`: non-blind adjudicator that compares a disagreement with the ClinGen report
+- `WORKFLOW.md`: the end-to-end Gene Curator → KGDB workflow (curate, export, upload, confirm)
 - `PROMPT_PRODUCTION.md`: production prompt for LLM curation in Gene Curator (GC MCP + GeneFoundry;
   adopts ClinGen first, not blind, saves via GC tools, approved #473 susceptibility rules). The
   `BRIEF_*` files above are the blind test harness it was calibrated with.
