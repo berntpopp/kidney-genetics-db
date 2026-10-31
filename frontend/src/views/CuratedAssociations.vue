@@ -123,7 +123,11 @@ const loadAll = () => {
 }
 
 onMounted(loadAll)
-watch(canCurate, loadAll)
+// Auth resolves after mount: only the workflow list depends on it, so don't refetch the public one
+watch(canCurate, curator => curator && store.loadWorkflow())
+
+/** An unedited Gene Curator import draft any curator may take over (#448) */
+const unclaimed = (r: Association) => r.status === 'draft' && !!r.imported_unclaimed
 
 /** ISO dates, like the verification dates of resources */
 const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
@@ -184,11 +188,12 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
                 <TableHeader class="max-lg:sr-only">
                   <TableRow>
                     <TableHead class="w-16">MOI</TableHead>
-                    <TableHead>{{
+                    <!-- Fixed widths keep the Mendelian and susceptibility columns aligned -->
+                    <TableHead class="w-56">{{
                       group.type === 'mendelian' ? 'Classification' : 'Risk association'
                     }}</TableHead>
                     <TableHead>Evidence</TableHead>
-                    <TableHead class="text-right">Published</TableHead>
+                    <TableHead class="w-28 text-right">Published</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody class="max-lg:block" :aria-busy="store.loading">
@@ -218,7 +223,11 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
                     </template>
                     <TableRow v-else-if="!group.records.length">
                       <TableCell colspan="4" class="py-8 text-center text-muted-foreground">
-                        No published associations yet.
+                        {{
+                          geneFilter.trim()
+                            ? `No published associations for ${geneFilter.trim()}.`
+                            : 'No published associations yet.'
+                        }}
                       </TableCell>
                     </TableRow>
                   </template>
@@ -247,7 +256,7 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
                 <TableHeader class="max-lg:sr-only">
                   <TableRow>
                     <TableHead class="w-16">MOI</TableHead>
-                    <TableHead>Classification</TableHead>
+                    <TableHead class="w-56">Classification</TableHead>
                     <TableHead>Evidence</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead class="text-right">Actions</TableHead>
@@ -270,10 +279,26 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
                           <Chip
                             v-if="record.source === 'gene_curator'"
                             kind="neutral"
-                            label="Gene Curator import"
-                            tooltip="Curated in Gene Curator; publishing needs a KGDB curator other than the author"
+                            :label="
+                              unclaimed(record)
+                                ? 'Gene Curator import, unclaimed'
+                                : 'Gene Curator import'
+                            "
+                            :tooltip="
+                              unclaimed(record)
+                                ? 'Imported from Gene Curator and not yet edited in KGDB: any curator may edit or submit it'
+                                : 'Curated in Gene Curator; publishing needs a KGDB curator other than the author'
+                            "
                           />
                         </div>
+                        <p
+                          v-if="
+                            record.status === 'in_review' && record.curator_id === auth.user?.id
+                          "
+                          class="mt-1 text-xs text-muted-foreground"
+                        >
+                          Awaiting review by another curator
+                        </p>
                         <p class="mt-1 text-xs text-muted-foreground tabular-nums">
                           Updated {{ fmtDate(record.updated_at) }}
                         </p>

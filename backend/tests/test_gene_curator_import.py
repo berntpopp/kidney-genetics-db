@@ -156,7 +156,12 @@ async def test_upload_creates_drafts_and_reupload_skips(
         "KGDB Mendelian Curation",
         "1",
     )
-    assert mendelian.scores == {"genetic": 10.0, "experimental": 6.0, "total": 16.0}
+    assert mendelian.scores == {
+        "genetic": 10.0,
+        "experimental": 6.0,
+        "association": None,
+        "total": 16.0,
+    }
     assert mendelian.citations[0] == "PMID:31000001" and len(mendelian.citations) == 14
     assert mendelian.evidence_summary.startswith("Ten unrelated")
 
@@ -386,3 +391,124 @@ def test_susceptibility_classes_map_to_kgdb_tiers(key, strength) -> None:
         "susceptibility",
         strength,
     )
+
+
+def test_values_keep_the_classification_when_only_diagnostics_fail() -> None:
+    """GC does not check evidence-table cells: bad diagnostics are dropped, not the row."""
+    evidence = copy.deepcopy(MENDELIAN["evidence"])
+    evidence["diagnostics"]["resources"][0]["type"] = "patient_organization"  # US spelling
+    dropped: list[str] = []
+    values = gc._values(_row(MENDELIAN, evidence=evidence, mondo_id="MONDO_0009633"), dropped)
+    assert (values["evidence_strength"], values["diagnostics"]) == ("Definitive", None)
+    assert values["disease_id"] == "MONDO:0009633"
+    assert any(d.startswith("diagnostics (diagnostics.resources.0.type") for d in dropped)
+    with pytest.raises(ValueError, match="citations"):  # any other error still rejects
+        gc._values(_row(MENDELIAN, evidence=evidence, pmids=[]), [])
+
+
+def test_values_keep_susceptibility_association_points_and_flag_missing_evidence() -> None:
+    row = _row(SUSCEPTIBILITY, scores={"association_total": 4, "total_score": 5}, evidence=None)
+    dropped: list[str] = []
+    values = gc._values(row, dropped)
+    assert values["scores"]["association"] == 4
+    assert dropped == ["evidence (null: export with a kidney-genetics member's token)"]
+
+
+ADOPTION = {
+    "type": "Statement",
+    "id": "CGGV:assertion_x",
+    "classification": "Definitive",
+    "reportedIn": [{"title": "ClinGen KCCD", "urls": ["https://search.clinicalgenome.org/x"]}],
+    "contributions": [
+        {
+            "contributor": {"name": "Kidney Cystic and Ciliopathy Disorders GCEP"},
+            "activityType": {"name": "interpreter"},
+            "date": "2023-10-25T00:00:00Z",
+        }
+    ],
+}
+
+
+@pytest.mark.integration
+def test_adopted_clingen_imports_without_points_or_pmids(db_session, genes, admin) -> None:
+    row = _row(
+        MENDELIAN,
+        adoption=ADOPTION,
+        pmids=[],
+        computed_verdict="no_known",
+        curator_classification_rationale="ClinGen citation",
+        genetic_score=0,
+        experimental_score=0,
+        total_score=0,
+    )
+    report = gc.import_export(db_session, [row], admin)
+    assert report["rejected"] == []
+    [record] = _records(db_session)
+    assert (record.citations, record.scores) == ([], None)
+    assert record.methodology == gc.ADOPTED and record.methodology_version is None
+    assert record.adopted_clingen["expert_panel"].startswith("Kidney Cystic")
+    assert record.adopted_clingen["classified_date"] == "2023-10-25"
+    assert "overrides" not in (record.evidence_summary or "")
+    with pytest.raises(ValueError, match="malformed"):
+        gc._values(_row(row, adoption={"id": "x"}), [])
+
+
+def test_values_credit_software_agents_and_keep_the_override_reason() -> None:
+    software = {"contributor": {"name": "claude-opus", "agentType": "software"}}
+    row = _row(
+        MENDELIAN,
+        contributions=[software, {"contributor": {"name": "x", "agentType": "person"}}],
+        computed_verdict="limited",
+        final_classification="moderate",
+        curator_classification_rationale="two large families",
+    )
+    values = gc._values(row, [])
+    assert values["ai_agents"] == ["claude-opus"]
+    assert values["external_curator"] == MENDELIAN["curator_name"]
+    assert values["evidence_summary"].endswith(
+        "overrides the point model (computed: limited): two large families"
+    )
+
+
+@pytest.mark.integration
+def test_each_named_risk_allele_is_its_own_entity(db_session, genes, admin) -> None:
+    def allele(cid: str, name: str | None) -> dict:
+        return _row(
+            SUSCEPTIBILITY, curation_id=f"11111111-0000-4000-8000-0000000000{cid}", risk_allele=name
+        )
+
+    report = gc.import_export(
+        db_session, [allele("b1", "rs1 A"), allele("b2", "rs2 G"), allele("b3", "rs1 A")], admin
+    )
+    assert [c["curation_id"][-2:] for c in report["created"]] == ["b1", "b2"]
+    assert [c["curation_id"][-2:] for c in report["conflicts"]] == ["b3"]
+    assert {r.risk_allele for r in _records(db_session)} == {"rs1 A", "rs2 G"}
+    with pytest.raises(ValueError, match="risk_allele is only for a susceptibility"):
+        gc._values(_row(MENDELIAN, risk_allele="rs1 A"), [])
+
+
+def test_values_keep_a_long_synopsis_with_its_override_note() -> None:
+    evidence = {**copy.deepcopy(MENDELIAN["evidence"]), "evidence_summary": "x" * 2000}
+    row = _row(
+        MENDELIAN,
+        evidence=evidence,
+        computed_verdict="limited",
+        final_classification="moderate",
+        curator_classification_rationale="r" * 300,
+    )
+    assert len(gc._values(row, [])["evidence_summary"]) > 2000
+
+
+def test_values_read_gc_iteration8_fields() -> None:
+    """GC #619: undetermined MOI exports the HPO root, association points get a field."""
+    row = _row(
+        SUSCEPTIBILITY,
+        moi_hpo_id="HP:0000005",
+        mode_of_inheritance="UNDETERMINED",
+        association_score=6,
+        scores={"association_total": 1},
+    )
+    values = gc._values(row, [])
+    assert (values["moi"], values["scores"]["association"]) == (None, 6)
+    no_id = _row(SUSCEPTIBILITY, moi_hpo_id=None, mode_of_inheritance="HP:0000005")
+    assert gc._values(no_id, [])["moi"] is None

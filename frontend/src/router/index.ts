@@ -119,6 +119,16 @@ export const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/curation/associations/:symbol',
+    name: 'curated-gene',
+    component: () => import('../views/CuratedGene.vue'),
+    props: true,
+    meta: {
+      title: 'Curated Gene',
+      description: 'Expert-reviewed kidney gene-disease associations for one gene.'
+    }
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('../views/Login.vue'),

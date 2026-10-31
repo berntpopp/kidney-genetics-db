@@ -34,6 +34,7 @@ const FIELDS = [
   'disease_id',
   'disease_name',
   'relationship_type',
+  'risk_allele',
   'evidence_strength',
   'moi',
   'citations',
@@ -77,18 +78,23 @@ const schema = toTypedSchema(
         .refine(v => /^(MONDO:\d{7}|OMIM:\d{6})$/.test(v), 'Use MONDO:NNNNNNN or OMIM:NNNNNN'),
       disease_name: z.string().trim().min(1, 'Disease name is required').max(255),
       relationship_type: z.enum(RELATIONSHIP_TYPES),
+      risk_allele: z.string().max(100).optional(),
       evidence_strength: z.enum(EVIDENCE_STRENGTHS, {
         errorMap: () => ({ message: 'Select an evidence strength' })
       }),
       moi: z.string().optional(),
       citations: z
         .string()
-        .refine(v => splitCitations(v).length > 0, 'At least one PMID is required')
+        // An adopted ClinGen classification may cite none; the backend allows [] only then
+        .refine(
+          v => !!props.record?.adopted_clingen || splitCitations(v).length > 0,
+          'At least one PMID is required'
+        )
         .refine(
           v => splitCitations(v).every(c => /^(PMID:)?\d{1,9}$/i.test(c)),
           'Use PMIDs such as 12345678 or PMID:12345678'
         ),
-      evidence_summary: z.string().max(2000).optional(),
+      evidence_summary: z.string().max(4000).optional(),
       methodology: z.string().max(100).optional(),
       methodology_version: z.string().max(50).optional(),
       source: z.enum(['kgdb', 'gene_curator']),
@@ -140,6 +146,7 @@ const [geneSymbol] = defineField('gene_symbol', opts)
 const [diseaseId] = defineField('disease_id', opts)
 const [diseaseName] = defineField('disease_name', opts)
 const [relationshipType] = defineField('relationship_type', opts)
+const [riskAllele] = defineField('risk_allele', opts)
 const [strength] = defineField('evidence_strength', opts)
 const [moi] = defineField('moi', opts)
 const [citations] = defineField('citations', opts)
@@ -356,6 +363,7 @@ watch(
             disease_id: r.disease_id,
             disease_name: r.disease_name,
             relationship_type: r.relationship_type ?? 'mendelian',
+            risk_allele: r.risk_allele ?? '',
             evidence_strength: r.evidence_strength,
             moi: r.moi ?? '',
             citations: r.citations.join(', '),
@@ -390,7 +398,11 @@ const onSubmit = handleSubmit(
     const scores = {
       genetic: num(v.score_genetic),
       experimental: num(v.score_experimental),
-      total: num(v.score_total)
+      total: num(v.score_total),
+      // No field for association points yet: keep an imported value instead of dropping it
+      ...(props.record?.scores?.association != null && {
+        association: props.record.scores.association
+      })
     }
     const gc = v.source === 'gene_curator'
     emit('save', {
@@ -401,6 +413,8 @@ const onSubmit = handleSubmit(
       citations: splitCitations(v.citations),
       evidence_summary: blank(v.evidence_summary),
       relationship_type: v.relationship_type,
+      // Only a susceptibility entity names an allele (the backend refuses it otherwise)
+      risk_allele: v.relationship_type === 'susceptibility' ? blank(v.risk_allele) : null,
       moi: blank(v.moi),
       methodology: blank(v.methodology),
       methodology_version: blank(v.methodology_version),
@@ -514,6 +528,16 @@ const fieldClass =
             {{ errors.evidence_strength }}
           </p>
         </div>
+        <div v-if="relationshipType === 'susceptibility'" class="space-y-2">
+          <Label for="gda-risk_allele">Risk allele (optional)</Label>
+          <Input
+            id="gda-risk_allele"
+            v-model="riskAllele"
+            maxlength="100"
+            placeholder="rs4664308 A"
+            :disabled="busy"
+          />
+        </div>
         <div class="space-y-2">
           <Label for="gda-moi">Mode of inheritance (optional)</Label>
           <select id="gda-moi" v-model="moi" :class="fieldClass" :disabled="busy">
@@ -544,7 +568,7 @@ const fieldClass =
           id="gda-evidence_summary"
           v-model="summary"
           rows="3"
-          maxlength="2000"
+          maxlength="4000"
           :class="fieldClass"
           :disabled="busy"
           :aria-invalid="!!errors.evidence_summary"

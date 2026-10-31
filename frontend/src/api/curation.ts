@@ -44,7 +44,8 @@ export const MOI_TERMS: Record<string, string> = {
   'HP:0001427': 'Mitochondrial inheritance',
   'HP:0001450': 'Y-linked inheritance',
   'HP:0010984': 'Digenic inheritance',
-  'HP:0001426': 'Non-Mendelian inheritance'
+  'HP:0001426': 'Non-Mendelian inheritance',
+  'HP:0010982': 'Polygenic inheritance'
 }
 
 /** Conventional short forms for the MOI chip (full HPO label in the tooltip) */
@@ -58,9 +59,12 @@ export const MOI_ABBREVIATIONS: Record<string, string> = {
   'HP:0001427': 'MT',
   'HP:0001450': 'YL',
   'HP:0010984': 'DG',
-  'HP:0001426': 'NM'
+  'HP:0001426': 'NM',
+  'HP:0010982': 'PG'
 }
 
+export const SHORT_READ_NOTE =
+  'Standard short-read testing can miss variants in this gene: a negative short-read result does not exclude the diagnosis.'
 /** A negative short-read result does not exclude a variant in this gene (issue 439) */
 export const hasShortReadLimit = (d: Diagnostics | null | undefined): boolean =>
   !!d?.detectability?.some(x => x.negative_report_does_not_exclude)
@@ -88,10 +92,33 @@ export const RESOURCE_LABELS: Record<string, string> = {
   other: 'Other resource'
 }
 export const VERIFIED_METHODS = ['fetched', 'api', 'captcha_title_only'] as const
+// Gene Curator's detectability challenge and method options (KGDB methodology bundle)
+export const DETECTABILITY_LABELS: Record<string, string> = {
+  vntr_repeat: 'VNTR / repeat',
+  pseudogene_segmental_duplication: 'Pseudogene / segmental duplication',
+  gc_rich_low_coverage: 'GC-rich / low coverage',
+  cnv_whole_gene_or_exon_deletion: 'CNV: whole-gene or exon deletion',
+  structural_variant: 'Structural variant',
+  deep_intronic: 'Deep intronic',
+  mosaicism: 'Mosaicism',
+  other: 'Other',
+  long_read_sequencing: 'Long-read sequencing',
+  specialised_caller: 'Specialised caller',
+  mlpa_qpcr_array: 'MLPA / qPCR / array',
+  long_range_pcr_sanger: 'Long-range PCR + Sanger',
+  snapshot_minisequencing: 'SNaPshot minisequencing',
+  rna_analysis: 'RNA analysis',
+  genome_sequencing: 'Genome sequencing',
+  ddpcr: 'ddPCR'
+}
+export const detectabilityLabel = (key: string): string =>
+  DETECTABILITY_LABELS[key] ?? key.replaceAll('_', ' ')
 
 export interface Scores {
   genetic?: number | null
   experimental?: number | null
+  /** Susceptibility association-study points (Gene Curator import) */
+  association?: number | null
   total?: number | null
 }
 
@@ -145,6 +172,8 @@ export interface Diagnostics {
 export interface AssociationDetails {
   relationship_type: RelationshipType
   moi: string | null
+  /** Susceptibility: the named risk allele, e.g. "rs4664308 A" (part of the entity key) */
+  risk_allele?: string | null
   methodology: string | null
   methodology_version: string | null
   source: AssociationSource
@@ -158,6 +187,16 @@ export interface AssociationDetails {
 export type AssociationStatus = 'draft' | 'in_review' | 'published'
 export type WorkflowAction = 'submit' | 'publish' | 'return-to-draft'
 
+/** A ClinGen gene-disease validity classification a Gene Curator curation adopted */
+export interface AdoptedClinGen {
+  /** ClinGen CGGV assertion id */
+  id: string
+  classification: string
+  expert_panel: string
+  classified_date: string | null
+  url: string
+}
+
 export interface Association extends AssociationDetails {
   id: number
   gene_id: number
@@ -168,6 +207,9 @@ export interface Association extends AssociationDetails {
   citations: string[]
   evidence_summary: string | null
   moi_label: string | null
+  adopted_clingen?: AdoptedClinGen | null
+  // Software agents Gene Curator credits for the evidence (AI-assisted curation)
+  ai_agents?: string[] | null
   status: AssociationStatus
   curator_id: number
   /** A Gene Curator import no KGDB curator has edited: any curator may act on it (#448) */

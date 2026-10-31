@@ -2,13 +2,14 @@
 /**
  * Table body rows for curated associations, grouped by gene-disease pair (as ClinGen's
  * "group by gene-disease pair"). Each record shows one scannable line: inheritance,
- * classification, citations and a one-line summary; methodology, provenance, points and
- * diagnostics open in a full-width details row. Below lg the rows stack as cards.
+ * classification with points, a two-line summary and the citation count; citations,
+ * methodology, provenance and diagnostics open in a full-width details row. Below lg the
+ * rows stack as cards.
  */
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ChevronDown } from 'lucide-vue-next'
-import { hasShortReadLimit, type Association } from '@/api/curation'
+import { hasShortReadLimit, SHORT_READ_NOTE, type Association } from '@/api/curation'
 import AssociationDiagnostics from '@/components/curation/AssociationDiagnostics.vue'
 import AssociationProvenance from '@/components/curation/AssociationProvenance.vue'
 import MoiChip from '@/components/curation/MoiChip.vue'
@@ -54,8 +55,13 @@ const hasDiagnostics = (r: Association) =>
     !!r.diagnostics.detectability_note ||
     r.diagnostics.resources.length > 0)
 const hasDetails = (r: Association) =>
-  !!(r.evidence_summary || r.methodology || r.scores || r.source === 'gene_curator') ||
-  hasDiagnostics(r)
+  !!(
+    r.evidence_summary ||
+    r.citations.length ||
+    r.methodology ||
+    r.scores ||
+    r.source === 'gene_curator'
+  ) || hasDiagnostics(r)
 const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
 </script>
 
@@ -69,7 +75,7 @@ const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
       >
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <RouterLink
-            :to="`/genes/${pair.gene}`"
+            :to="`/curation/associations/${pair.gene}`"
             class="rounded-sm font-semibold underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             {{ pair.gene }}
@@ -94,35 +100,63 @@ const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
           <MoiChip :moi="r.moi" />
         </TableCell>
         <TableCell :class="[STACK, 'align-top max-lg:inline-block']">
-          <div class="flex flex-wrap gap-1.5">
+          <div class="flex flex-wrap gap-1.5 max-lg:inline-flex max-lg:align-middle">
             <SusceptibilityChip
               v-if="r.relationship_type === 'susceptibility'"
               :strength="r.evidence_strength"
             />
             <Chip v-else :classification="r.evidence_strength" />
+            <span
+              v-if="r.risk_allele"
+              class="font-mono text-xs text-muted-foreground"
+              :title="`Risk allele ${r.risk_allele}`"
+              >{{ r.risk_allele }}</span
+            >
             <Chip
               v-if="hasShortReadLimit(r.diagnostics)"
               status="warning"
               label="Short-read limit"
-              tooltip="Standard short-read testing can miss variants in this gene: a negative short-read result does not exclude the diagnosis."
+              :tooltip="SHORT_READ_NOTE"
             />
           </div>
+          <p
+            v-if="r.scores?.total != null"
+            class="mt-1 text-xs text-muted-foreground tabular-nums max-lg:ml-2 max-lg:inline-block max-lg:align-middle max-lg:mt-0"
+          >
+            {{ r.scores.total }} points
+          </p>
         </TableCell>
         <TableCell
           :class="[STACK, 'min-w-56 align-top whitespace-normal [overflow-wrap:anywhere]']"
         >
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <OntologyTermList :terms="citationTerms(r)" source="PubMed" />
+          <p
+            v-if="r.evidence_summary && !open.has(r.id)"
+            class="mb-1 line-clamp-2 max-w-prose text-sm"
+            :title="r.evidence_summary"
+          >
+            {{ r.evidence_summary }}
+          </p>
+          <!-- PMIDs are listed in the details row; the line shows how many and who curated -->
+          <div
+            class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums"
+          >
+            <span v-if="r.citations.length">
+              {{ r.citations.length }} PubMed
+              {{ r.citations.length === 1 ? 'citation' : 'citations' }}
+            </span>
+            <!-- An adopted classification may cite no PMIDs: say where the evidence lives -->
+            <span v-else-if="r.adopted_clingen">Classification adopted from ClinGen</span>
+            <span v-if="r.ai_agents?.length">AI-assisted curation</span>
             <Button
               v-if="hasDetails(r)"
               variant="ghost"
               size="sm"
-              class="-my-1 h-7 px-2 text-xs text-muted-foreground"
+              class="-mx-2 -my-1 h-7 px-2 text-xs text-muted-foreground"
               :aria-expanded="open.has(r.id)"
               :aria-controls="`gda-details-${r.id}`"
               @click="toggle(r.id)"
             >
-              Details
+              {{ open.has(r.id) ? 'Hide details' : 'Details' }}
               <ChevronDown
                 aria-hidden="true"
                 class="size-3.5 transition-transform motion-reduce:transition-none"
@@ -130,13 +164,6 @@ const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
               />
             </Button>
           </div>
-          <p
-            v-if="r.evidence_summary && !open.has(r.id)"
-            class="mt-1 line-clamp-1 text-xs text-muted-foreground"
-            :title="r.evidence_summary"
-          >
-            {{ r.evidence_summary }}
-          </p>
         </TableCell>
         <slot name="trailing" :record="r" />
       </TableRow>
@@ -152,8 +179,15 @@ const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
         >
           <div class="grid gap-4 md:grid-cols-2">
             <div class="space-y-2">
-              <p v-if="r.evidence_summary" class="text-sm">{{ r.evidence_summary }}</p>
-              <AssociationProvenance :record="r" :show-moi="false" />
+              <p v-if="r.evidence_summary" class="text-sm whitespace-pre-line">
+                {{ r.evidence_summary }}
+              </p>
+              <AssociationProvenance :record="r" :show-moi="false">
+                <template v-if="r.citations.length">
+                  <dt class="text-muted-foreground">Citations</dt>
+                  <dd><OntologyTermList :terms="citationTerms(r)" source="PubMed" /></dd>
+                </template>
+              </AssociationProvenance>
             </div>
             <AssociationDiagnostics :diagnostics="r.diagnostics" />
           </div>

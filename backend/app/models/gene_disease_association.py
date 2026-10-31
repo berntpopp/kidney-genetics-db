@@ -53,6 +53,7 @@ MOI_TERMS = {
     "HP:0001450": "Y-linked inheritance",
     "HP:0010984": "Digenic inheritance",
     "HP:0001426": "Non-Mendelian inheritance",
+    "HP:0010982": "Polygenic inheritance",  # GC's "Multifactorial (polygenic)" option (#619)
 }
 
 
@@ -65,13 +66,15 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
 
     __tablename__ = "gene_disease_associations"
     __table_args__ = (
-        # NULLS NOT DISTINCT: two records without an MOI still collide (migrations 0013, 0018)
+        # NULLS NOT DISTINCT: two records without an MOI (or allele) still collide (0013, 0018,
+        # 0020); a susceptibility entity is one named risk allele
         UniqueConstraint(
             "gene_id",
             "disease_id",
             "moi",
             "relationship_type",
-            name="uq_gda_gene_disease_moi_relationship",
+            "risk_allele",
+            name="uq_gda_entity",
             postgresql_nulls_not_distinct=True,
         ),
         Index(
@@ -112,8 +115,22 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
         CheckConstraint(_in("status", STATUSES), name="ck_gda_status"),
         # jsonb renders arrays canonically as ["a", "b"], so one regex checks every element
         CheckConstraint(
-            r"""citations::text ~ '^\["PMID:[0-9]{1,9}"(, "PMID:[0-9]{1,9}")*\]$'""",
+            r"""citations::text ~ '^\["PMID:[0-9]{1,9}"(, "PMID:[0-9]{1,9}")*\]$' OR """
+            r"""(citations::text = '[]' AND adopted_clingen IS NOT NULL)""",
             name="ck_gda_citations",
+        ),
+        CheckConstraint(
+            "adopted_clingen IS NULL OR (source = 'gene_curator' "
+            "AND jsonb_typeof(adopted_clingen) = 'object')",
+            name="ck_gda_adopted_clingen",
+        ),
+        CheckConstraint(
+            "risk_allele IS NULL OR relationship_type = 'susceptibility'",
+            name="ck_gda_risk_allele",
+        ),
+        CheckConstraint(
+            "ai_agents IS NULL OR (source = 'gene_curator' AND jsonb_typeof(ai_agents) = 'array')",
+            name="ck_gda_ai_agents",
         ),
         CheckConstraint(
             "reviewer_id IS NULL OR reviewer_id <> curator_id", name="ck_gda_distinct_reviewer"
@@ -132,6 +149,7 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
     evidence_strength = Column(String(40), nullable=False)
     relationship_type = Column(String(20), nullable=False, server_default="mendelian")
     moi = Column(String(10), nullable=True)
+    risk_allele = Column(String(100), nullable=True)  # susceptibility: the named allele
     methodology = Column(String(100), nullable=True)
     methodology_version = Column(String(50), nullable=True)
     # Where the curation was made; a KGDB curator other than the author still publishes it
@@ -143,6 +161,10 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
     # none_as_null: Python None must be SQL NULL, not JSON null (object checks)
     scores = Column(JSONB(none_as_null=True), nullable=True)
     diagnostics = Column(JSONB(none_as_null=True), nullable=True)  # non-scoring (#439)
+    # A ClinGen classification adopted in Gene Curator instead of curated there
+    adopted_clingen = Column(JSONB(none_as_null=True), nullable=True)
+    # Software agents Gene Curator credits for writing evidence rows (AI-assisted curation)
+    ai_agents = Column(JSONB(none_as_null=True), nullable=True)
     citations = Column(JSONB, nullable=False)
     evidence_summary = Column(Text, nullable=True)
     status = Column(String(20), nullable=False, server_default="draft", index=True)

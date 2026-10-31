@@ -28,8 +28,10 @@ from app.schemas.gene_disease_association import (
     AssociationCreate,
     AssociationUpdate,
     ReviewDecision,
+    check_citations,
     check_classification,
     check_provenance,
+    check_risk_allele,
 )
 
 
@@ -117,15 +119,26 @@ def _log(db: Session, record: GDA, action: str, user: User) -> None:
     )
 
 
+def same_entity(query: Any, record: Any) -> Any:
+    """Filter to the record's entity: gene + disease + MOI + relationship type + risk allele,
+    NULLs equal (uq_gda_entity)."""
+
+    def eq(column: Any, value: Any) -> Any:
+        return column.is_(None) if value is None else column == value
+
+    return query.filter(
+        GDA.gene_id == record.gene_id,
+        GDA.disease_id == record.disease_id,
+        eq(GDA.moi, record.moi),
+        GDA.relationship_type == record.relationship_type,
+        eq(GDA.risk_allele, record.risk_allele),
+    )
+
+
 def _ensure_unique(db: Session, record: GDA) -> None:
     """Gene + disease + MOI (NULL MOIs equal) + relationship type and source + external_id
     identify one record."""
-    query = db.query(GDA.id).filter(
-        GDA.gene_id == record.gene_id,
-        GDA.disease_id == record.disease_id,
-        GDA.moi.is_(None) if record.moi is None else GDA.moi == record.moi,
-        GDA.relationship_type == record.relationship_type,
-    )
+    query = same_entity(db.query(GDA.id), record)
     if record.id is not None:
         query = query.filter(GDA.id != record.id)
     if query.first():
@@ -144,7 +157,11 @@ def _ensure_unique(db: Session, record: GDA) -> None:
 
 def _duplicate(record: GDA) -> str:
     moi = f" with MOI {record.moi}" if record.moi else " without an MOI"
-    return f"{record.disease_id}{moi} is already recorded for gene as {record.relationship_type}"
+    allele = f" (risk allele {record.risk_allele})" if record.risk_allele else ""
+    return (
+        f"{record.disease_id}{moi}{allele} is already recorded for gene as "
+        f"{record.relationship_type}"
+    )
 
 
 def _commit_unique(db: Session, record: GDA, action: str, user: User) -> None:
@@ -191,6 +208,8 @@ def update(db: Session, record_id: int, payload: AssociationUpdate, user: User) 
     try:
         check_classification(record.relationship_type, record.evidence_strength)
         check_provenance(record.source, record.external_id, record.external_url)
+        check_citations(record.citations, record.adopted_clingen)
+        check_risk_allele(record.relationship_type, record.risk_allele)
     except ValueError as e:
         db.rollback()
         raise DomainValidationError("association", str(e)) from e

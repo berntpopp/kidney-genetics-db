@@ -7,7 +7,8 @@ and is edited only in KGDB. GC never updates or retracts it; a new curation is a
    `PROMPT_PRODUCTION.md`: adopt ClinGen where it exists, otherwise curate with explicit per-row
    points and reviewer flags, then submit. A human GC reviewer approves (four-eyes in GC).
 2. **Export.** From GC, export the approved `kidney-genetics` curations (`GET /api/v1/export/curations`,
-   export v1; a member token also returns methodology versions). Save the JSON.
+   export v1) with a scope member's token; without one `evidence` is null, so no summary or
+   diagnostics arrive (the report says so). Follow `next_cursor` and upload the pages as one JSON list.
 3. **Upload to KGDB.** Admin → *Gene Curator import* (`/admin/gene-curator-import`), or
    `POST /api/admin/gene-curator/import` with the file. The file is checked against the pinned
    export schema (`backend/contract/gene_curator_export.snapshot.json`); a mismatch is rejected with
@@ -20,12 +21,26 @@ and is edited only in KGDB. GC never updates or retracts it; a new curation is a
 
 **Rules that matter**
 - Only `scope_name = kidney-genetics`; unknown verdict, MOI or relationship values are rejected.
+- A curation without a final classification (not yet approved in GC) is rejected.
+- An adopted ClinGen classification (GC `adoption`) imports as methodology "ClinGen gene-disease
+  validity (adopted)" with the expert panel, date and CGGV link in `adopted_clingen`, no points and
+  possibly no PMIDs.
+- Software agents GC credits (`contributions`, agentType software) are stored in `ai_agents` and
+  shown as "AI-assisted (…)" next to the curator. A curator override of the point model is appended to the summary with its reason.
+- Susceptibility association points come from `scores.association_total` (`scores.association`).
+- Diagnostics that fail KGDB's schema are dropped and reported; the classification still imports.
 - Re-uploading a curation_id is skipped. A GC re-curation (new curation_id) on an entity already in
   KGDB is reported as a conflict for a curator to compare.
 - Susceptibility tiers follow #473 (Established / Likely / Uncertain / Refuted association).
 - Methodology bundle: `docs/schemas/kidney-genetics/kgdb-methodology.json` in Gene Curator; after a
   change, a GC platform admin re-imports it (Schema Management → Import methodology, dry run first).
 
-**Status (2026-10-31):** KGDB side live in v0.21.0. The production prompt is calibrated in the blind
-harness (RESULTS.md) but has not yet run end to end inside Gene Curator: start with a 3–5 gene pilot
-and check that per-row points and reviewer flags land in the right GC fields.
+**Status (2026-10-31):** KGDB side live in v0.21.0; this branch adds adopted ClinGen
+classifications, AI credit (`ai_agents`), the susceptibility `risk_allele` key and the
+single-gene view. End-to-end runs on local Gene Curator: first at PR #609 head (NPHS2, CLDN10,
+PLA2R1 rs4664308, DNAJB11 adopted), then on master 0fda2285 with methodology version 2
+(iteration 8): MAGI2 (Strong, curator call over computed Definitive), PLA2R1 rs17831251 C
+(Likely association, polygenic) beside the first PLA2R1 entity, and KCNJ16 adopted from ClinGen
+with diagnostics. Agents curated via `/mcp`, a second GC user approved, all imported as drafts
+and were published in the KGDB UI. GC gaps found are gene-curator #610–#615 (closed); remaining
+GC friction is listed in the #448 PR.

@@ -15,6 +15,7 @@ import secrets
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
@@ -38,7 +39,11 @@ from app.schemas.gene_disease_association import (
     RecommendedTranscript,
     Resource,
 )
-from app.services.gene_disease_association_service import IMPORT_USERNAME, _commit_unique
+from app.services.gene_disease_association_service import (
+    IMPORT_USERNAME,
+    _commit_unique,
+    same_entity,
+)
 
 logger = get_logger(__name__)
 
@@ -67,8 +72,14 @@ CLASSES = {
         "refuted": "Refuted association",
     },
 }
+ADOPTED = "ClinGen gene-disease validity (adopted)"
 SCOPE = "kidney-genetics"  # the only Gene Curator scope KGDB imports
-UNDETERMINED_MOI = {"", "undetermined"}  # moi_hpo_id is null for these; anything else is unmapped
+MOI_ROOT = "HP:0000005"  # HPO "Mode of inheritance": no particular mode
+UNDETERMINED_MOI = {
+    "",
+    "undetermined",
+    MOI_ROOT.lower(),
+}  # GC #619 may send the HPO root  # moi_hpo_id is null for these; anything else is unmapped
 
 
 def _parses(parse: Callable[[str], Any]) -> Callable[[str], bool]:
@@ -258,16 +269,23 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
     if relationship not in CLASSES:
         raise ValueError(f"unknown relationship_type {relationship!r}")
     strength = CLASSES[relationship].get(_key(item.get("final_classification")))
+    if not item.get("final_classification"):
+        raise ValueError("no final classification: not yet approved in Gene Curator")
     if strength is None:
         raise ValueError(
             f"classification {item.get('final_classification')!r} is not a {relationship} "
             f"class KGDB supports ({', '.join(CLASSES[relationship])})"
         )
     moi = item.get("moi_hpo_id")
+    if moi and moi.upper() == MOI_ROOT:  # GC #614: "undetermined" exports the HPO root term
+        moi = None
     if moi is None and _key(item.get("mode_of_inheritance")) not in UNDETERMINED_MOI:
         raise ValueError(f"mode of inheritance {item.get('mode_of_inheritance')!r} has no HPO term")
     if moi is not None and moi.upper() not in MOI_TERMS:
         raise ValueError(f"unknown MOI {moi!r}")
+    adopted = _adopted(item["adoption"]) if item.get("adoption") else None
+    if item.get("evidence") is None:
+        dropped.append("evidence (null: export with a kidney-genetics member's token)")
     evidence = _shaped(item.get("evidence") or {}, dict, "")
     methodology = item.get("methodology") or {}
     scores = {
@@ -275,32 +293,87 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
         "experimental": item.get("experimental_score"),
         "total": item.get("total_score"),
     }
+    if relationship == "susceptibility":  # GC scores its association section, not genetic
+        scores["association"] = item.get("association_score")
+        if scores["association"] is None:  # exports before GC #619 carry it in the trace only
+            scores["association"] = (item.get("scores") or {}).get("association_total")
+    summary = evidence.get("evidence_summary") or None
+    computed, rationale = item.get("computed_verdict"), item.get("curator_classification_rationale")
+    if not adopted and rationale and _key(computed) != _key(item["final_classification"]):
+        override = f"Curator's call overrides the point model (computed: {computed}): {rationale}"
+        summary = f"{summary}\n\n{override}" if summary else override
+    fields: dict[str, Any] = {
+        "gene_symbol": item["approved_symbol"],
+        "disease_id": (item.get("mondo_id") or "").replace("_", ":", 1),  # GC keeps MONDO_ as typed
+        "disease_name": item.get("disease_name") or "",
+        "relationship_type": relationship,
+        "risk_allele": item.get("risk_allele") or None,  # GC #614: the named allele
+        "evidence_strength": strength,
+        "moi": moi.upper() if moi else None,
+        # An adoption has no points and no GC methodology of its own: ClinGen's stands
+        "methodology": ADOPTED if adopted else methodology.get("schema_name") or None,
+        "methodology_version": (
+            str(methodology["version"])
+            if not adopted and methodology.get("version") is not None
+            else None
+        ),
+        "source": SOURCE,
+        "external_id": _curation_id(item),
+        "external_url": item["url"],
+        "external_curator": item.get("curator_name") or None,
+        "ai_agents": _ai_agents(item),
+        "external_reviewer": item.get("reviewer_name") or None,
+        "scores": scores if not adopted and any(v is not None for v in scores.values()) else None,
+        "diagnostics": _diagnostics(evidence, dropped),
+        "citations": item.get("pmids") or [],
+        "evidence_summary": summary,
+        "adopted_clingen": adopted,
+    }
     try:
-        payload = AssociationCreate(
-            gene_symbol=item["approved_symbol"],
-            disease_id=item.get("mondo_id") or "",
-            disease_name=item.get("disease_name") or "",
-            relationship_type=relationship,
-            evidence_strength=strength,
-            moi=moi.upper() if moi else None,
-            methodology=methodology.get("schema_name") or None,
-            methodology_version=(
-                str(methodology["version"]) if methodology.get("version") is not None else None
-            ),
-            source=SOURCE,
-            external_id=_curation_id(item),
-            external_url=item["url"],
-            external_curator=item.get("curator_name") or None,
-            external_reviewer=item.get("reviewer_name") or None,
-            scores=scores if any(v is not None for v in scores.values()) else None,
-            diagnostics=_diagnostics(evidence, dropped),
-            citations=item.get("pmids") or [],
-            evidence_summary=evidence.get("evidence_summary") or None,
-        )
+        payload = AssociationCreate(**fields)
     except PydanticValidationError as e:
-        reasons = (f"{'.'.join(map(str, err['loc']))}: {err['msg']}" for err in e.errors())
-        raise ValueError("; ".join(reasons)) from e
+        reasons = _reasons(e)
+        if fields["diagnostics"] is None or not all(r.startswith("diagnostics") for r in reasons):
+            raise ValueError("; ".join(reasons)) from e
+        # GC does not check evidence-table cells; diagnostics never score, so keep the
+        # reviewed classification and report the diagnostics as dropped
+        dropped.append(f"diagnostics ({'; '.join(reasons)})")
+        try:
+            payload = AssociationCreate(**{**fields, "diagnostics": None})
+        except PydanticValidationError as e2:
+            raise ValueError("; ".join(_reasons(e2))) from e2
     return payload.model_dump(mode="json", exclude={"gene_symbol"})
+
+
+def _adopted(statement: Any) -> dict[str, Any]:
+    """GC's adoption statement (VA-Spec, export `adoption`) -> KGDB adopted_clingen."""
+    try:
+        panel = next(
+            c for c in statement["contributions"] if c["activityType"]["name"] == "interpreter"
+        )
+        return {
+            "id": statement["id"],
+            "classification": statement["classification"],
+            "expert_panel": panel["contributor"]["name"],
+            "classified_date": str(panel.get("date") or "")[:10] or None,
+            "url": statement["reportedIn"][0]["urls"][0],
+        }
+    except (KeyError, IndexError, TypeError, StopIteration) as e:
+        raise ValueError(f"adoption statement is malformed ({e!r})") from e
+
+
+def _ai_agents(item: dict[str, Any]) -> list[str] | None:
+    """Software agents GC credits for writing evidence rows (VA-Spec contributions)."""
+    names = {
+        c["contributor"]["name"]
+        for c in item.get("contributions") or []
+        if c.get("contributor", {}).get("agentType") == "software" and c["contributor"].get("name")
+    }
+    return sorted(names) or None
+
+
+def _reasons(e: PydanticValidationError) -> list[str]:
+    return [f"{'.'.join(map(str, err['loc']))}: {err['msg']}" for err in e.errors()]
 
 
 def _curation_id(item: dict[str, Any]) -> str:
@@ -332,18 +405,8 @@ def _import_row(
         return
     if dropped:
         report["dropped_fields"].append({**ref, "fields": sorted(set(dropped))})
-    # The unique key: gene + disease + MOI (NULL MOIs equal) + relationship type (0018)
-    moi = values["moi"]
-    existing = (
-        db.query(GDA)
-        .filter(
-            GDA.gene_id == gene.id,
-            GDA.disease_id == values["disease_id"],
-            GDA.moi.is_(None) if moi is None else GDA.moi == moi,
-            GDA.relationship_type == values["relationship_type"],
-        )
-        .first()
-    )
+    # The unique key: gene + disease + MOI + relationship type + risk allele (uq_gda_entity)
+    existing = same_entity(db.query(GDA), SimpleNamespace(gene_id=gene.id, **values)).first()
     if existing is not None:
         report["conflicts"].append(
             {
