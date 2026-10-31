@@ -105,13 +105,13 @@ const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
               v-if="r.relationship_type === 'susceptibility'"
               :strength="r.evidence_strength"
             />
+            <Chip v-else :classification="r.evidence_strength" />
             <span
               v-if="r.risk_allele"
               class="font-mono text-xs text-muted-foreground"
               :title="`Risk allele ${r.risk_allele}`"
               >{{ r.risk_allele }}</span
             >
-            <Chip v-else :classification="r.evidence_strength" />
             <Chip
               v-if="hasShortReadLimit(r.diagnostics)"
               status="warning"

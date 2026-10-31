@@ -233,6 +233,22 @@ describe('CuratedAssociations', () => {
     expect(susceptibility.text()).toContain('Likely association')
   })
 
+  it('shows one class chip per susceptibility row, with or without a risk allele', async () => {
+    const risk = (id: number, risk_allele: string | null) =>
+      ({
+        ...RECORDS[3]!,
+        id,
+        disease_id: 'MONDO:0013860',
+        relationship_type: 'susceptibility',
+        evidence_strength: 'Likely association',
+        risk_allele
+      }) as Association
+    api.listPublished.mockResolvedValue(page([risk(5, null), risk(6, 'rs17831251 C')]))
+    const rows = (await mountAs(null)).findAll('[data-testid="gda-row"]')
+    expect(rows.map(r => r.text().split('Likely association').length - 1)).toEqual([1, 1])
+    expect(rows[1]!.text()).toContain('rs17831251 C')
+  })
+
   it('marks Gene Curator imports in the workflow and shows their provenance', async () => {
     const imported = {
       ...RECORDS[2]!,
