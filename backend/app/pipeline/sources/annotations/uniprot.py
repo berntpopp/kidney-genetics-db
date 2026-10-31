@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 # Fields requested from UniProt search and ID Mapping endpoints
 _UNIPROT_FIELDS = (
     "accession,id,gene_names,protein_name,length,organism_name,"
-    "cc_function,cc_subcellular_location,ft_domain,ft_region,"
+    "cc_function,cc_subcellular_location,ft_domain,ft_dna_bind,ft_zn_fing,ft_region,"
     "ft_motif,ft_transmem,ft_signal,ft_propep,ft_chain,"
     "xref_pfam,xref_interpro"
 )
