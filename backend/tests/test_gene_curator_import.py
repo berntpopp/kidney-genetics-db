@@ -510,3 +510,5 @@ def test_values_read_gc_iteration8_fields() -> None:
     )
     values = gc._values(row, [])
     assert (values["moi"], values["scores"]["association"]) == (None, 6)
+    no_id = _row(SUSCEPTIBILITY, moi_hpo_id=None, mode_of_inheritance="HP:0000005")
+    assert gc._values(no_id, [])["moi"] is None

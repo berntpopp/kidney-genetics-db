@@ -75,7 +75,11 @@ CLASSES = {
 ADOPTED = "ClinGen gene-disease validity (adopted)"
 SCOPE = "kidney-genetics"  # the only Gene Curator scope KGDB imports
 MOI_ROOT = "HP:0000005"  # HPO "Mode of inheritance": no particular mode
-UNDETERMINED_MOI = {"", "undetermined"}  # moi_hpo_id is null for these; anything else is unmapped
+UNDETERMINED_MOI = {
+    "",
+    "undetermined",
+    MOI_ROOT.lower(),
+}  # GC #619 may send the HPO root  # moi_hpo_id is null for these; anything else is unmapped
 
 
 def _parses(parse: Callable[[str], Any]) -> Callable[[str], bool]:
