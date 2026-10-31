@@ -4,23 +4,6 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import { routes } from './router'
 
-// Intercept console.warn to catch Vue Router warnings from vite-ssg internals
-// and route them through our logging system instead of polluting the console.
-// vite-ssg v28.3.0 uses the deprecated next() callback pattern internally.
-if (typeof window !== 'undefined') {
-  const origWarn = console.warn
-  console.warn = (...args: unknown[]) => {
-    const msg = typeof args[0] === 'string' ? args[0] : ''
-    // vue-router 4.6+ prefixes warnings with a code, e.g. [VUE_ROUTER_R0025]
-    if (msg.includes('[Vue Router warn]') || msg.includes('[VUE_ROUTER_')) {
-      // Route to our logging system once available, suppress from console
-      window.logService?.warn(msg)
-      return
-    }
-    origWarn.apply(console, args)
-  }
-}
-
 export const createApp = ViteSSG(
   App,
   {
@@ -30,6 +13,17 @@ export const createApp = ViteSSG(
     scrollBehavior: (to, _from, saved) => saved ?? (to.hash ? { el: to.hash, top: 80 } : undefined)
   },
   async ({ app, router }) => {
+    // vite-ssg (28.3.0, latest) registers its state guard with the deprecated next() callback
+    // right after this hook, which logs VUE_ROUTER_R0025 on every navigation. Adapt such
+    // guards to the return style: next(x) resolves the guard's result with x.
+    const beforeEach = router!.beforeEach
+    router!.beforeEach = guard =>
+      beforeEach(
+        guard.length > 2
+          ? (to, from) => new Promise(resolve => guard.call(undefined, to, from, resolve as never))
+          : guard
+      )
+
     // Create and install Pinia (vite-ssg does NOT do this automatically)
     const pinia = createPinia()
     app.use(pinia)
@@ -79,9 +73,7 @@ export const createApp = ViteSSG(
         url: window.location.href
       })
 
-      // Catch Vue warnings and route them through our logging system
-      // instead of console.warn — this captures the vite-ssg next() deprecation
-      // warning and any other Vue warnings in the Log Viewer
+      // Route Vue warnings through our logging system (visible in the Log Viewer)
       app.config.warnHandler = (msg, _instance, trace) => {
         logService.warn(`[Vue warn]: ${msg}`, { trace })
       }
