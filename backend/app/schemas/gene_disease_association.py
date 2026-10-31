@@ -63,6 +63,7 @@ DiseaseId = Annotated[str, AfterValidator(_disease_id)]
 DiseaseName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
 Citations = Annotated[list[str], Field(max_length=100), AfterValidator(_citations)]
 Summary = Annotated[str, Field(max_length=4000)]  # a GC synopsis (2000) plus an override note
+OddsRatio = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 HttpLink = Annotated[str, Field(max_length=2000), AfterValidator(_http_link)]
 
 
@@ -154,6 +155,19 @@ def check_risk_allele(relationship_type: str, risk_allele: str | None) -> None:
         raise ValueError("risk_allele is only for a susceptibility association")
 
 
+def check_odds_ratio(
+    relationship_type: str, value: float | None, low: float | None, high: float | None
+) -> None:
+    if value is None and low is None and high is None:
+        return
+    if relationship_type != "susceptibility":
+        raise ValueError("odds_ratio is only for a susceptibility association")
+    if value is None or (low is None) != (high is None):
+        raise ValueError("odds_ratio: give the value, and both 95% CI bounds or neither")
+    if low is not None and high is not None and not low <= value <= high:
+        raise ValueError("odds_ratio must lie within its 95% CI")
+
+
 def check_citations(citations: list[str], adopted_clingen: Any) -> None:
     if not citations and adopted_clingen is None:
         raise ValueError("citations: give at least one PMID")
@@ -174,6 +188,9 @@ class _Provenance(BaseModel):
 
     moi: Moi | None = None
     risk_allele: _text(100, 1) | None = None  # e.g. "rs4664308 A"; susceptibility only
+    odds_ratio: OddsRatio | None = None  # headline OR of the risk allele, with optional 95% CI
+    odds_ratio_ci_low: OddsRatio | None = None
+    odds_ratio_ci_high: OddsRatio | None = None
     methodology: _text(100, 1) | None = None
     methodology_version: _text(50, 1) | None = None
     external_id: _text(100, 1) | None = None
@@ -204,6 +221,9 @@ class AssociationCreate(_Provenance):
         check_provenance(self.source, self.external_id, self.external_url)
         check_citations(self.citations, self.adopted_clingen)
         check_risk_allele(self.relationship_type, self.risk_allele)
+        check_odds_ratio(
+            self.relationship_type, self.odds_ratio, self.odds_ratio_ci_low, self.odds_ratio_ci_high
+        )
         if (self.adopted_clingen or self.ai_agents) and self.source != "gene_curator":
             raise ValueError("adopted_clingen and ai_agents are only for Gene Curator imports")
         return self
@@ -259,6 +279,9 @@ class AssociationResponse(BaseModel):
     moi: str | None = None
     moi_label: str | None = None
     risk_allele: str | None = None
+    odds_ratio: float | None = None
+    odds_ratio_ci_low: float | None = None
+    odds_ratio_ci_high: float | None = None
     methodology: str | None = None
     methodology_version: str | None = None
     citations: list[str]

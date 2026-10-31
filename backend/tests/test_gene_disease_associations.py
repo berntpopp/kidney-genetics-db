@@ -283,6 +283,9 @@ def test_unique_violation_on_commit_maps_to_409() -> None:
         source="kgdb",
         moi=None,
         risk_allele=None,
+        odds_ratio=None,
+        odds_ratio_ci_low=None,
+        odds_ratio_ci_high=None,
         external_id=None,
         external_url=None,
     )
@@ -598,3 +601,28 @@ def test_refuted_association_is_a_susceptibility_class_only() -> None:
     assert AssociationCreate(**{**RECORD, **risk}).evidence_strength == "Refuted association"
     with pytest.raises(ValidationError, match="not a mendelian classification"):
         AssociationCreate(**{**RECORD, "evidence_strength": "Refuted association"})
+
+
+@pytest.mark.parametrize(
+    "odds, error",
+    [
+        ({"odds_ratio": 1.6}, None),
+        ({"odds_ratio": 1.6, "odds_ratio_ci_low": 1.2, "odds_ratio_ci_high": 2.1}, None),
+        ({"odds_ratio": 0}, "greater than 0"),
+        ({"odds_ratio": 1.6, "odds_ratio_ci_low": 1.2}, "both 95% CI bounds"),
+        ({"odds_ratio_ci_low": 1.2, "odds_ratio_ci_high": 2.1}, "give the value"),
+        ({"odds_ratio": 2.4, "odds_ratio_ci_low": 1.2, "odds_ratio_ci_high": 2.1}, "within"),
+        ({"odds_ratio": 1.6, "relationship_type": "mendelian"}, "only for a susceptibility"),
+    ],
+)
+def test_odds_ratio_is_a_validated_susceptibility_field(odds, error) -> None:
+    """#482: the headline OR (> 0) and its 95% CI, susceptibility only."""
+    risk = {"relationship_type": "susceptibility", "evidence_strength": "Likely association"}
+    if odds.get("relationship_type") == "mendelian":
+        risk = {}
+    data = {**RECORD, **risk, **odds}
+    if error is None:
+        assert AssociationCreate(**data).odds_ratio == odds["odds_ratio"]
+    else:
+        with pytest.raises(ValidationError, match=error):
+            AssociationCreate(**data)
