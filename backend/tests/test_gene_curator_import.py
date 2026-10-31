@@ -3,6 +3,7 @@
 import copy
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -337,3 +338,32 @@ def test_other_scope_rejected_and_curation_id_normalised(db_session, genes, admi
     [record] = _records(db_session)
     assert record.external_id == MENDELIAN["curation_id"]
     assert gc.import_export(db_session, [MENDELIAN], admin)["already_imported"]
+
+
+@pytest.mark.integration
+def test_first_import_race_reuses_the_account(db_session, genes, admin, monkeypatch) -> None:
+    """Another upload created the account between our lookup and our commit (deterministic)."""
+    existing = gc.import_account(db_session)
+    real_query, real_rollback = db_session.query, db_session.rollback
+    misses, rollbacks = [], []
+
+    def query(*entities):
+        if entities[0] is User and not misses:  # the first lookup misses, once
+            misses.append(entities)
+            return SimpleNamespace(filter=lambda *_: SimpleNamespace(first=lambda: None))
+        return real_query(*entities)
+
+    def rollback():
+        rollbacks.append(1)
+        real_rollback()
+
+    monkeypatch.setattr(db_session, "query", query)
+    monkeypatch.setattr(db_session, "rollback", rollback)
+    report = gc.import_export(db_session, [MENDELIAN], admin)
+    monkeypatch.undo()
+
+    assert misses and rollbacks == [1]  # the duplicate insert hit the unique key and rolled back
+    assert [c["curation_id"] for c in report["created"]] == [MENDELIAN["curation_id"]]
+    [record] = _records(db_session)
+    assert record.curator_id == existing.id
+    assert db_session.query(User).filter(User.username == "gene-curator-import").count() == 1
