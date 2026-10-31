@@ -81,3 +81,20 @@ explained by an AHDC1 variant).
   when experimental points exceed genetic points, or when most genetic points come from ≤2 variants.
 - Per-allele scoring needs explicit per-row points in Gene Curator's point model (the agent or curator
   enters the computed points), until a native rule exists.
+
+## Extended checks before v1 (2026-10-31)
+- **Fresh ClinGen set** (20 kidney-adjacent entities, none used before, mostly non-Definitive):
+  scorer 47% exact, the agent's own call 63%; all 8 scorer misses were over-calls.
+- **Repeatability**: 8 entities curated twice, independently: same class 7/8. Errors are systematic,
+  not noise.
+- **Pooled untouched genes** (n=74): scorer 70% exact (95% CI 59–79%), non-Definitive 52% (37–67%),
+  Definitive about 90%. When the scorer class and the agent's own call agree (50/74) they match
+  ClinGen in 84%; this is the main reviewer triage signal.
+- **Band tuning** (80 variants, leave-one-set-out): no threshold change generalised; bands unchanged.
+- **KGDB target genes without ClinGen** (24 genes from the top three evidence tiers, vs GenCC): 50%
+  within the submitters' range; GenCC is a weak reference (13/24 single-submitter).
+- **Independent judge** (Gemini 4 Argon via `agy`, blind A/B, both orders, 10 cases): of 8
+  disagreements ClinGen better 4, ours better 3, neither 1; verdicts stable across order swaps;
+  the judge recalled 6/10 published classes but overruled its memory 3 times.
+- **Decision**: v1 is used as a curation proposal; every record is reviewed by a person in Gene
+  Curator before KGDB publishes it. Real cost about $4–7 per entity at API prices, 12–22 minutes.
