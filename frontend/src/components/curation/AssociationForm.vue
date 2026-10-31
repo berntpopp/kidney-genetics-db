@@ -35,6 +35,9 @@ const FIELDS = [
   'disease_name',
   'relationship_type',
   'risk_allele',
+  'odds_ratio',
+  'odds_ratio_ci_low',
+  'odds_ratio_ci_high',
   'evidence_strength',
   'moi',
   'citations',
@@ -51,6 +54,7 @@ const FIELDS = [
   'score_total'
 ] as const
 
+const num = (v: string | undefined) => (v?.trim() ? Number(v) : null)
 const splitCitations = (v: string) => v.split(/[\s,;]+/).filter(Boolean)
 const blank = (v: string | undefined | null) => v?.trim() || null
 // Number inputs may hand back numbers; normalise to the string the other fields use
@@ -63,6 +67,13 @@ const score = z.preprocess(
       v => !v?.trim() || (Number(v) >= 0 && Number(v) <= 100),
       'Points must be between 0 and 100'
     )
+)
+const ratio = z.preprocess(
+  v => (v == null || v === '' ? undefined : String(v)),
+  z
+    .string()
+    .optional()
+    .refine(v => !v?.trim() || Number(v) > 0, 'Must be greater than 0')
 )
 
 // Mirrors backend validation; the API stays authoritative
@@ -79,6 +90,9 @@ const schema = toTypedSchema(
       disease_name: z.string().trim().min(1, 'Disease name is required').max(255),
       relationship_type: z.enum(RELATIONSHIP_TYPES),
       risk_allele: z.string().max(100).optional(),
+      odds_ratio: ratio,
+      odds_ratio_ci_low: ratio,
+      odds_ratio_ci_high: ratio,
       evidence_strength: z.enum(EVIDENCE_STRENGTHS, {
         errorMap: () => ({ message: 'Select an evidence strength' })
       }),
@@ -120,6 +134,16 @@ const schema = toTypedSchema(
           path: ['evidence_strength'],
           message: `Select a ${v.relationship_type} classification`
         })
+      if (v.relationship_type === 'susceptibility') {
+        const [or, lo, hi] = [v.odds_ratio, v.odds_ratio_ci_low, v.odds_ratio_ci_high].map(num)
+        const message =
+          (lo !== null || hi !== null) && (or === null || lo === null || hi === null)
+            ? 'Give the odds ratio and both CI bounds, or the odds ratio alone'
+            : or !== null && lo !== null && hi !== null && !(lo <= or && or <= hi)
+              ? 'The odds ratio must lie within its 95% CI'
+              : null
+        if (message) ctx.addIssue({ code: 'custom', path: ['odds_ratio'], message })
+      }
       if (v.source === 'gene_curator') {
         if (!v.external_id?.trim())
           ctx.addIssue({
@@ -147,6 +171,9 @@ const [diseaseId] = defineField('disease_id', opts)
 const [diseaseName] = defineField('disease_name', opts)
 const [relationshipType] = defineField('relationship_type', opts)
 const [riskAllele] = defineField('risk_allele', opts)
+const [oddsRatio] = defineField('odds_ratio', opts)
+const [oddsRatioLow] = defineField('odds_ratio_ci_low', opts)
+const [oddsRatioHigh] = defineField('odds_ratio_ci_high', opts)
 const [strength] = defineField('evidence_strength', opts)
 const [moi] = defineField('moi', opts)
 const [citations] = defineField('citations', opts)
@@ -364,6 +391,9 @@ watch(
             disease_name: r.disease_name,
             relationship_type: r.relationship_type ?? 'mendelian',
             risk_allele: r.risk_allele ?? '',
+            odds_ratio: str(r.odds_ratio),
+            odds_ratio_ci_low: str(r.odds_ratio_ci_low),
+            odds_ratio_ci_high: str(r.odds_ratio_ci_high),
             evidence_strength: r.evidence_strength,
             moi: r.moi ?? '',
             citations: r.citations.join(', '),
@@ -385,8 +415,6 @@ watch(
   },
   { immediate: true }
 )
-
-const num = (v: string | undefined) => (v?.trim() ? Number(v) : null)
 
 const onSubmit = handleSubmit(
   v => {
@@ -415,6 +443,10 @@ const onSubmit = handleSubmit(
       relationship_type: v.relationship_type,
       // Only a susceptibility entity names an allele (the backend refuses it otherwise)
       risk_allele: v.relationship_type === 'susceptibility' ? blank(v.risk_allele) : null,
+      odds_ratio: v.relationship_type === 'susceptibility' ? num(v.odds_ratio) : null,
+      odds_ratio_ci_low: v.relationship_type === 'susceptibility' ? num(v.odds_ratio_ci_low) : null,
+      odds_ratio_ci_high:
+        v.relationship_type === 'susceptibility' ? num(v.odds_ratio_ci_high) : null,
       moi: blank(v.moi),
       methodology: blank(v.methodology),
       methodology_version: blank(v.methodology_version),
@@ -537,6 +569,53 @@ const fieldClass =
             placeholder="rs4664308 A"
             :disabled="busy"
           />
+        </div>
+        <div v-if="relationshipType === 'susceptibility'" class="space-y-2">
+          <Label for="gda-odds_ratio">Odds ratio, 95% CI (optional)</Label>
+          <div class="grid grid-cols-3 gap-2">
+            <Input
+              id="gda-odds_ratio"
+              v-model="oddsRatio"
+              type="number"
+              min="0"
+              step="any"
+              aria-label="Odds ratio"
+              :disabled="busy"
+              :aria-invalid="!!errors.odds_ratio"
+              :aria-describedby="describedBy('odds_ratio')"
+            />
+            <Input
+              id="gda-odds_ratio_ci_low"
+              v-model="oddsRatioLow"
+              type="number"
+              min="0"
+              step="any"
+              aria-label="95% CI lower"
+              :disabled="busy"
+              :aria-invalid="!!errors.odds_ratio_ci_low"
+              :aria-describedby="describedBy('odds_ratio_ci_low')"
+            />
+            <Input
+              id="gda-odds_ratio_ci_high"
+              v-model="oddsRatioHigh"
+              type="number"
+              min="0"
+              step="any"
+              aria-label="95% CI upper"
+              :disabled="busy"
+              :aria-invalid="!!errors.odds_ratio_ci_high"
+              :aria-describedby="describedBy('odds_ratio_ci_high')"
+            />
+          </div>
+          <p
+            v-for="f in ['odds_ratio', 'odds_ratio_ci_low', 'odds_ratio_ci_high'] as const"
+            v-show="errors[f]"
+            :id="`gda-${f}-error`"
+            :key="f"
+            class="text-sm text-destructive"
+          >
+            {{ errors[f] }}
+          </p>
         </div>
         <div class="space-y-2">
           <Label for="gda-moi">Mode of inheritance (optional)</Label>

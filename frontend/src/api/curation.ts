@@ -174,6 +174,10 @@ export interface AssociationDetails {
   moi: string | null
   /** Susceptibility: the named risk allele, e.g. "rs4664308 A" (part of the entity key) */
   risk_allele?: string | null
+  /** Susceptibility: the curation's headline odds ratio and optional 95% CI (#482) */
+  odds_ratio?: number | null
+  odds_ratio_ci_low?: number | null
+  odds_ratio_ci_high?: number | null
   methodology: string | null
   methodology_version: string | null
   source: AssociationSource

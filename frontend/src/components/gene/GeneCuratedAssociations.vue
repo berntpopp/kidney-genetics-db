@@ -20,7 +20,11 @@
             <div class="flex flex-wrap items-center gap-2">
               <MoiChip :moi="r.moi" />
               <Chip v-if="group.type === 'mendelian'" :classification="r.evidence_strength" />
-              <SusceptibilityChip v-else :strength="r.evidence_strength" />
+              <SusceptibilityChip
+                v-else
+                :strength="r.evidence_strength"
+                :odds-ratio="r.odds_ratio"
+              />
               <Chip
                 v-if="hasShortReadLimit(r.diagnostics)"
                 status="warning"
