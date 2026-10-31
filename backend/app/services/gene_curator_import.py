@@ -1,35 +1,34 @@
-"""Import Gene Curator's curation export as KGDB drafts (#448).
+"""One-shot import of an uploaded Gene Curator export as KGDB drafts (#448).
 
-Contract: backend/contract/gene_curator_export.snapshot.json (export v1; Gene Curator's
-docs/EXPORT.md). A Gene Curator entity (scope, gene, entity_key) is one KGDB record:
-source gene_curator + gene + disease + MOI + relationship type, with the curation_id as
-its current version (external_id), so a re-curation updates the record in place.
+Curations made in Gene Curator are exported once and uploaded here; from then on they
+live and are edited only in KGDB, and Gene Curator never updates or retracts them. KGDB
+never calls Gene Curator. The upload must match the pinned export v1 schema
+(backend/contract/gene_curator_export.snapshot.json); fields added within v1 are ignored.
 
-Imported records are drafts that a KGDB curator other than the importer must publish
-(the existing workflow). A record that left draft, or that a KGDB curator changed since
-its last import, is never overwritten: the difference is reported. Unknown classes, MOIs
-and relationship types are rejected, not guessed. A full sync (no updated_since) retracts
-imported records whose curation Gene Curator no longer returns (hard deletes never appear).
+Each row becomes a draft authored by the inactive `gene-curator-import` account, so one
+KGDB curator can take it over, submit and publish it. A curation_id already imported is
+skipped. Unknown classes, MOIs and relationship types are rejected, not guessed.
 """
 
+import json
+import secrets
+from collections.abc import Callable
 from datetime import datetime
+from pathlib import Path
 from typing import Any
+from uuid import UUID
 
-import httpx
-from fastapi import HTTPException
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.exceptions import ResourceConflictError
+from app.core.exceptions import ValidationError as DomainValidationError
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, retry_with_backoff
+from app.core.security import get_password_hash
 from app.models.gene import Gene
 from app.models.gene_disease_association import MOI_TERMS
 from app.models.gene_disease_association import GeneDiseaseAssociation as GDA
-from app.models.gene_disease_association import GeneDiseaseAssociationEvent as Event
 from app.models.user import User
 from app.schemas.gene_disease_association import (
     AssociationCreate,
@@ -38,13 +37,15 @@ from app.schemas.gene_disease_association import (
     RecommendedTranscript,
     Resource,
 )
-from app.services.gene_disease_association_service import _commit_unique, _ensure_unique, _log
+from app.services.gene_disease_association_service import IMPORT_USERNAME, _commit_unique
 
 logger = get_logger(__name__)
 
-EXPORT_PATH = "/api/v1/export/curations"
+SNAPSHOT = Path(__file__).resolve().parents[2] / "contract" / "gene_curator_export.snapshot.json"
+SCHEMAS: dict[str, Any] = json.loads(SNAPSHOT.read_text())["schemas"]
+MAX_UPLOAD = 20 * 1024 * 1024
 SOURCE = "gene_curator"
-IMPORT, RETRACT = "gc_import", "gc_retract"  # event actions written only by this importer
+IMPORT = "gc_import"
 # Gene Curator class keys (trimmed, lowercase, spaces/hyphens as underscores) -> KGDB classes
 CLASSES = {
     "mendelian": {
@@ -65,7 +66,6 @@ CLASSES = {
     },
 }
 UNDETERMINED_MOI = {"", "undetermined"}  # moi_hpo_id is null for these; anything else is unmapped
-# What an import writes and compares (everything a curator can edit)
 FIELDS = (
     "disease_id",
     "disease_name",
@@ -85,37 +85,95 @@ FIELDS = (
 )
 
 
-def fetch_export(updated_since: datetime | None) -> list[dict[str, Any]]:
-    """Every page of the export for the configured scope (member token: archived rows too)."""
-    if not settings.GENE_CURATOR_URL or not settings.GENE_CURATOR_TOKEN:
-        raise HTTPException(503, "Set GENE_CURATOR_URL and GENE_CURATOR_TOKEN to import")
-    params: dict[str, Any] = {"scope_name": settings.GENE_CURATOR_SCOPE, "limit": 500}
-    if updated_since:
-        params["updated_since"] = updated_since.isoformat()
-    headers = {"Authorization": f"Bearer {settings.GENE_CURATOR_TOKEN.get_secret_value()}"}
+def _parses(parse: Callable[[str], Any]) -> Callable[[str], bool]:
+    def check(value: str) -> bool:
+        try:
+            parse(value)
+            return True
+        except ValueError:
+            return False
 
-    @retry_with_backoff(RetryConfig(max_retries=3))
-    def get_page(client: httpx.Client) -> dict[str, Any]:
-        response = client.get(EXPORT_PATH, params=params)
-        response.raise_for_status()
-        return response.json()
+    return check
 
-    items: list[dict[str, Any]] = []
+
+_TYPES: dict[str, Callable[[Any], bool]] = {
+    "string": lambda v: isinstance(v, str),
+    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    "number": lambda v: isinstance(v, int | float) and not isinstance(v, bool),
+    "boolean": lambda v: isinstance(v, bool),
+    "null": lambda v: v is None,
+    "object": lambda v: isinstance(v, dict),
+    "array": lambda v: isinstance(v, list),
+}
+_FORMATS = {"uuid": _parses(UUID), "date-time": _parses(datetime.fromisoformat)}
+
+
+def schema_errors(value: Any, schema: dict[str, Any], path: str = "$") -> list[str]:
+    """Check value against the pinned schema: the JSON Schema subset its OpenAPI uses.
+
+    Undeclared properties pass (additive v1 fields)."""
+    if "$ref" in schema:
+        return schema_errors(value, SCHEMAS[schema["$ref"].rsplit("/", 1)[1]], path)
+    if "anyOf" in schema:
+        if any(not schema_errors(value, option, path) for option in schema["anyOf"]):
+            return []
+        return [f"{path}: matches no allowed type"]
+    if "const" in schema and value != schema["const"]:
+        return [f"{path}: must be {schema['const']!r}"]
+    if "enum" in schema and value not in schema["enum"]:
+        return [f"{path}: must be one of {schema['enum']}"]
+    kind = schema.get("type")
+    if kind and not _TYPES[kind](value):
+        return [f"{path}: expected {kind}"]
+    fmt = schema.get("format", "")
+    if kind == "string" and fmt in _FORMATS and not _FORMATS[fmt](value):
+        return [f"{path}: not a {fmt}"]
+    if kind == "array":
+        item = schema.get("items", {})
+        return [e for i, v in enumerate(value) for e in schema_errors(v, item, f"{path}[{i}]")]
+    if kind == "object":
+        errors = [f"{path}.{k}: required" for k in schema.get("required", []) if k not in value]
+        for key, sub in schema.get("properties", {}).items():
+            if key in value:
+                errors += schema_errors(value[key], sub, f"{path}.{key}")
+        return errors
+    return []
+
+
+def parse_export(content: bytes) -> list[dict[str, Any]]:
+    """The rows of an uploaded export page, or list of pages; 422 unless it matches v1."""
+    if len(content) > MAX_UPLOAD:
+        raise DomainValidationError("file", f"larger than {MAX_UPLOAD // 2**20} MB")
     try:
-        with httpx.Client(base_url=settings.GENE_CURATOR_URL, headers=headers, timeout=60) as c:
-            while True:
-                page = get_page(c)
-                if page.get("export_version") != "1":
-                    raise HTTPException(
-                        502,
-                        f"Unsupported Gene Curator export_version {page.get('export_version')!r}",
-                    )
-                items += page["items"]
-                if not page.get("next_cursor"):
-                    return items
-                params["cursor"] = page["next_cursor"]
-    except httpx.HTTPError as e:
-        raise HTTPException(502, f"Gene Curator export failed: {e}") from e
+        doc = json.loads(content)
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        raise DomainValidationError("file", f"not JSON ({e})") from e
+    pages = doc if isinstance(doc, list) else [doc]
+    page_schema = {"$ref": "#/components/schemas/CurationExportPage"}
+    errors = [e for i, p in enumerate(pages) for e in schema_errors(p, page_schema, f"$[{i}]")]
+    if errors:
+        shown = "; ".join(errors[:20]) + (
+            f"; ... {len(errors) - 20} more" if len(errors) > 20 else ""
+        )
+        raise DomainValidationError("file", f"not a Gene Curator export v1: {shown}")
+    return [item for page in pages for item in page["items"]]
+
+
+def import_account(db: Session) -> User:
+    """The inactive author of imported drafts; it cannot log in (random, discarded password)."""
+    user = db.query(User).filter(User.username == IMPORT_USERNAME).first()
+    if user is None:
+        user = User(
+            username=IMPORT_USERNAME,
+            email=f"{IMPORT_USERNAME}@kidney-genetics.local",
+            full_name="Gene Curator import",
+            hashed_password=get_password_hash(secrets.token_urlsafe(32)),
+            role="viewer",
+            is_active=False,
+        )
+        db.add(user)
+        db.commit()
+    return user
 
 
 def _key(value: Any) -> str:
@@ -132,7 +190,7 @@ def _clean(value: Any) -> Any:
 
 
 def _known(model: type[BaseModel], data: dict[str, Any], path: str, dropped: list[str]) -> Any:
-    """Keep the keys KGDB's strict Diagnostics schema has; report the rest (#474)."""
+    """Keep the keys KGDB's strict Diagnostics schema has; report the rest."""
     dropped += [f"{path}.{k}" for k in data if k not in model.model_fields]
     return {k: v for k, v in data.items() if k in model.model_fields}
 
@@ -145,9 +203,16 @@ def _tool(text: Any) -> dict[str, Any] | None:
 
 def _diagnostics(evidence: dict[str, Any], dropped: list[str]) -> dict[str, Any] | None:
     """Reshape evidence.diagnostics per Gene Curator's KGDB mapping (kidney-genetics/README)."""
-    notes = evidence.get("diagnostics_notes") or {}
-    dropped += [f"diagnostics_notes.{k}" for k, v in _clean(notes).items()]
+    notes = _clean(evidence.get("diagnostics_notes") or {})
     raw = _clean(evidence.get("diagnostics") or {})
+    if note := notes.pop("detectability_note", None):
+        raw["detectability_note"] = note
+    if via := notes.pop("transcript_verified_via", None):
+        raw["recommended_transcript"] = {
+            **raw.get("recommended_transcript", {}),
+            "verified_via": via,
+        }
+    dropped += [f"diagnostics_notes.{k}" for k in notes]
     if not raw:
         return None
     out = _known(Diagnostics, raw, "diagnostics", dropped)
@@ -174,6 +239,10 @@ def _diagnostics(evidence: dict[str, Any], dropped: list[str]) -> dict[str, Any]
 
 def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
     """Map an export row to KGDB fields; ValueError for anything KGDB cannot hold as is."""
+    if item["status"] != "active":
+        raise ValueError(
+            f"curation is {item['status']} in Gene Curator ({item.get('archive_reason')})"
+        )
     relationship = item.get("relationship_type") or "mendelian"
     if relationship not in CLASSES:
         raise ValueError(f"unknown relationship_type {relationship!r}")
@@ -208,7 +277,7 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
                 str(methodology["version"]) if methodology.get("version") is not None else None
             ),
             source=SOURCE,
-            external_id=str(item["curation_id"]),
+            external_id=item["curation_id"],
             external_url=item["url"],
             external_curator=item.get("curator_name") or None,
             external_reviewer=item.get("reviewer_name") or None,
@@ -223,63 +292,23 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
     return payload.model_dump(mode="json", include=set(FIELDS))
 
 
-def _existing(db: Session, gene: Gene, item: dict[str, Any]) -> GDA | None:
-    """The record of this curation, or of its entity after a re-curation (sync note 3)."""
-    record = db.query(GDA).filter_by(source=SOURCE, external_id=str(item["curation_id"])).first()
-    if record:
-        return record
-    moi = (item.get("moi_hpo_id") or "").upper() or None
-    return (
-        db.query(GDA)
-        .filter(
-            GDA.source == SOURCE,
-            GDA.gene_id == gene.id,
-            GDA.disease_id == (item.get("mondo_id") or "").strip().upper(),
-            GDA.relationship_type == (item.get("relationship_type") or "mendelian"),
-            GDA.moi.is_(None) if moi is None else GDA.moi == moi,
-        )
-        .first()
-    )
-
-
-def _last_import(db: Session, record: GDA) -> dict[str, Any] | None:
-    row = (
-        db.query(Event.snapshot)
-        .filter(Event.association_id == record.id, Event.action == IMPORT)
-        .order_by(Event.id.desc())
-        .first()
-    )
-    return row.snapshot if row else None
-
-
-def _blocked(db: Session, record: GDA) -> str | None:
-    """Why an update must not overwrite this record, or None."""
-    if record.status != "draft":
-        return f"record is {record.status}; return it to draft to take the Gene Curator update"
-    snapshot = _last_import(db, record)
-    if snapshot is None:
-        return "record was not created by the Gene Curator import"
-    if any(snapshot.get(f) != getattr(record, f) for f in FIELDS):
-        return "a KGDB curator edited the record since its last import"
-    return None
-
-
 def _import_row(
-    db: Session, item: dict[str, Any], user: User, report: dict[str, Any], matched: set[int]
+    db: Session, item: dict[str, Any], author: User, admin: User, report: dict[str, Any]
 ) -> None:
     ref = {
-        "curation_id": str(item["curation_id"]),
-        "gene_symbol": item.get("approved_symbol"),
-        "hgnc_id": item.get("hgnc_id"),
-        "entity_key": item.get("entity_key"),
+        "curation_id": item["curation_id"],
+        "gene_symbol": item["approved_symbol"],
+        "hgnc_id": item["hgnc_id"],
+        "entity_key": item["entity_key"],
     }
-    gene = db.query(Gene).filter(Gene.hgnc_id == item.get("hgnc_id")).first()
+    done = db.query(GDA.id).filter_by(source=SOURCE, external_id=item["curation_id"]).scalar()
+    if done:
+        report["already_imported"].append({**ref, "record_id": done})
+        return
+    gene = db.query(Gene).filter(Gene.hgnc_id == item["hgnc_id"]).first()
     if gene is None:
         report["genes_not_in_kgdb"].append(ref)
         return
-    record = _existing(db, gene, item)
-    if record is not None:
-        matched.add(record.id)  # the entity still exists, even if this row is rejected
     dropped: list[str] = []
     try:
         values = _values(item, dropped)
@@ -288,100 +317,56 @@ def _import_row(
         return
     if dropped:
         report["dropped_fields"].append({**ref, "fields": sorted(set(dropped))})
-    try:
-        if record is None:
-            record = GDA(
-                gene_id=gene.id, curator_id=user.id, status="draft", source=SOURCE, **values
-            )
-            with db.no_autoflush:  # the new record must not match itself
-                _ensure_unique(db, record)
-            db.add(record)
-            _commit_unique(db, record, IMPORT, user)
-            matched.add(record.id)
-            report["created"].append({**ref, "record_id": record.id})
-            return
-        differences = {
-            f: {"kgdb": getattr(record, f), "gene_curator": values[f]}
-            for f in FIELDS
-            if getattr(record, f) != values[f]
-        }
-        if not differences:
-            report["unchanged"] += 1
-            return
-        if reason := _blocked(db, record):
-            conflict = {**ref, "record_id": record.id, "reason": reason}
-            report["conflicts"].append({**conflict, "differences": differences})
-            return
-        for field, value in values.items():
-            setattr(record, field, value)
-        with db.no_autoflush:
-            _ensure_unique(db, record)
-        _commit_unique(db, record, IMPORT, user)
-        report["updated"].append({**ref, "record_id": record.id, "fields": sorted(differences)})
-    except ResourceConflictError as e:
-        db.rollback()
-        report["conflicts"].append({**ref, "record_id": record.id, "reason": e.message})
-
-
-def _retract(db: Session, record: GDA, user: User, reason: str, report: dict[str, Any]) -> None:
-    """Take the record offline (draft) and trace why; content stays for the curator to see."""
-    last = db.query(Event.action).filter(Event.association_id == record.id)
-    if record.status == "draft" and last.order_by(Event.id.desc()).first() == (RETRACT,):
-        return  # already retracted by an earlier sync
-    was = record.status
-    record.status = "draft"
-    record.submitted_at = None
-    record.published_at = None
-    _log(db, record, RETRACT, user)
-    db.commit()
-    report["retracted"].append(
-        {"record_id": record.id, "curation_id": record.external_id, "was": was, "reason": reason}
+    # The unique key: gene + disease + MOI (NULL MOIs equal) + relationship type (0018)
+    moi = values["moi"]
+    existing = (
+        db.query(GDA)
+        .filter(
+            GDA.gene_id == gene.id,
+            GDA.disease_id == values["disease_id"],
+            GDA.moi.is_(None) if moi is None else GDA.moi == moi,
+            GDA.relationship_type == values["relationship_type"],
+        )
+        .first()
     )
+    if existing is not None:
+        report["conflicts"].append(
+            {
+                **ref,
+                "reason": "a KGDB record already exists for this gene, disease, MOI and "
+                "relationship type; compare them",
+                "existing_record_id": existing.id,
+                "existing_source": existing.source,
+                "existing_status": existing.status,
+            }
+        )
+        return
+    record = GDA(gene_id=gene.id, curator_id=author.id, status="draft", source=SOURCE, **values)
+    db.add(record)
+    try:
+        _commit_unique(db, record, IMPORT, admin)  # event by the admin who uploaded
+    except ResourceConflictError as e:  # a concurrent upload took the key
+        report["conflicts"].append({**ref, "reason": e.message})
+        return
+    report["created"].append({**ref, "record_id": record.id})
 
 
-def import_export(
-    db: Session, items: list[dict[str, Any]], user: User, *, full: bool
-) -> dict[str, Any]:
-    """Upsert export rows as drafts; ``full`` (the whole export) also retracts absent ones."""
+def import_export(db: Session, items: list[dict[str, Any]], admin: User) -> dict[str, Any]:
+    """Create a draft per export row; nothing existing is changed."""
     report: dict[str, Any] = {
-        "full_sync": full,
         "rows": len(items),
         "created": [],
-        "updated": [],
-        "unchanged": 0,
-        "retracted": [],
+        "already_imported": [],
         "conflicts": [],
         "rejected": [],
         "genes_not_in_kgdb": [],
         "dropped_fields": [],
     }
-    rows = {str(i["curation_id"]): i for i in items}  # overlapping sync windows repeat rows
-    active = {cid: i for cid, i in rows.items() if i.get("status") == "active"}
-    matched: set[int] = set()
-    for item in active.values():
-        _import_row(db, item, user, report, matched)
-    for cid, item in rows.items():
-        # A replaced curation is handled by its active successor (sync note 3)
-        if item.get("status") == "archived" and item.get("archive_reason") != (
-            "Replaced by new active curation"
-        ):
-            record = db.query(GDA).filter_by(source=SOURCE, external_id=cid).first()
-            if record:
-                reason = item.get("archive_reason") or "archived in Gene Curator"
-                _retract(db, record, user, reason, report)
-    if full:
-        # Deletions never appear in the feed (sync note 4): retract imports no longer returned
-        absent = db.query(GDA).filter(
-            GDA.source == SOURCE,
-            GDA.id.in_(select(Event.association_id).where(Event.action == IMPORT)),
-            GDA.id.notin_(matched),
-            GDA.external_id.notin_(list(active)),
-        )
-        for record in absent.all():
-            _retract(db, record, user, "no longer in the Gene Curator export", report)
+    author = import_account(db)
+    for item in {i["curation_id"]: i for i in items}.values():  # pages may overlap
+        _import_row(db, item, author, admin, report)
     logger.sync_info(
         "Gene Curator import finished",
-        full_sync=full,
         rows=len(items),
         **{k: len(v) for k, v in report.items() if isinstance(v, list)},
     )

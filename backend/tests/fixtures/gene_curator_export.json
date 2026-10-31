@@ -152,7 +152,7 @@
           ]
         },
         "diagnostics_notes": {
-          "transcript_verified_via": "",
+          "transcript_verified_via": "MANE Select in Ensembl 115",
           "detectability_note": "standard short-read testing adequate"
         },
         "evidence_summary": "Ten unrelated homozygous probands; mouse and zebrafish models."

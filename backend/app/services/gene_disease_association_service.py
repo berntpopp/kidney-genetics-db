@@ -1,7 +1,9 @@
 """Workflow rules for expert-reviewed gene-disease associations (#26).
 
 draft -> in_review -> published. Only the author edits or submits a draft; a
-different curator/admin publishes or returns a record to draft. Published
+different curator/admin publishes or returns a record to draft. Gene Curator imports
+(#448) are authored by the inactive import account, so any curator edits and submits
+them and may also publish them (the reviewer is still not the author). Published
 records are immutable until a reviewer returns them to draft. Every action
 appends the resulting record to gene_disease_association_events.
 """
@@ -72,8 +74,14 @@ def _require_status(record: GDA, *allowed: str) -> None:
         )
 
 
-def _require_author(record: GDA, user: User) -> None:
-    if record.curator_id != user.id:
+IMPORT_USERNAME = "gene-curator-import"  # non-login author of Gene Curator imports (#448)
+
+
+def _require_author(db: Session, record: GDA, user: User) -> None:
+    if record.curator_id == user.id:
+        return
+    author = db.query(User.username).filter(User.id == record.curator_id).scalar()
+    if author != IMPORT_USERNAME:
         raise PermissionDeniedError("record author", "editing or submitting this association")
 
 
@@ -169,7 +177,7 @@ def create(db: Session, payload: AssociationCreate, user: User) -> GDA:
 
 def update(db: Session, record_id: int, payload: AssociationUpdate, user: User) -> GDA:
     record = _locked(db, record_id)
-    _require_author(record, user)
+    _require_author(db, record, user)
     _require_status(record, "draft")
     changes = payload.model_dump(mode="json", exclude_unset=True)
     for key, value in changes.items():
@@ -190,7 +198,7 @@ def update(db: Session, record_id: int, payload: AssociationUpdate, user: User) 
 
 def submit(db: Session, record_id: int, user: User) -> GDA:
     record = _locked(db, record_id)
-    _require_author(record, user)
+    _require_author(db, record, user)
     _require_status(record, "draft")
     record.status = "in_review"
     record.submitted_at = datetime.now(UTC)
