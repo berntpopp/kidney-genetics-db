@@ -128,6 +128,12 @@ const SECTIONS = [
     '/admin/hybrid-sources'
   ],
   [
+    'geneCuratorImport',
+    'Gene Curator Import',
+    'Import finished Gene Curator curations as drafts',
+    '/admin/gene-curator-import'
+  ],
+  [
     'releases',
     'Data Releases',
     'Create, publish and export CalVer data releases',

@@ -112,6 +112,9 @@ export default [
         CustomEvent: 'readonly',
         KeyboardEvent: 'readonly',
         PointerEvent: 'readonly',
+        Event: 'readonly',
+        File: 'readonly',
+        HTMLInputElement: 'readonly',
         __APP_VERSION__: 'readonly'
       }
     },

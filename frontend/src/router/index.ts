@@ -211,6 +211,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresAdmin: true, title: 'Hybrid Sources', noindex: true }
   },
   {
+    path: '/admin/gene-curator-import',
+    name: 'admin-gene-curator-import',
+    component: () => import('../views/admin/AdminGeneCuratorImport.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, title: 'Gene Curator Import', noindex: true }
+  },
+  {
     // The FAQ is now the Questions section of About
     path: '/faq',
     redirect: { path: '/about', hash: '#faq' }

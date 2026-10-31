@@ -21,6 +21,7 @@ import {
   Package,
   DatabaseBackup,
   DatabaseZap,
+  FileInput,
   RefreshCw,
   Play,
   Square,
@@ -54,6 +55,7 @@ export const ADMIN_ICONS: Record<string, Component> = {
   releases: Package,
   backups: DatabaseBackup,
   hybridSources: DatabaseZap,
+  geneCuratorImport: FileInput,
 
   // Actions
   refresh: RefreshCw,
