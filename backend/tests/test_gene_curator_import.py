@@ -112,6 +112,8 @@ async def test_upload_is_admin_only_and_bad_files_are_4xx(
     ):
         resp = await async_client.post(URL, files=_file(content), headers=_bearer(admin))
         assert resp.status_code == 422, resp.text
+    # Schema errors come as a list of paths, not only inside the message
+    assert resp.json()["error"]["details"]["errors"] == ["$[0].items[0].url: expected string"]
     monkeypatch.setattr(gc, "MAX_UPLOAD", 10)
     resp = await async_client.post(URL, files=_file(PAGE), headers=_bearer(admin))
     assert resp.status_code == 422 and "larger than" in resp.json()["error"]["message"]

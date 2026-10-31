@@ -63,7 +63,13 @@ describe('AdminGeneCuratorImport', () => {
         created: [{ ...ref('01', 'PKD1'), record_id: 7 }],
         already_imported: [{ ...ref('02', 'PKD2'), record_id: 3 }],
         conflicts: [
-          { ...ref('03', 'NPHS1'), reason: 'a KGDB record exists', existing_record_id: 9 }
+          {
+            ...ref('03', 'NPHS1'),
+            reason: 'a KGDB record exists',
+            existing_record_id: 9,
+            existing_source: 'kgdb',
+            existing_status: 'published'
+          }
         ],
         rejected: [{ ...ref('04', 'COL4A5'), reason: "unknown MOI 'HP:0000001'" }],
         genes_not_in_kgdb: [ref('05', 'NOTAGENE')],
@@ -76,13 +82,15 @@ describe('AdminGeneCuratorImport', () => {
     expect(group('created')).toContain('Record #7')
     expect(group('already_imported')).toContain('Record #3')
     expect(group('conflicts')).toContain('Record #9')
-    expect(group('conflicts')).toContain('a KGDB record exists')
+    expect(group('conflicts')).toContain('a KGDB record exists (kgdb, published)')
     expect(group('rejected')).toContain("unknown MOI 'HP:0000001'")
     expect(group('genes_not_in_kgdb')).toContain('HGNC:05')
     expect(group('dropped_fields')).toContain('diagnostics.foo')
-    expect(w.findAllComponents(RouterLinkStub).map(l => l.props('to'))).toContain(
-      '/curation/associations'
-    )
+    // Record numbers are text: only the intro links to the workflow list
+    expect(w.findAllComponents(RouterLinkStub)).toHaveLength(1)
+    // Screen readers hear the summary, not every row
+    expect(w.find('[aria-live="polite"]').text()).toContain('6 curations in the file, 1 imported')
+    expect(w.find('[aria-live="polite"] [data-testid="gc-created"]').exists()).toBe(false)
   })
 
   it('lists the schema paths of a 422', async () => {
@@ -91,10 +99,10 @@ describe('AdminGeneCuratorImport', () => {
         status: 422,
         data: {
           error: {
-            message:
-              "Validation failed for 'file': not a Gene Curator export v1: " +
-              '$[0].items[0].hgnc_id: required; $[0].export_version: must be ' +
-              "'1'"
+            message: "Validation failed for 'file': not a Gene Curator export v1: ...",
+            details: {
+              errors: ['$[0].items[0].hgnc_id: required', "$[0].export_version: must be '1'"]
+            }
           }
         }
       }

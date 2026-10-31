@@ -16,14 +16,19 @@ import { Label } from '@/components/ui/label'
 import { importGeneCuratorExport, type ImportReport, type ImportRow } from '@/api/admin/geneCurator'
 import { errorMessage } from '@/stores/curation'
 
-const SCHEMA_ERROR = 'not a Gene Curator export v1: '
 const WORKFLOW = '/curation/associations'
+/** 422 details: the paths where the upload does not match the pinned export schema */
+type SchemaErrors = { errors?: string[] }
 
 type GroupKey = Exclude<keyof ImportReport, 'rows'>
 const GROUPS: { key: GroupKey; title: string; detail: (_r: ImportRow) => string }[] = [
   { key: 'created', title: 'Created as drafts', detail: () => '' },
   { key: 'already_imported', title: 'Already imported (skipped)', detail: () => '' },
-  { key: 'conflicts', title: 'Conflicts (skipped)', detail: r => r.reason ?? '' },
+  {
+    key: 'conflicts',
+    title: 'Conflicts (skipped)',
+    detail: r => `${r.reason} (${r.existing_source}, ${r.existing_status})`
+  },
   { key: 'genes_not_in_kgdb', title: 'Genes not in KGDB', detail: r => r.hgnc_id },
   { key: 'rejected', title: 'Rejected', detail: r => r.reason ?? '' },
   {
@@ -64,17 +69,19 @@ async function upload() {
     report.value = (await importGeneCuratorExport(file.value)).data
     toast.success(`Imported ${report.value.created.length} of ${report.value.rows} curations`)
   } catch (err) {
-    const message = (err as { response?: unknown }).response
-      ? errorMessage(err)
-      : 'Could not reach the server. Check your connection and try again.'
-    const at = message.indexOf(SCHEMA_ERROR)
-    failure.value =
-      at >= 0
-        ? {
-            title: 'Not a Gene Curator export v1',
-            lines: message.slice(at + SCHEMA_ERROR.length).split('; ')
-          }
-        : { title: 'Import failed', lines: [message] }
+    const response = (err as { response?: { data?: { error?: { details?: SchemaErrors } } } })
+      .response
+    const paths = response?.data?.error?.details?.errors
+    failure.value = paths?.length
+      ? { title: 'Not a Gene Curator export v1', lines: paths }
+      : {
+          title: 'Import failed',
+          lines: [
+            response
+              ? errorMessage(err)
+              : 'Could not reach the server. Check your connection and try again.'
+          ]
+        }
     toast.error(failure.value.title)
   } finally {
     uploading.value = false
@@ -119,23 +126,26 @@ async function upload() {
       </CardContent>
     </Card>
 
-    <section aria-live="polite" class="mt-6 space-y-4">
-      <Alert v-if="failure" variant="destructive" data-testid="gc-failure">
-        <AlertTriangle class="size-4" aria-hidden="true" />
-        <AlertTitle>{{ failure.title }}</AlertTitle>
-        <AlertDescription>
-          <ul class="list-disc space-y-0.5 pl-4 break-words">
-            <li v-for="line in failure.lines" :key="line">
-              <code>{{ line }}</code>
-            </li>
-          </ul>
-        </AlertDescription>
-      </Alert>
-
-      <template v-if="report">
-        <h2 class="text-lg font-semibold">
+    <section class="mt-6 space-y-4">
+      <!-- Announce the outcome only, not every report row -->
+      <div aria-live="polite" class="space-y-4">
+        <Alert v-if="failure" variant="destructive" data-testid="gc-failure">
+          <AlertTriangle class="size-4" aria-hidden="true" />
+          <AlertTitle>{{ failure.title }}</AlertTitle>
+          <AlertDescription>
+            <ul class="list-disc space-y-0.5 pl-4 break-words">
+              <li v-for="line in failure.lines" :key="line">
+                <code>{{ line }}</code>
+              </li>
+            </ul>
+          </AlertDescription>
+        </Alert>
+        <h2 v-if="report" class="text-lg font-semibold">
           {{ report.rows }} curations in the file, {{ report.created.length }} imported
         </h2>
+      </div>
+
+      <template v-if="report">
         <p v-if="!groups.length" class="text-sm text-muted-foreground">The file had no rows.</p>
         <Card v-for="g in groups" :key="g.key" class="py-0" :data-testid="`gc-${g.key}`">
           <CardContent class="p-4">
@@ -151,14 +161,9 @@ async function upload() {
               >
                 <span class="font-medium">{{ r.gene_symbol }}</span>
                 <span class="text-xs text-muted-foreground break-all">{{ r.entity_key }}</span>
-                <RouterLink
-                  v-if="recordOf(r)"
-                  :to="WORKFLOW"
-                  class="text-xs underline"
-                  :aria-label="`Record ${recordOf(r)} in the curation workflow`"
+                <span v-if="recordOf(r)" class="text-xs tabular-nums"
+                  >Record #{{ recordOf(r) }}</span
                 >
-                  Record #{{ recordOf(r) }}
-                </RouterLink>
                 <span v-if="g.detail(r)" class="w-full text-muted-foreground break-words">{{
                   g.detail(r)
                 }}</span>

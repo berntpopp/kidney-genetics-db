@@ -140,7 +140,9 @@ def parse_export(content: bytes) -> list[dict[str, Any]]:
         shown = "; ".join(errors[:20]) + (
             f"; ... {len(errors) - 20} more" if len(errors) > 20 else ""
         )
-        raise DomainValidationError("file", f"not a Gene Curator export v1: {shown}")
+        raise DomainValidationError(
+            "file", f"not a Gene Curator export v1: {shown}", context={"errors": errors[:20]}
+        )
     return [item for page in pages for item in page["items"]]
 
 

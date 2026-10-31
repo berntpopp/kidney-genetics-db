@@ -208,6 +208,7 @@ async def domain_validation_handler(request: Request, exc: DomainValidationError
                 "type": "validation_error",
                 "message": exc.message,
                 "error_id": str(uuid.uuid4()),
+                **({"details": exc.context} if exc.context else {}),
             },
         },
     )
