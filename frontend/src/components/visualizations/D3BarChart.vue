@@ -68,7 +68,7 @@ const ariaLabel = computed(
 
 // Animate only when the data changes: a resize (even a scrollbar appearing) redraws in place
 const renderChart = (animate = true) => {
-  const ms = animate && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 750 : 0
+  const ms = animate && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 300 : 0
   if (!chartContainer.value || !props.data || props.data.length === 0) {
     return
   }
@@ -223,7 +223,7 @@ const renderChart = (animate = true) => {
   bars
     .transition()
     .duration(ms)
-    .delay((d, i) => (ms ? i * 50 : 0)) // Stagger animation
+    .delay((d, i) => (ms ? i * 15 : 0)) // Short stagger: snappy on every source switch
     .attr('y', d => yScale(d.gene_count))
     .attr('height', d => height - yScale(d.gene_count))
 

@@ -63,7 +63,8 @@
             {{ sourceDisplayName(selectedSource) }}.
           </p>
           <!-- Source metadata -->
-          <dl class="mb-4 flex flex-wrap justify-center gap-x-12 gap-y-4 text-center">
+          <!-- Fixed two columns, Genes always first: switching sources never moves the stats -->
+          <dl class="mx-auto mb-4 grid min-h-15 max-w-md grid-cols-2 items-end gap-x-6 text-center">
             <div v-for="(value, key) in displayedMetadata" :key="key" class="flex flex-col-reverse">
               <dt class="text-xs text-muted-foreground">{{ formatMetadataLabel(key) }}</dt>
               <dd class="text-lg font-semibold tabular-nums text-foreground">
@@ -84,12 +85,11 @@
               y-axis-label="Genes"
               :bar-color="getSourceConfig(selectedSource).chartColor"
             />
-            <p
-              v-if="visualizationType === 'classification_donut'"
-              class="mt-2 text-center text-xs text-muted-foreground"
-            >
-              A gene can hold several classifications (one per disease or submitter), so bars can
-              sum to more than the total genes.
+            <!-- Always rendered at a fixed height so switching sources never shifts the page -->
+            <p class="mt-2 min-h-8 text-center text-xs text-muted-foreground">
+              <template v-if="visualizationType === 'classification_donut'">
+                Genes can hold several classifications, so bars may sum to more than the gene total.
+              </template>
             </p>
           </DataState>
         </div>
@@ -163,9 +163,11 @@ const sourceMetadata = computed(() => {
 // Metadata shown to users; visualization_type is an internal chart id
 const displayedMetadata = computed(() =>
   Object.fromEntries(
-    Object.entries(sourceMetadata.value).filter(
-      ([key]) => !['visualization_type', 'total_classifications', 'total_ranges'].includes(key)
-    )
+    Object.entries(sourceMetadata.value)
+      .filter(
+        ([key]) => !['visualization_type', 'total_classifications', 'total_ranges'].includes(key)
+      )
+      .sort(([a], [b]) => (b === 'total_genes') - (a === 'total_genes'))
   )
 )
 
