@@ -1,0 +1,376 @@
+{
+  "export_version": "1",
+  "items": [
+    {
+      "url": "https://gene-curator.example.org/scopes/0b6f6c1e-0000-4000-8000-000000000448/curations/11111111-0000-4000-8000-000000000001",
+      "status": "active",
+      "scope_name": "kidney-genetics",
+      "mode_of_inheritance": "AR",
+      "curator_classification_rationale": null,
+      "curator_name": "Alice Curator",
+      "reviewer_name": "Bob Reviewer",
+      "approved_at": "2026-10-30T10:00:00Z",
+      "activated_at": "2026-10-30T10:00:00Z",
+      "archived_at": null,
+      "archive_reason": null,
+      "summary": "Definitive (16 points)",
+      "evidence": {
+        "genetic": {
+          "probands": [
+            {
+              "pmid": "31000001",
+              "proband_label": "P1",
+              "variant": "c.101G>A",
+              "zygosity": "homozygous",
+              "variant_source": "primary"
+            },
+            {
+              "pmid": "31000002",
+              "proband_label": "P2",
+              "variant": "c.102G>A",
+              "zygosity": "homozygous",
+              "variant_source": "primary"
+            },
+            {
+              "pmid": "31000003",
+              "proband_label": "P3",
+              "variant": "c.103G>A",
+              "zygosity": "homozygous",
+              "variant_source": "primary"
+            },
+            {
+              "pmid": "31000004",
+              "proband_label": "P4",
+              "variant": "c.104G>A",
+              "zygosity": "homozygous",
+              "variant_source": "primary"
+            },
+            {
+              "pmid": "31000005",
+              "proband_label": "P5",
+              "variant": "c.105G>A",
+              "zygosity": "homozygous",
+              "variant_source": "primary"
+            },
+            {
+              "pmid": "31000006",
+              "proband_label": "P6",
+              "variant": "c.106G>A",
+              "zygosity": "homozygous",
+              "variant_source": "primary"
+            },
+            {
+              "pmid": "31000007",
+              "proband_label": "P7",
+              "variant": "c.107G>A",
+              "zygosity": "homozygous",
+              "variant_source": "primary"
+            },
+            {
+              "pmid": "31000008",
+              "proband_label": "P8",
+              "variant": "c.108G>A",
+              "zygosity": "homozygous",
+              "variant_source": "primary"
+            },
+            {
+              "pmid": "31000009",
+              "proband_label": "P9",
+              "variant": "c.109G>A",
+              "zygosity": "homozygous",
+              "variant_source": "primary"
+            },
+            {
+              "pmid": "31000010",
+              "proband_label": "P10",
+              "variant": "c.110G>A",
+              "zygosity": "homozygous",
+              "variant_source": "primary"
+            }
+          ]
+        },
+        "experimental": {
+          "models": [
+            {
+              "pmid": "31000020",
+              "organism": "mouse",
+              "mechanism_fit": "yes"
+            },
+            {
+              "pmid": "31000021",
+              "organism": "zebrafish",
+              "mechanism_fit": "yes"
+            }
+          ],
+          "functional": [
+            {
+              "pmid": "31000022",
+              "assay": "paracellular Mg2+ flux"
+            },
+            {
+              "pmid": "31000023",
+              "assay": "tight junction localisation"
+            }
+          ]
+        },
+        "replicated_over_time": true,
+        "diagnostics": {
+          "recommended_transcript": {
+            "refseq": "NM_006580.4",
+            "ensembl": "",
+            "mane_status": "",
+            "legacy_transcript": null
+          },
+          "detectability": [
+            {
+              "challenge": "copy number variants",
+              "share_of_variants": "",
+              "methods": [
+                "MLPA"
+              ],
+              "tools": [
+                "ExomeDepth | https://github.com/vplagnol/ExomeDepth | PMID:22942019",
+                " | https://example.org | "
+              ],
+              "negative_report_does_not_exclude": true,
+              "sources": []
+            }
+          ],
+          "resources": [
+            {
+              "type": "other",
+              "name": "ERKNet",
+              "url": "https://www.erknet.org",
+              "audiences": [
+                "patients",
+                "clinicians"
+              ],
+              "verified_method": "fetched",
+              "verified_date": "2026-10-30",
+              "country_or_scope": "EU"
+            }
+          ]
+        },
+        "diagnostics_notes": {
+          "transcript_verified_via": "MANE Select in Ensembl 115",
+          "detectability_note": "standard short-read testing adequate"
+        },
+        "evidence_summary": "Ten unrelated homozygous probands; mouse and zebrafish models."
+      },
+      "scores": {
+        "genetic_evidence_total": 10,
+        "experimental_evidence_total": 6,
+        "total_score": 16
+      },
+      "curation_id": "11111111-0000-4000-8000-000000000001",
+      "entity_key": "MONDO:0009633|AR",
+      "hgnc_id": "HGNC:99944801",
+      "approved_symbol": "GC448A",
+      "disease_name": "familial hypomagnesemia with hypercalciuria and nephrocalcinosis",
+      "mondo_id": "MONDO:0009633",
+      "moi_hpo_id": "HP:0000007",
+      "relationship_type": "mendelian",
+      "computed_verdict": "definitive",
+      "final_classification": "definitive",
+      "genetic_score": 10,
+      "experimental_score": 6,
+      "total_score": 16,
+      "methodology": {
+        "schema_name": "KGDB Mendelian Curation",
+        "version": 1,
+        "version_id": "6a1d2c3e-0000-4000-8000-000000000001"
+      },
+      "pmids": [
+        "31000001",
+        "31000002",
+        "31000003",
+        "31000004",
+        "31000005",
+        "31000006",
+        "31000007",
+        "31000008",
+        "31000009",
+        "31000010",
+        "31000020",
+        "31000021",
+        "31000022",
+        "31000023"
+      ],
+      "updated_at": "2026-10-30T10:00:00Z"
+    },
+    {
+      "url": "https://gene-curator.example.org/scopes/0b6f6c1e-0000-4000-8000-000000000448/curations/11111111-0000-4000-8000-000000000002",
+      "status": "active",
+      "scope_name": "kidney-genetics",
+      "mode_of_inheritance": "AR",
+      "curator_classification_rationale": null,
+      "curator_name": "Alice Curator",
+      "reviewer_name": "Bob Reviewer",
+      "approved_at": "2026-10-30T10:00:00Z",
+      "activated_at": "2026-10-30T10:00:00Z",
+      "archived_at": null,
+      "archive_reason": null,
+      "summary": "Established association",
+      "evidence": {
+        "association": {
+          "studies": [
+            {
+              "study_label": "GWAS 1",
+              "pmid": "31000030",
+              "p_value": "1e-9",
+              "odds_ratio": "1.8"
+            },
+            {
+              "study_label": "GWAS 2",
+              "pmid": "31000031",
+              "p_value": "1e-6",
+              "odds_ratio": "1.5"
+            }
+          ]
+        },
+        "replicated_over_time": true
+      },
+      "scores": {
+        "total_score": 5
+      },
+      "curation_id": "11111111-0000-4000-8000-000000000002",
+      "entity_key": "MONDO:0009633|AR|SUSCEPTIBILITY",
+      "hgnc_id": "HGNC:99944801",
+      "approved_symbol": "GC448A",
+      "disease_name": "familial hypomagnesemia with hypercalciuria and nephrocalcinosis",
+      "mondo_id": "MONDO:0009633",
+      "moi_hpo_id": "HP:0000007",
+      "relationship_type": "susceptibility",
+      "computed_verdict": "established",
+      "final_classification": "established",
+      "genetic_score": null,
+      "experimental_score": 1,
+      "total_score": 5,
+      "methodology": {
+        "schema_name": "KGDB Susceptibility Curation",
+        "version": 1,
+        "version_id": "6a1d2c3e-0000-4000-8000-000000000002"
+      },
+      "pmids": [
+        "31000030",
+        "31000031"
+      ],
+      "updated_at": "2026-10-30T10:01:00Z"
+    },
+    {
+      "url": "https://gene-curator.example.org/scopes/0b6f6c1e-0000-4000-8000-000000000448/curations/11111111-0000-4000-8000-000000000003",
+      "status": "active",
+      "scope_name": "kidney-genetics",
+      "mode_of_inheritance": "AD",
+      "curator_classification_rationale": null,
+      "curator_name": "Alice Curator",
+      "reviewer_name": "Bob Reviewer",
+      "approved_at": "2026-10-30T10:00:00Z",
+      "activated_at": "2026-10-30T10:00:00Z",
+      "archived_at": null,
+      "archive_reason": null,
+      "summary": null,
+      "evidence": null,
+      "scores": null,
+      "curation_id": "11111111-0000-4000-8000-000000000003",
+      "entity_key": "MONDO:0011111|AD",
+      "hgnc_id": "HGNC:99944802",
+      "approved_symbol": "GC448B",
+      "disease_name": "test kidney disease B",
+      "mondo_id": "MONDO:0011111",
+      "moi_hpo_id": "HP:0000006",
+      "relationship_type": "mendelian",
+      "computed_verdict": "probable",
+      "final_classification": "probable",
+      "genetic_score": 3,
+      "experimental_score": 0,
+      "total_score": 3,
+      "methodology": {
+        "schema_name": "KGDB Mendelian Curation",
+        "version": 1,
+        "version_id": "6a1d2c3e-0000-4000-8000-000000000001"
+      },
+      "pmids": [
+        "31000040"
+      ],
+      "updated_at": "2026-10-30T10:02:00Z"
+    },
+    {
+      "url": "https://gene-curator.example.org/scopes/0b6f6c1e-0000-4000-8000-000000000448/curations/11111111-0000-4000-8000-000000000004",
+      "status": "active",
+      "scope_name": "kidney-genetics",
+      "mode_of_inheritance": "Digenic",
+      "curator_classification_rationale": null,
+      "curator_name": "Alice Curator",
+      "reviewer_name": "Bob Reviewer",
+      "approved_at": "2026-10-30T10:00:00Z",
+      "activated_at": "2026-10-30T10:00:00Z",
+      "archived_at": null,
+      "archive_reason": null,
+      "summary": null,
+      "evidence": null,
+      "scores": null,
+      "curation_id": "11111111-0000-4000-8000-000000000004",
+      "entity_key": "MONDO:0011112|DIGENIC",
+      "hgnc_id": "HGNC:99944802",
+      "approved_symbol": "GC448B",
+      "disease_name": "test kidney disease C",
+      "mondo_id": "MONDO:0011112",
+      "moi_hpo_id": null,
+      "relationship_type": "mendelian",
+      "computed_verdict": "limited",
+      "final_classification": "limited",
+      "genetic_score": 1,
+      "experimental_score": 0,
+      "total_score": 1,
+      "methodology": {
+        "schema_name": "KGDB Mendelian Curation",
+        "version": 1,
+        "version_id": "6a1d2c3e-0000-4000-8000-000000000001"
+      },
+      "pmids": [
+        "31000041"
+      ],
+      "updated_at": "2026-10-30T10:03:00Z"
+    },
+    {
+      "url": "https://gene-curator.example.org/scopes/0b6f6c1e-0000-4000-8000-000000000448/curations/11111111-0000-4000-8000-000000000005",
+      "status": "active",
+      "scope_name": "kidney-genetics",
+      "mode_of_inheritance": "AR",
+      "curator_classification_rationale": null,
+      "curator_name": "Alice Curator",
+      "reviewer_name": "Bob Reviewer",
+      "approved_at": "2026-10-30T10:00:00Z",
+      "activated_at": "2026-10-30T10:00:00Z",
+      "archived_at": null,
+      "archive_reason": null,
+      "summary": null,
+      "evidence": null,
+      "scores": null,
+      "curation_id": "11111111-0000-4000-8000-000000000005",
+      "entity_key": "MONDO:0011113|AR",
+      "hgnc_id": "HGNC:99944899",
+      "approved_symbol": "GC448NOTINKGDB",
+      "disease_name": "test kidney disease D",
+      "mondo_id": "MONDO:0011113",
+      "moi_hpo_id": "HP:0000007",
+      "relationship_type": "mendelian",
+      "computed_verdict": "moderate",
+      "final_classification": "moderate",
+      "genetic_score": 7,
+      "experimental_score": 0,
+      "total_score": 7,
+      "methodology": {
+        "schema_name": "KGDB Mendelian Curation",
+        "version": 1,
+        "version_id": "6a1d2c3e-0000-4000-8000-000000000001"
+      },
+      "pmids": [
+        "31000042"
+      ],
+      "updated_at": "2026-10-30T10:04:00Z"
+    }
+  ],
+  "next_cursor": null
+}

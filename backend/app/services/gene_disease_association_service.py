@@ -1,7 +1,10 @@
 """Workflow rules for expert-reviewed gene-disease associations (#26).
 
 draft -> in_review -> published. Only the author edits or submits a draft; a
-different curator/admin publishes or returns a record to draft. Published
+different curator/admin publishes or returns a record to draft. Gene Curator imports
+(#448) are authored by the inactive import account: any curator may submit and publish
+an unchanged one (Gene Curator's review covers it); editing one makes the editor its
+author, so a different curator must then review it. Published
 records are immutable until a reviewer returns them to draft. Every action
 appends the resulting record to gene_disease_association_events.
 """
@@ -34,6 +37,7 @@ def to_response(record: GDA) -> dict[str, Any]:
     data = {c.name: getattr(record, c.name) for c in GDA.__table__.columns}
     data["gene_symbol"] = record.gene.approved_symbol
     data["moi_label"] = MOI_TERMS.get(record.moi) if record.moi else None
+    data["imported_unclaimed"] = unclaimed_import(record)
     return data
 
 
@@ -72,8 +76,16 @@ def _require_status(record: GDA, *allowed: str) -> None:
         )
 
 
+IMPORT_USERNAME = "gene-curator-import"  # non-login author of Gene Curator imports (#448)
+
+
+def unclaimed_import(record: GDA) -> bool:
+    """A Gene Curator import no KGDB curator has edited yet (still the import account's)."""
+    return record.curator.username == IMPORT_USERNAME and not record.curator.is_active
+
+
 def _require_author(record: GDA, user: User) -> None:
-    if record.curator_id != user.id:
+    if record.curator_id != user.id and not unclaimed_import(record):
         raise PermissionDeniedError("record author", "editing or submitting this association")
 
 
@@ -174,6 +186,7 @@ def update(db: Session, record_id: int, payload: AssociationUpdate, user: User) 
     changes = payload.model_dump(mode="json", exclude_unset=True)
     for key, value in changes.items():
         setattr(record, key, value)
+    record.curator_id = user.id  # editing takes over an import (#448); no-op for the author
     # A PATCH may change one side only (e.g. relationship_type): check the merged record
     try:
         check_classification(record.relationship_type, record.evidence_strength)

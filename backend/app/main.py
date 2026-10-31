@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.api.endpoints import (
     admin_backups,
+    admin_gene_curator,
     admin_logs,
     admin_settings,
     annotation_retrieval,
@@ -207,6 +208,7 @@ async def domain_validation_handler(request: Request, exc: DomainValidationError
                 "type": "validation_error",
                 "message": exc.message,
                 "error_id": str(uuid.uuid4()),
+                **({"details": exc.context} if exc.context else {}),
             },
         },
     )
@@ -340,6 +342,11 @@ app.include_router(
 )
 app.include_router(
     cache.router, prefix="/api/admin/cache", tags=["Administration - Cache Management"]
+)
+app.include_router(
+    admin_gene_curator.router,
+    prefix="/api/admin/gene-curator",
+    tags=["Administration - Gene Curator Import"],
 )
 app.include_router(
     shadow_tests.router, prefix="/api/admin/shadow-tests", tags=["Administration - Shadow Testing"]

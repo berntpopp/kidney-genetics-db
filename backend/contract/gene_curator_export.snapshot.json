@@ -1,0 +1,376 @@
+{
+  "$comment": "Gene Curator export v1, pinned from berntpopp/gene-curator 9d79f81488521847ba06b93f6dffcad9a34e3ed0 (v0.12.0+11; export schema unchanged since v0.12.0)",
+  "schemas": {
+    "CurationExportPage": {
+      "properties": {
+        "export_version": {
+          "const": "1",
+          "default": "1",
+          "title": "Export Version",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/components/schemas/ExportCuration"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Pass as cursor for the next page; null on the last page",
+          "title": "Next Cursor"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "title": "CurationExportPage",
+      "type": "object"
+    },
+    "ExportCuration": {
+      "properties": {
+        "activated_at": {
+          "format": "date-time",
+          "title": "Activated At",
+          "type": "string"
+        },
+        "approved_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Approved At"
+        },
+        "approved_symbol": {
+          "title": "Approved Symbol",
+          "type": "string"
+        },
+        "archive_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Why it was archived: 'Curation deleted' (retract it) or 'Replaced by new active curation'",
+          "title": "Archive Reason"
+        },
+        "archived_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Archived At"
+        },
+        "computed_verdict": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Computed Verdict"
+        },
+        "curation_id": {
+          "format": "uuid",
+          "title": "Curation Id",
+          "type": "string"
+        },
+        "curator_classification_rationale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Why the curator's class differs from the computed one",
+          "title": "Curator Classification Rationale"
+        },
+        "curator_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Curator Name"
+        },
+        "disease_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Disease Name"
+        },
+        "entity_key": {
+          "description": "MONDO|MOI, plus |SUSCEPTIBILITY for susceptibility; '' when the curation has no MONDO id",
+          "title": "Entity Key",
+          "type": "string"
+        },
+        "evidence": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Evidence as stored, keyed by the methodology's field ids",
+          "title": "Evidence"
+        },
+        "experimental_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Experimental Score"
+        },
+        "final_classification": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Curator classification confirmed at approval, else computed",
+          "title": "Final Classification"
+        },
+        "genetic_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Genetic Score"
+        },
+        "hgnc_id": {
+          "title": "Hgnc Id",
+          "type": "string"
+        },
+        "methodology": {
+          "$ref": "#/components/schemas/ExportMethodology"
+        },
+        "mode_of_inheritance": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "As entered",
+          "title": "Mode Of Inheritance"
+        },
+        "moi_hpo_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "HPO CURIE of the canonical MOI",
+          "title": "Moi Hpo Id"
+        },
+        "mondo_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mondo Id"
+        },
+        "pmids": {
+          "description": "Cited PMIDs, deduplicated, sorted",
+          "items": {
+            "type": "string"
+          },
+          "title": "Pmids",
+          "type": "array"
+        },
+        "relationship_type": {
+          "default": "mendelian",
+          "description": "mendelian or susceptibility (#539)",
+          "enum": [
+            "mendelian",
+            "susceptibility"
+          ],
+          "title": "Relationship Type",
+          "type": "string"
+        },
+        "reviewer_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Who approved the curation",
+          "title": "Reviewer Name"
+        },
+        "scope_name": {
+          "title": "Scope Name",
+          "type": "string"
+        },
+        "scores": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Computed scores as stored: section totals and per-row trace",
+          "title": "Scores"
+        },
+        "status": {
+          "description": "Curation status: active or archived",
+          "title": "Status",
+          "type": "string"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Computed summary of the verdict",
+          "title": "Summary"
+        },
+        "total_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Total Score"
+        },
+        "updated_at": {
+          "description": "Last change; the paging key",
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "url": {
+          "description": "Link back to the curation in Gene Curator",
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "curation_id",
+        "entity_key",
+        "url",
+        "status",
+        "scope_name",
+        "hgnc_id",
+        "approved_symbol",
+        "methodology",
+        "pmids",
+        "activated_at",
+        "updated_at"
+      ],
+      "title": "ExportCuration",
+      "type": "object"
+    },
+    "ExportMethodology": {
+      "properties": {
+        "schema_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Curation schema name",
+          "title": "Schema Name"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Pinned methodology version; null when the caller may not read methodology versions (anonymous)",
+          "title": "Version"
+        },
+        "version_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Pinned methodology version id",
+          "title": "Version Id"
+        }
+      },
+      "title": "ExportMethodology",
+      "type": "object"
+    }
+  }
+}

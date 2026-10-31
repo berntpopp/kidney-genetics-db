@@ -92,6 +92,15 @@ describe('CuratedAssociations', () => {
     expect(labels(w, 4)).toEqual(['Return to draft'])
   })
 
+  it('lets any curator take over an unedited Gene Curator import (#448)', async () => {
+    const imported = { ...RECORDS[0]!, id: 5, curator_id: 99, imported_unclaimed: true }
+    const claimed = { ...imported, id: 6, disease_id: 'MONDO:0000006', imported_unclaimed: false }
+    api.listWorkflow.mockResolvedValue(page([imported, claimed]))
+    const w = await mountAs('curator')
+    expect(labels(w, 5)).toEqual(['Edit', 'Submit for review'])
+    expect(labels(w, 6)).toEqual([])
+  })
+
   it('publishes through the store', async () => {
     api.transition.mockResolvedValue(RECORDS[2]!)
     const w = await mountAs('curator')

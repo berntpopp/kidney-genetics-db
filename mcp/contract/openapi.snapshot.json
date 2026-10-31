@@ -350,6 +350,11 @@
             "title": "Id",
             "type": "integer"
           },
+          "imported_unclaimed": {
+            "default": false,
+            "title": "Imported Unclaimed",
+            "type": "boolean"
+          },
           "methodology": {
             "anyOf": [
               {
