@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
+
+vi.mock('vue-router', () => import('@/test/routerStub'))
 import { mount, flushPromises } from '@vue/test-utils'
 import SourceDistributionsChart from '../SourceDistributionsChart.vue'
 
@@ -35,7 +37,9 @@ describe('SourceDistributionsChart metadata (#325)', () => {
   it('does not show the internal chart id to users', async () => {
     const wrapper = mount(SourceDistributionsChart)
     await flushPromises()
-    expect(wrapper.text()).toContain('Total Genes')
+    expect(wrapper.text()).toContain('Genes')
+    // Category counts are chart plumbing, not shown
+    expect(wrapper.text()).not.toContain('Total Classifications')
     expect(wrapper.text()).not.toContain('classification_donut')
     expect(wrapper.text()).not.toContain('Visualization Type')
   })

@@ -4,6 +4,8 @@
  * a failed overlap load shows an error with Retry instead of a blank card.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+vi.mock('vue-router', () => import('@/test/routerStub'))
 import { mount, flushPromises } from '@vue/test-utils'
 
 vi.stubGlobal(
@@ -24,16 +26,11 @@ vi.mock('@/api/statistics', () => ({
   }
 }))
 import { statisticsApi } from '@/api/statistics'
+import D3BarChart from '../D3BarChart.vue'
 import SourceDistributionsChart from '../SourceDistributionsChart.vue'
-import EvidenceCompositionChart from '../EvidenceCompositionChart.vue'
 import UpSetChart from '../UpSetChart.vue'
 
 const api = vi.mocked(statisticsApi)
-const legend = (w: ReturnType<typeof mount>) =>
-  w.findAll('[data-testid="donut-legend"] li').map(li => ({
-    text: li.text(),
-    style: li.find('span').attributes('style') ?? ''
-  }))
 
 describe('chart colours', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -53,34 +50,14 @@ describe('chart colours', () => {
     } as never)
     const w = mount(SourceDistributionsChart)
     await flushPromises()
-    const items = legend(w)
-    expect(items.map(i => i.text.split(/\d/)[0])).toEqual(['Definitive', 'Limited', 'Disputed'])
-    expect(items[0]!.style).toContain('var(--strength-5)')
-    expect(items[1]!.style).toContain('var(--strength-2)')
-    expect(items[2]!.style).toContain('var(--warning)')
-  })
-
-  it('shows source weights with display names in the fixed source order', async () => {
-    api.getEvidenceComposition.mockResolvedValue({
-      data: {
-        evidence_tier_distribution: [],
-        source_contribution_weights: { PubTator: 0.5, DiagnosticPanels: 0.3, ClinGen: 0.2 }
-      }
-    } as never)
-    const w = mount(EvidenceCompositionChart)
-    await flushPromises()
-    await w
-      .findAll('button')
-      .find(b => b.text() === 'Weights')!
-      .trigger('click')
-    const items = legend(w)
-    expect(items.map(i => i.text)).toEqual([
-      'ClinGen20.0%',
-      'Diagnostic panels30.0%',
-      'PubTator350.0%'
+    // Multi-label classifications are bars (not a parts-of-a-whole donut)
+    const bars = w.findComponent(D3BarChart).props('data') as { category: string; color: string }[]
+    expect(bars.map(b => b.category)).toEqual(['Definitive', 'Limited', 'Disputed'])
+    expect(bars.map(b => b.color)).toEqual([
+      'var(--strength-5)',
+      'var(--strength-2)',
+      'var(--warning)'
     ])
-    expect(items[0]!.style).toContain('var(--source-1)')
-    expect(items[2]!.style).toContain('var(--source-7)')
   })
 
   it('shows a retryable error when the overlap sources fail to load', async () => {

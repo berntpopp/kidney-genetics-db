@@ -15,13 +15,19 @@ describe('getClassificationConfig', () => {
     ['moderate', 3],
     ['Limited', 2],
     ['Supportive', 2],
-    ['No Known Disease Relationship', 1],
     ['animal_model_only', 1]
   ])('%s maps to strength %i', (label, strength) => {
     const c = getClassificationConfig(label)
     expect(c.strength).toBe(strength)
     expect(c.color).toBe(`var(--strength-${strength})`)
     expect(c.description).not.toBe('')
+  })
+
+  it('treats No Known Disease Relationship as a negative assertion, not a strength', () => {
+    expect(getClassificationConfig('No Known Disease Relationship')).toMatchObject({
+      strength: null,
+      tone: 'warning'
+    })
   })
 
   it('treats Disputed and Refuted as warning and danger, not strengths', () => {

@@ -111,7 +111,9 @@ const legendItems = computed(() =>
   }))
 )
 
-const renderChart = () => {
+// Animate only when the data changes: a resize (even a scrollbar appearing) redraws in place
+const renderChart = (animate = true) => {
+  const ms = animate && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 750 : 0
   if (!chartContainer.value || !props.data || props.data.length === 0) {
     return
   }
@@ -217,7 +219,7 @@ const renderChart = () => {
   // Add smooth entrance animation
   paths
     .transition()
-    .duration(750)
+    .duration(ms)
     .attrTween('d', function (d) {
       const interp = interpolate({ startAngle: 0, endAngle: 0 }, d)
       return function (t) {
@@ -370,7 +372,7 @@ const hideTooltip = () => {
 // Setup resize observer
 onMounted(() => {
   resizeObserver = new window.ResizeObserver(() => {
-    renderChart()
+    renderChart(false)
   })
   resizeObserver.observe(chartContainer.value)
 

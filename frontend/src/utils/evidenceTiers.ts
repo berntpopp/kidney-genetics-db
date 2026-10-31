@@ -246,10 +246,12 @@ export const CLASSIFICATION_CONFIG: Record<string, ClassificationConfig> = {
     2,
     'Reported as supportive by a submitter without a full semiquantitative assessment'
   ),
+  // A negative assertion, not weak positive evidence: no strength rank, ordered with Disputed
   'no known disease relationship': classification(
     'No Known Disease Relationship',
-    1,
-    'No evidence of a gene-disease relationship has been reported'
+    null,
+    'No evidence of a gene-disease relationship has been reported',
+    'warning'
   ),
   'animal model only': classification(
     'Animal Model Only',

@@ -117,3 +117,16 @@ describe('statisticsApi', () => {
     })
   })
 })
+
+describe('statisticsApi response cache', () => {
+  it('reuses a response for the same view and refetches after a failure', async () => {
+    mockApiClient.get.mockClear()
+    mockApiClient.get.mockRejectedValueOnce(new Error('429'))
+    await expect(statisticsApi.getEvidenceComposition(['minimal_evidence'])).rejects.toThrow('429')
+    mockApiClient.get.mockResolvedValue(makeStatResponse({ x: 1 }))
+    await statisticsApi.getEvidenceComposition(['minimal_evidence'])
+    const again = await statisticsApi.getEvidenceComposition(['minimal_evidence'])
+    expect(again.data).toEqual({ x: 1 })
+    expect(mockApiClient.get).toHaveBeenCalledTimes(2) // failed call + one fetch, then cached
+  })
+})
