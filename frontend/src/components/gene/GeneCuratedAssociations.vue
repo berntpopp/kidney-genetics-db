@@ -25,6 +25,7 @@
                 :strength="r.evidence_strength"
                 :odds-ratio="r.odds_ratio"
               />
+              <ReviewChip :record="r" />
               <Chip
                 v-if="hasShortReadLimit(r.diagnostics)"
                 status="warning"
@@ -96,6 +97,7 @@ import {
 import AssociationDiagnostics from '@/components/curation/AssociationDiagnostics.vue'
 import AssociationProvenance from '@/components/curation/AssociationProvenance.vue'
 import MoiChip from '@/components/curation/MoiChip.vue'
+import ReviewChip from '@/components/curation/ReviewChip.vue'
 import SusceptibilityChip from '@/components/curation/SusceptibilityChip.vue'
 import { Chip, OntologyTerm, OntologyTermList } from '@/components/shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'

@@ -106,3 +106,14 @@ def return_association_to_draft(
     user: User = Depends(require_curator),
 ) -> dict[str, Any]:
     return service.to_response(service.return_to_draft(db, record_id, decision, user))
+
+
+@router.post("/{record_id}/human-review", response_model=AssociationResponse)
+def human_review_association(
+    record_id: int,
+    decision: ReviewDecision,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_curator),
+) -> dict[str, Any]:
+    """Mark a published AI-approved Gene Curator import as human-reviewed (#639)."""
+    return service.to_response(service.human_review(db, record_id, decision, user))

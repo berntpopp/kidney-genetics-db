@@ -5,7 +5,9 @@ different curator/admin publishes or returns a record to draft. Gene Curator imp
 (#448) are authored by the inactive import account: any curator may submit and publish
 an unchanged one (Gene Curator's review covers it); editing one makes the editor its
 author, so a different curator must then review it. Published
-records are immutable until a reviewer returns them to draft. Every action
+records are immutable until a reviewer returns them to draft. An AI-approved import (#639) is
+published on import; a human publishing it, or confirming it via human_review, is its human
+review. Every action
 appends the resulting record to gene_disease_association_events.
 """
 
@@ -41,6 +43,8 @@ def to_response(record: GDA) -> dict[str, Any]:
     data["gene_symbol"] = record.gene.approved_symbol
     data["moi_label"] = MOI_TERMS.get(record.moi) if record.moi else None
     data["imported_unclaimed"] = unclaimed_import(record)
+    reviewer = record.human_reviewer
+    data["human_reviewer_name"] = (reviewer.full_name or reviewer.username) if reviewer else None
     return data
 
 
@@ -249,6 +253,8 @@ def publish(db: Session, record_id: int, decision: ReviewDecision, user: User) -
     record.reviewer_id = user.id
     record.reviewed_at = now
     record.published_at = now
+    if record.approval_kind == "ai":  # a human publishing it is its human review (#639)
+        record.human_reviewed_at, record.human_reviewer_id = now, user.id
     _log(db, record, "publish", user)
     db.commit()
     db.refresh(record)
@@ -266,6 +272,23 @@ def return_to_draft(db: Session, record_id: int, decision: ReviewDecision, user:
     record.submitted_at = None
     record.published_at = None
     _log(db, record, "return", user)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+def human_review(db: Session, record_id: int, decision: ReviewDecision, user: User) -> GDA:
+    """A KGDB curator confirms a published AI-approved Gene Curator import as it stands (#639)."""
+    record = _locked(db, record_id)
+    _require_status(record, "published")
+    if record.approval_kind != "ai" or record.human_reviewed_at is not None:
+        raise ResourceConflictError("Association", "not an AI-approved record pending human review")
+    if user.username == IMPORT_USERNAME:
+        raise PermissionDeniedError("a KGDB curator", "human review")
+    _require_reviewer(record, user)
+    _require_seen(record, decision)
+    record.human_reviewed_at, record.human_reviewer_id = datetime.now(UTC), user.id
+    _log(db, record, "human_review", user)
     db.commit()
     db.refresh(record)
     return record

@@ -312,6 +312,12 @@ class AssociationResponse(BaseModel):
     published_at: datetime | None = None
     # A Gene Curator import no KGDB curator has edited: any curator may act on it (#448)
     imported_unclaimed: bool = False
+    # Who approved a Gene Curator import there (#639); "ai" without human_reviewed_at is
+    # published but pending a KGDB human review
+    approval_kind: Literal["human", "ai"] | None = None
+    approval_model: str | None = None
+    human_reviewed_at: datetime | None = None
+    human_reviewer_name: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

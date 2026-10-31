@@ -67,6 +67,15 @@ const publishedGroups = computed(() =>
   })).filter(g => g.type === 'mendelian' || g.records.length)
 )
 
+/** Published on import because only an AI approved it in Gene Curator (#639) */
+const pendingHuman = (r: Association) =>
+  r.status === 'published' && r.approval_kind === 'ai' && !r.human_reviewed_at
+const pendingOnly = ref(false)
+const pendingCount = computed(() => store.workflow.filter(pendingHuman).length)
+const workflowRecords = computed(() =>
+  pendingOnly.value ? store.workflow.filter(pendingHuman) : store.workflow
+)
+
 type Action = { action: WorkflowAction | 'edit'; label: string; primary?: boolean }
 /** Which workflow buttons the server will accept for this user (author vs. reviewer) */
 function actionsFor(r: Association): Action[] {
@@ -85,7 +94,12 @@ function actionsFor(r: Association): Action[] {
         { action: 'publish', label: 'Publish', primary: true },
         { action: 'return-to-draft', label: 'Return to draft' }
       ]
-    : [{ action: 'return-to-draft', label: 'Return to draft' }]
+    : [
+        ...(pendingHuman(r)
+          ? [{ action: 'human-review' as const, label: 'Mark human-reviewed', primary: true }]
+          : []),
+        { action: 'return-to-draft', label: 'Return to draft' }
+      ]
 }
 
 async function openForm(record: Association | null) {
@@ -247,9 +261,20 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
           <Card>
             <CardHeader class="flex flex-row flex-wrap items-center justify-between gap-3">
               <CardTitle tag="h2" class="text-xl">Curation workflow</CardTitle>
-              <Button v-if="!formOpen" size="sm" @click="openForm(null)">
-                <Plus aria-hidden="true" />New draft
-              </Button>
+              <div class="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  :aria-pressed="pendingOnly"
+                  data-testid="wf-pending-human"
+                  @click="pendingOnly = !pendingOnly"
+                >
+                  Pending human review ({{ pendingCount }})
+                </Button>
+                <Button v-if="!formOpen" size="sm" @click="openForm(null)">
+                  <Plus aria-hidden="true" />New draft
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <Table class="max-lg:block">
@@ -264,7 +289,7 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
                 </TableHeader>
                 <TableBody class="max-lg:block">
                   <AssociationRows
-                    :records="store.workflow"
+                    :records="workflowRecords"
                     :trailing="2"
                     :row-test-id="r => `wf-${r.id}`"
                   >
@@ -322,9 +347,13 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
                       </TableCell>
                     </template>
                   </AssociationRows>
-                  <TableRow v-if="!store.workflow.length && !store.loading">
+                  <TableRow v-if="!workflowRecords.length && !store.loading">
                     <TableCell colspan="5" class="py-8 text-center text-muted-foreground">
-                      No associations in the workflow.
+                      {{
+                        pendingOnly
+                          ? 'No records pending human review.'
+                          : 'No associations in the workflow.'
+                      }}
                     </TableCell>
                   </TableRow>
                 </TableBody>

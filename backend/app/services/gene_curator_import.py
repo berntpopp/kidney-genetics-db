@@ -7,13 +7,14 @@ never calls Gene Curator. The upload must match the pinned export v1 schema
 
 Each row becomes a draft authored by the inactive `gene-curator-import` account, so one
 KGDB curator can take it over, submit and publish it. A curation_id already imported is
-skipped. Unknown classes, MOIs and relationship types are rejected, not guessed.
+skipped. Unknown classes, MOIs and relationship types are rejected, not guessed. A row only
+an AI approved in Gene Curator (#639) is published at once and marked pending a KGDB human review.
 """
 
 import json
 import secrets
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -382,6 +383,14 @@ def _ai_agents(item: dict[str, Any]) -> list[str] | None:
     return sorted(names) or None
 
 
+def _approval(item: dict[str, Any]) -> dict[str, Any]:
+    """Who approved the curation in Gene Curator (#639); exports without it are human-approved."""
+    # ponytail: field names not final in GC #639; swap here once its export schema pins them
+    if item.get("approval_kind") == "ai":
+        return {"kind": "ai", "model": item.get("approval_model") or None}
+    return {"kind": "human", "model": None}
+
+
 def _reasons(e: PydanticValidationError) -> list[str]:
     return [f"{'.'.join(map(str, err['loc']))}: {err['msg']}" for err in e.errors()]
 
@@ -429,7 +438,17 @@ def _import_row(
             }
         )
         return
-    record = GDA(gene_id=gene.id, curator_id=author.id, status="draft", **values)
+    approval = _approval(item)
+    # AI-approved rows are published at once, pending a KGDB human review (#639)
+    published = {"status": "published", "published_at": datetime.now(UTC)}
+    record = GDA(
+        gene_id=gene.id,
+        curator_id=author.id,
+        **(published if approval["kind"] == "ai" else {"status": "draft"}),
+        approval_kind=approval["kind"],
+        approval_model=approval["model"],
+        **values,
+    )
     db.add(record)
     try:
         _commit_unique(db, record, IMPORT, admin)  # event by the admin who uploaded
@@ -444,7 +463,7 @@ def _import_row(
 
 
 def import_export(db: Session, items: list[dict[str, Any]], admin: User) -> dict[str, Any]:
-    """Create a draft per export row; nothing existing is changed."""
+    """Create a draft (published if AI-approved) per export row; nothing existing is changed."""
     report: dict[str, Any] = {
         "rows": len(items),
         "created": [],

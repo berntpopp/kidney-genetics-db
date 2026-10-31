@@ -363,3 +363,30 @@ def test_0022_rationale_column_and_downgrade_guard(db_0018):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM gene_disease_associations"))
     _alembic(url, "downgrade", "0021")
+
+
+# --- 0023: AI-approved imports published without a KGDB reviewer (#639) ---
+
+AI_PUBLISHED = text(
+    "INSERT INTO gene_disease_associations (gene_id, disease_id, disease_name,"
+    " evidence_strength, citations, curator_id, source, external_id, external_url, status,"
+    " published_at, approval_kind, approval_model) VALUES (:g, 'MONDO:0005300', 'x', 'Strong',"
+    " '[\"PMID:1\"]', :u, 'gene_curator', 'gc-1', 'https://gc.example/1', 'published', now(),"
+    " :kind, :model)"
+)
+
+
+@pytest.mark.integration
+def test_0023_ai_published_without_reviewer_and_guarded_downgrade(db_0018):
+    engine, url, gene, user = db_0018
+    _alembic(url, "upgrade", "0023")
+    with pytest.raises(IntegrityError), engine.begin() as conn:  # a human import needs a reviewer
+        conn.execute(AI_PUBLISHED, {"g": gene, "u": user, "kind": "human", "model": None})
+    with engine.begin() as conn:
+        conn.execute(AI_PUBLISHED, {"g": gene, "u": user, "kind": "ai", "model": "m-1"})
+    with pytest.raises(subprocess.CalledProcessError) as err:
+        _alembic(url, "downgrade", "0022")
+    assert b"AI-approved" in err.value.stderr
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM gene_disease_associations"))
+    _alembic(url, "downgrade", "0022")

@@ -71,6 +71,19 @@ def _in(column: str, values: tuple[str, ...]) -> str:
     return f"{column} IN ({', '.join(repr(v) for v in values)})"
 
 
+# A Gene Curator import approved only by an AI is published without a KGDB reviewer (#639)
+PUBLISHED_REVIEWED = (
+    "status <> 'published' OR (published_at IS NOT NULL "
+    "AND (reviewer_id IS NOT NULL OR approval_kind = 'ai'))"
+)
+APPROVAL_CHECK = (
+    "(approval_kind IS NULL OR (source = 'gene_curator' AND approval_kind IN ('human', 'ai'))) "
+    "AND (approval_model IS NULL OR approval_kind = 'ai') "
+    "AND ((human_reviewed_at IS NULL) = (human_reviewer_id IS NULL)) "
+    "AND (human_reviewed_at IS NULL OR approval_kind = 'ai')"
+)
+
+
 class GeneDiseaseAssociation(Base, TimestampMixin):
     """One reviewed association between a gene and a MONDO/OMIM disease."""
 
@@ -146,10 +159,8 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
         CheckConstraint(
             "reviewer_id IS NULL OR reviewer_id <> curator_id", name="ck_gda_distinct_reviewer"
         ),
-        CheckConstraint(
-            "status <> 'published' OR (reviewer_id IS NOT NULL AND published_at IS NOT NULL)",
-            name="ck_gda_published_reviewed",
-        ),
+        CheckConstraint(PUBLISHED_REVIEWED, name="ck_gda_published_reviewed"),
+        CheckConstraint(APPROVAL_CHECK, name="ck_gda_approval"),
     )
 
     id = Column(BigInteger, primary_key=True)
@@ -190,9 +201,15 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
     submitted_at = Column(DateTime(timezone=True), nullable=True)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
     published_at = Column(DateTime(timezone=True), nullable=True)
+    # Who approved a Gene Curator import there; "ai" records await a KGDB human review
+    approval_kind = Column(String(10), nullable=True)
+    approval_model = Column(String(100), nullable=True)
+    human_reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    human_reviewer_id = Column(BigInteger, ForeignKey("users.id"), nullable=True)
 
     gene = relationship("Gene")
     curator = relationship("User", foreign_keys=[curator_id])
+    human_reviewer = relationship("User", foreign_keys=[human_reviewer_id])
 
     def __repr__(self) -> str:
         return f"<GeneDiseaseAssociation(gene_id={self.gene_id}, disease_id='{self.disease_id}')>"

@@ -102,6 +102,10 @@ class AssociationResponse(BaseModel):
         dict[str, Any] | None, Field(title="Adopted Clingen")
     ] = None
     ai_agents: Annotated[list[str] | None, Field(title="Ai Agents")] = None
+    approval_kind: Annotated[
+        Literal["human", "ai"] | None, Field(title="Approval Kind")
+    ] = None
+    approval_model: Annotated[str | None, Field(title="Approval Model")] = None
     citations: Annotated[list[str], Field(title="Citations")]
     classification_rationale: Annotated[
         str | None, Field(title="Classification Rationale")
@@ -134,6 +138,12 @@ class AssociationResponse(BaseModel):
     external_url: Annotated[str | None, Field(title="External Url")] = None
     gene_id: Annotated[int, Field(title="Gene Id")]
     gene_symbol: Annotated[str, Field(title="Gene Symbol")]
+    human_reviewed_at: Annotated[
+        AwareDatetime | None, Field(title="Human Reviewed At")
+    ] = None
+    human_reviewer_name: Annotated[str | None, Field(title="Human Reviewer Name")] = (
+        None
+    )
     id: Annotated[int, Field(title="Id")]
     imported_unclaimed: Annotated[bool | None, Field(title="Imported Unclaimed")] = (
         False

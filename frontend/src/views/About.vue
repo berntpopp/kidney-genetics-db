@@ -118,8 +118,10 @@
             </li>
             <li>
               <strong class="font-semibold">AI-assisted, human-reviewed.</strong> An AI agent may
-              draft a curation; such records say "AI-assisted" and name the model. Every record is
-              reviewed by a second person before it is published.
+              draft a curation; such records say "AI-assisted" and name the model. A record is
+              reviewed by a second person before it is published, unless only an AI reviewer
+              approved it in Gene Curator: then it is marked "AI-reviewed · pending human review"
+              until a KGDB curator reviews it, and "Human-reviewed" after.
             </li>
             <li>
               <strong class="font-semibold">Diagnostics do not score.</strong> The recommended
