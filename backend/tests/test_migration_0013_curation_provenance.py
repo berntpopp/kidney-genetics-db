@@ -304,3 +304,38 @@ def test_0020_keys_alleles_and_guards_its_downgrade(db_0018):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM gene_disease_associations"))
     _alembic(url, "downgrade", "0019")
+
+
+# --- 0021: headline odds ratio of a susceptibility record (#482) ---
+
+ODDS = text(
+    "INSERT INTO gene_disease_associations (gene_id, disease_id, disease_name, evidence_strength,"
+    " citations, curator_id, relationship_type, odds_ratio, odds_ratio_ci_low,"
+    " odds_ratio_ci_high) VALUES (:g, :d, 'x', :st, '[\"PMID:1\"]', :u, :rt, :v, :lo, :hi)"
+)
+
+
+@pytest.mark.integration
+def test_0021_odds_ratio_check_and_downgrade(db_0018):
+    engine, url, gene, user = db_0018
+    _alembic(url, "upgrade", "0021")
+    ok = {"g": gene, "u": user, "d": "MONDO:0000001", **SUSCEPTIBLE, "v": 1.6}
+    ok |= {"lo": None, "hi": None}
+    with engine.begin() as conn:
+        conn.execute(ODDS, ok)
+        conn.execute(ODDS, {**ok, "d": "MONDO:0000002", "lo": 1.2, "hi": 2.1})
+    for bad in (
+        {"rt": "mendelian", "st": "Strong"},
+        {"v": 0},
+        {"v": None, "lo": 1.0, "hi": 2.0},
+        {"lo": 1.2},  # one bound only
+        {"lo": 1.7, "hi": 2.1},  # value outside its CI
+    ):
+        with pytest.raises(IntegrityError), engine.begin() as conn:
+            conn.execute(ODDS, {**ok, "d": "MONDO:0000003", **bad})
+    with pytest.raises(subprocess.CalledProcessError) as err:
+        _alembic(url, "downgrade", "0020")
+    assert b"odds ratio" in err.value.stderr
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM gene_disease_associations"))
+    _alembic(url, "downgrade", "0020")

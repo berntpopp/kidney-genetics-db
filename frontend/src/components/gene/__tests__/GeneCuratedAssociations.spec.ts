@@ -97,6 +97,22 @@ describe('GeneCuratedAssociations', () => {
     expect(chip.find('svg').exists()).toBe(true)
   })
 
+  it('notes a modest effect next to a susceptibility class only when OR < 2 (#482)', async () => {
+    const risk = (id: number, odds_ratio: number) =>
+      ({
+        ...RECORD,
+        id,
+        relationship_type: 'susceptibility',
+        evidence_strength: 'Likely association',
+        odds_ratio
+      }) as Association
+    const notes = async (r: Association) =>
+      (await mountFor([r])).findAll('[data-testid="or-note"]').map(n => n.text())
+    expect(await notes(risk(1, 1.6))).toEqual(['OR 1.6 < 2: modest effect'])
+    expect(await notes(risk(2, 2.4))).toEqual([])
+    expect(await notes({ ...RECORD, odds_ratio: 1.6 } as Association)).toEqual([])
+  })
+
   // A failed request is GeneDetail's concern now (it fetches the records): see GeneDetail.spec.ts
   it('renders nothing without records', async () => {
     expect((await mountFor([])).html()).not.toContain('Expert-reviewed')

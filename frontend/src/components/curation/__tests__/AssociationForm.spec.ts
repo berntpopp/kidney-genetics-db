@@ -55,6 +55,9 @@ describe('AssociationForm', () => {
       evidence_summary: null,
       relationship_type: 'mendelian',
       risk_allele: null,
+      odds_ratio: null,
+      odds_ratio_ci_low: null,
+      odds_ratio_ci_high: null,
       moi: null,
       methodology: null,
       methodology_version: null,
@@ -96,11 +99,17 @@ describe('AssociationForm', () => {
       citations: VALID.citations,
       relationship_type: 'susceptibility',
       evidence_strength: 'Established association',
-      risk_allele: ' rs4664308 A '
+      risk_allele: ' rs4664308 A ',
+      odds_ratio: '1.6',
+      odds_ratio_ci_low: '1.2',
+      odds_ratio_ci_high: '2.1'
     })
     expect(w.emitted('save')?.[0]?.[0]).toMatchObject({
       relationship_type: 'susceptibility',
-      risk_allele: 'rs4664308 A'
+      risk_allele: 'rs4664308 A',
+      odds_ratio: 1.6,
+      odds_ratio_ci_low: 1.2,
+      odds_ratio_ci_high: 2.1
     })
   })
 
