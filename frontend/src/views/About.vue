@@ -88,6 +88,49 @@
           </p>
         </section>
 
+        <section id="curation" aria-labelledby="about-curation" class="scroll-mt-20 space-y-4">
+          <h2 id="about-curation" class="text-xl font-semibold tracking-tight">
+            Expert-reviewed associations
+          </h2>
+          <p>
+            Alongside the score, KGDB publishes
+            <RouterLink to="/curation/associations" :class="LINK"
+              >expert-reviewed gene–disease associations</RouterLink
+            >. They are a separate layer: they never change a gene's evidence score or tier.
+          </p>
+          <ul class="list-disc space-y-3 pl-5 marker:text-muted-foreground">
+            <li>
+              <strong class="font-semibold">Two kinds of claim.</strong> A Mendelian association
+              uses the ClinGen gene–disease validity classes, Definitive to Refuted. A
+              susceptibility association names one risk allele and is classed as an Established,
+              Likely, Uncertain or Refuted association, following ClinGen's risk-allele scheme.
+            </li>
+            <li>
+              <strong class="font-semibold">ClinGen first.</strong> Where a ClinGen expert panel has
+              curated the same gene, disease and inheritance, its classification is adopted and
+              linked, not curated again.
+            </li>
+            <li>
+              <strong class="font-semibold">Otherwise curated in Gene Curator.</strong> Each piece
+              of genetic and experimental evidence is a row with its PubMed reference and points
+              under the KGDB point model, which is still in alpha. The record names its methodology
+              and version, and links back to the curation in Gene Curator.
+            </li>
+            <li>
+              <strong class="font-semibold">AI-assisted, human-reviewed.</strong> An AI agent may
+              draft a curation; such records say "AI-assisted" and name the model. Every record is
+              reviewed by a second person before it is published.
+            </li>
+            <li>
+              <strong class="font-semibold">Diagnostics do not score.</strong> The recommended
+              transcript, detectability limits and patient resources help with testing. "Short-read
+              limit" means standard short-read testing can miss variants in the gene, so a negative
+              result does not exclude the diagnosis.
+            </li>
+          </ul>
+          <p class="text-sm text-muted-foreground">For research use; not clinical advice.</p>
+        </section>
+
         <section aria-labelledby="about-sources" class="space-y-4">
           <h2 id="about-sources" class="text-xl font-semibold tracking-tight">Evidence sources</h2>
           <p>These sources contribute to the evidence score:</p>
@@ -241,6 +284,7 @@ import { Chip, PageHeader, PAGE_CONTAINER } from '@/components/shared'
 const toc = [
   { id: 'about-what', label: 'What it is' },
   { id: 'about-scoring', label: 'How the score works' },
+  { id: 'about-curation', label: 'Expert-reviewed associations' },
   { id: 'about-sources', label: 'Evidence sources' },
   { id: 'about-releases', label: 'Releases and versions' },
   { id: 'about-cite', label: 'How to cite' },

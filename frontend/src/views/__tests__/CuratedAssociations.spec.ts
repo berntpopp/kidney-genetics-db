@@ -79,15 +79,51 @@ describe('CuratedAssociations', () => {
     const w = await mountAs(null)
     expect(api.listWorkflow).not.toHaveBeenCalled()
     expect(w.find('form #gda-disease_id').exists()).toBe(false)
+    const row = w.find('[data-testid="gda-row"]')
+    // The row counts the citations; the PMID links are in the details row
+    expect(row.text()).toContain('1 PubMed citation')
+    await row
+      .findAll('button')
+      .find(b => b.text().includes('Details'))!
+      .trigger('click')
     const hrefs = w.findAll('a').map(a => a.attributes('href'))
     expect(hrefs).toContain('https://omim.org/entry/173900')
     expect(hrefs).toContain('https://pubmed.ncbi.nlm.nih.gov/1/')
+  })
+
+  it('fetches only the workflow list when the session resolves after mount', async () => {
+    const w = await mountAs(null)
+    const auth = useAuthStore()
+    auth.user = { id: 10, username: 'me', email: 'm@x', role: 'curator' } as never
+    auth.accessToken = 'token'
+    await flushPromises()
+    expect(api.listPublished).toHaveBeenCalledTimes(1)
+    expect(api.listWorkflow).toHaveBeenCalledTimes(1)
+    expect(w.text()).toContain('Curation workflow')
+  })
+
+  it('shows points and AI assistance on the row, not only behind Details', async () => {
+    api.listPublished.mockResolvedValue(
+      page([
+        {
+          ...RECORDS[3]!,
+          scores: { genetic: 10, experimental: 6, total: 16 },
+          external_curator: 'Alice Smith',
+          ai_agents: ['model-x']
+        }
+      ])
+    )
+    const row = (await mountAs(null)).find('[data-testid="gda-row"]')
+    expect(row.text()).toContain('16 points')
+    expect(row.text()).toContain('AI-assisted curation')
   })
 
   it('gates workflow buttons by authorship and status', async () => {
     const w = await mountAs('curator')
     expect(labels(w, 1)).toEqual(['Edit', 'Submit for review'])
     expect(labels(w, 2)).toEqual([]) // own record awaiting someone else's review
+    expect(w.find('[data-testid="wf-2"]').text()).toContain('Awaiting review by another curator')
+    expect(w.find('[data-testid="wf-3"]').text()).not.toContain('Awaiting review')
     expect(labels(w, 3)).toEqual(['Publish', 'Return to draft'])
     expect(labels(w, 4)).toEqual(['Return to draft'])
   })
@@ -99,6 +135,45 @@ describe('CuratedAssociations', () => {
     const w = await mountAs('curator')
     expect(labels(w, 5)).toEqual(['Edit', 'Submit for review'])
     expect(labels(w, 6)).toEqual([])
+    const gc = { source: 'gene_curator' } as const
+    api.listWorkflow.mockResolvedValue(
+      page([
+        { ...imported, ...gc },
+        { ...claimed, ...gc }
+      ])
+    )
+    const w2 = await mountAs('curator')
+    expect(w2.find('[data-testid="wf-5"]').text()).toContain('Gene Curator import, unclaimed')
+    expect(w2.find('[data-testid="wf-6"]').text()).not.toContain('unclaimed')
+  })
+
+  it('says a gene filter matched nothing rather than that nothing is published', async () => {
+    api.listPublished.mockResolvedValue(page([]))
+    const w = await mountAs(null)
+    expect(w.text()).toContain('No published associations yet.')
+    await w.find('#gda-filter').setValue('PKD1')
+    await w.find('#gda-filter').element.form!.dispatchEvent(new Event('submit'))
+    await flushPromises()
+    expect(api.listPublished).toHaveBeenLastCalledWith({ gene_symbol: 'PKD1', limit: 1000 })
+    expect(w.text()).toContain('No published associations for PKD1.')
+  })
+
+  it('renders a record without citations without an empty citation list', async () => {
+    api.listPublished.mockResolvedValue(page([{ ...RECORDS[3]!, citations: [] }]))
+    const w = await mountAs(null)
+    const row = w.find('[data-testid="gda-row"]')
+    expect(row.exists()).toBe(true)
+    expect(row.find('[data-slot="ontology-term-list"]').exists()).toBe(false)
+    expect(row.text()).not.toContain('adopted from ClinGen')
+  })
+
+  it('says an adopted ClinGen record without PMIDs points to ClinGen', async () => {
+    const adopted = { ...RECORDS[3]!, citations: [], adopted_clingen: { id: 'CGGV:a' } }
+    api.listPublished.mockResolvedValue(page([adopted as unknown as Association]))
+    const w = await mountAs(null)
+    expect(w.find('[data-testid="gda-row"]').text()).toContain(
+      'Classification adopted from ClinGen'
+    )
   })
 
   it('publishes through the store', async () => {
@@ -112,10 +187,16 @@ describe('CuratedAssociations', () => {
   it('shows the reviewer the evidence they approve (#376)', async () => {
     const reviewed = { ...RECORDS[2]!, evidence_summary: 'Three families', citations: ['PMID:7'] }
     api.listWorkflow.mockResolvedValue(page([reviewed]))
-    const row = (await mountAs('curator')).find('[data-testid="wf-3"]')
+    const w = await mountAs('curator')
+    const row = w.find('[data-testid="wf-3"]')
     expect(row.text()).toContain('Definitive')
     expect(row.text()).toContain('Three families')
-    expect(row.find('a[href*="pubmed"]').attributes('href')).toBe(
+    await row
+      .findAll('button')
+      .find(b => b.text().includes('Details'))!
+      .trigger('click')
+    const details = w.find('[data-testid="wf-3-details"]')
+    expect(details.find('a[href*="pubmed"]').attributes('href')).toBe(
       'https://pubmed.ncbi.nlm.nih.gov/7/'
     )
   })

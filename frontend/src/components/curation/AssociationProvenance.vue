@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** Inheritance mode, methodology, origin and points of a curated association (#437) */
 import { computed } from 'vue'
+import { ExternalLink } from 'lucide-vue-next'
 import { isHttpUrl, MOI_TERMS, type Association } from '@/api/curation'
 
 // showMoi: false where a table already shows the inheritance mode in its own column
@@ -13,15 +14,25 @@ const moiLabel = computed(() =>
 )
 const methodology = computed(() => {
   const { methodology: name, methodology_version: version } = props.record
-  return name ? (version ? `${name} (${version})` : name) : null
+  if (!name || !version) return name || null
+  // Gene Curator pins a number ("version 1"); KGDB records may name a draft ("draft iteration 3")
+  return /^\d+$/.test(version) ? `${name}, version ${version}` : `${name} (${version})`
 })
+const adopted = computed(() => props.record.adopted_clingen ?? null)
 const fromGeneCurator = computed(() => props.record.source === 'gene_curator')
+// Software agents Gene Curator credits for the evidence
+const ai = computed(() => props.record.ai_agents?.join(', ') || null)
 const points = computed(() => {
   const s = props.record.scores
   if (!s || s.total == null) return null
+  // Gene Curator's susceptibility "functional" section is stored as experimental
+  const susceptibility = props.record.relationship_type === 'susceptibility'
   const parts = [
     s.genetic != null ? `genetic ${s.genetic}` : null,
-    s.experimental != null ? `experimental ${s.experimental}` : null
+    s.association != null ? `association ${s.association}` : null,
+    s.experimental != null
+      ? `${susceptibility ? 'functional' : 'experimental'} ${s.experimental}`
+      : null
   ].filter(Boolean)
   return `${s.total} points${parts.length ? ` (${parts.join(', ')})` : ''}`
 })
@@ -29,7 +40,16 @@ const points = computed(() => {
 
 <template>
   <dl
-    v-if="(showMoi && record.moi) || methodology || fromGeneCurator || points"
+    v-if="
+      (showMoi && record.moi) ||
+      methodology ||
+      fromGeneCurator ||
+      curator ||
+      record.external_reviewer ||
+      adopted ||
+      points ||
+      $slots.default
+    "
     class="whitespace-normal [overflow-wrap:anywhere] grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs"
   >
     <template v-if="showMoi && record.moi">
@@ -47,6 +67,33 @@ const points = computed(() => {
       <dt class="text-muted-foreground">Points</dt>
       <dd class="tabular-nums">{{ points }}</dd>
     </template>
+    <template v-if="adopted">
+      <dt class="text-muted-foreground">Adopted from</dt>
+      <dd>
+        <a
+          v-if="isHttpUrl(adopted.url)"
+          :href="adopted.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 rounded-sm text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          ClinGen
+          <ExternalLink class="size-3" aria-hidden="true" />
+          <span class="sr-only">(opens in a new tab)</span>
+        </a>
+        <span v-else>ClinGen</span>
+        {{
+          [
+            adopted.expert_panel,
+            adopted.classification,
+            adopted.classified_date && `classified ${adopted.classified_date}`
+          ]
+            .filter(Boolean)
+            .map(part => ` · ${part}`)
+            .join('')
+        }}
+      </dd>
+    </template>
     <template v-if="fromGeneCurator">
       <dt class="text-muted-foreground">Provenance</dt>
       <dd class="space-y-0.5">
@@ -55,20 +102,32 @@ const points = computed(() => {
           :href="record.external_url"
           target="_blank"
           rel="noopener noreferrer"
-          class="rounded-sm text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          class="inline-flex items-center gap-1 rounded-sm text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          Curated in Gene Curator ↗<span class="sr-only"> (opens in a new tab)</span>
+          Curated in Gene Curator
+          <ExternalLink class="size-3" aria-hidden="true" />
+          <span class="sr-only">(opens in a new tab)</span>
         </a>
         <span v-else>Curated in Gene Curator</span>
         <span v-if="record.external_id" class="ml-1 font-mono text-muted-foreground">{{
           record.external_id
         }}</span>
-        <p v-if="record.external_curator || record.external_reviewer" class="text-muted-foreground">
-          <span v-if="record.external_curator">Curator: {{ record.external_curator }}</span>
-          <span v-if="record.external_curator && record.external_reviewer"> · </span>
-          <span v-if="record.external_reviewer">Reviewer: {{ record.external_reviewer }}</span>
-        </p>
       </dd>
     </template>
+    <template v-if="record.external_curator || ai">
+      <dt class="text-muted-foreground">Curated by</dt>
+      <dd>
+        {{ record.external_curator }}
+        <span v-if="ai" class="text-muted-foreground"
+          >{{ record.external_curator ? '· ' : '' }}AI-assisted ({{ ai }})</span
+        >
+      </dd>
+    </template>
+    <template v-if="record.external_reviewer">
+      <dt class="text-muted-foreground">Reviewed by</dt>
+      <dd>{{ record.external_reviewer }}</dd>
+    </template>
+    <!-- Extra dt/dd rows from the caller, aligned with the rows above -->
+    <slot />
   </dl>
 </template>

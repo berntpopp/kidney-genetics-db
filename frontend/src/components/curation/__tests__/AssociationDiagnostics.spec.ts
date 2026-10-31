@@ -36,6 +36,29 @@ const DIAGNOSTICS: Diagnostics = {
   ]
 }
 
+it('humanises a detectability challenge key like the methods', () => {
+  const key = {
+    ...DIAGNOSTICS,
+    detectability: [{ ...DIAGNOSTICS.detectability[0]!, challenge: 'cnv_whole_gene_deletion' }]
+  }
+  const text = mount(AssociationDiagnostics, { props: { diagnostics: key } }).text()
+  expect(text).toContain('cnv whole gene deletion')
+  expect(text).not.toContain('cnv_whole')
+})
+
+it("shows Gene Curator's labels for known challenge and method keys", () => {
+  const row = DIAGNOSTICS.detectability[0]!
+  const known = {
+    ...DIAGNOSTICS,
+    detectability: [
+      { ...row, challenge: 'cnv_whole_gene_or_exon_deletion', methods: ['mlpa_qpcr_array'] }
+    ]
+  }
+  const text = mount(AssociationDiagnostics, { props: { diagnostics: known } }).text()
+  expect(text).toContain('CNV: whole-gene or exon deletion')
+  expect(text).toContain('Methods: MLPA / qPCR / array')
+})
+
 const mountWith = (diagnostics: Diagnostics | null) =>
   mount(AssociationDiagnostics, { props: { diagnostics } })
 
@@ -101,5 +124,12 @@ describe('AssociationDiagnostics', () => {
       resources: []
     })
     expect(w.text()).toContain('standard short-read testing adequate')
+  })
+
+  it('names a resource type only when it is specific', () => {
+    const other = { ...DIAGNOSTICS.resources[0]!, type: 'other', name: 'ERKNet' }
+    const text = mountWith({ ...DIAGNOSTICS, resources: [DIAGNOSTICS.resources[0]!, other] }).text()
+    expect(text).toContain('Patient organisation')
+    expect(text).not.toContain('Other resource')
   })
 })

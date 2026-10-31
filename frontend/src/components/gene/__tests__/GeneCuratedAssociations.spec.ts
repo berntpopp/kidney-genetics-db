@@ -49,6 +49,22 @@ describe('GeneCuratedAssociations', () => {
     const hrefs = w.findAll('a').map(a => a.attributes('href'))
     expect(hrefs).toContain('https://monarchinitiative.org/MONDO:0008263')
     expect(hrefs).toContain('https://pubmed.ncbi.nlm.nih.gov/8004675/')
+    // Citations and the publication date are labelled rows alongside methodology and provenance
+    const rows = Object.fromEntries(
+      w.findAll('dt').map(dt => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()])
+    )
+    expect(rows['Citations']).toContain('PMID:8004675')
+    expect(rows['Published']).toBe('2026-10-02')
+  })
+
+  it('keeps summary paragraphs and leaves out an empty citation row', async () => {
+    const summary =
+      "Adopted the GCEP call.\n\nCurator's call overrides the point model (computed: Strong): x"
+    const w = await mountFor([{ ...RECORD, citations: [], evidence_summary: summary }])
+    const p = w.findAll('p').find(p => p.text().startsWith('Adopted the GCEP call.'))!
+    expect(p.element.textContent?.trim()).toBe(summary)
+    expect(p.classes()).toContain('whitespace-pre-line')
+    expect(w.findAll('dt').map(dt => dt.text())).not.toContain('Citations')
   })
 
   it('lists susceptibility records separately and never as a Mendelian strength', async () => {

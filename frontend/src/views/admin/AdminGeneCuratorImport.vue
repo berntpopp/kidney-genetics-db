@@ -67,7 +67,10 @@ async function upload() {
   failure.value = null
   try {
     report.value = (await importGeneCuratorExport(file.value)).data
-    toast.success(`Imported ${report.value.created.length} of ${report.value.rows} curations`)
+    // Nothing new (all skipped or rejected) is not a success to celebrate
+    toast[report.value.created.length ? 'success' : 'info'](
+      `Imported ${report.value.created.length} of ${report.value.rows} curations`
+    )
   } catch (err) {
     const response = (err as { response?: { data?: { error?: { details?: SchemaErrors } } } })
       .response
@@ -103,7 +106,16 @@ async function upload() {
           Each new curation becomes a draft owned by the
           <code class="text-foreground">gene-curator-import</code> account; review it under
           <RouterLink :to="WORKFLOW" class="underline">Curated associations</RouterLink>. Curations
-          imported before are skipped.
+          imported before are skipped, so re-uploading is safe.
+        </p>
+        <p class="text-sm text-muted-foreground">
+          To make the file, call
+          <code class="break-all text-foreground"
+            >GET &lt;Gene Curator&gt;/api/v1/export/curations?scope_name=kidney-genetics</code
+          >
+          with the token of a kidney-genetics scope member (without it the evidence block is empty,
+          so no summary or diagnostics are imported). Follow <code>next_cursor</code> through every
+          page and upload the pages as one JSON list, e.g. <code>jq -s . page*.json</code>.
         </p>
         <form class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="upload">
           <div class="min-w-0 flex-1 space-y-1">

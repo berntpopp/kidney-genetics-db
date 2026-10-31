@@ -5,9 +5,10 @@ import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import AdminGeneCuratorImport from '@/views/admin/AdminGeneCuratorImport.vue'
 import { importGeneCuratorExport } from '@/api/admin/geneCurator'
+import { toast } from 'vue-sonner'
 
 vi.mock('@/api/admin/geneCurator', () => ({ importGeneCuratorExport: vi.fn() }))
-vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }))
 const upload = vi.mocked(importGeneCuratorExport)
 
 const ref = (id: string, symbol: string) => ({
@@ -78,6 +79,7 @@ describe('AdminGeneCuratorImport', () => {
     } as never)
     const w = await mountPage()
     expect(upload).toHaveBeenCalledWith(expect.any(File))
+    expect(toast.success).toHaveBeenCalled()
     const group = (key: string) => w.find(`[data-testid="gc-${key}"]`).text()
     expect(group('created')).toContain('Record #7')
     expect(group('already_imported')).toContain('Record #3')
@@ -91,6 +93,16 @@ describe('AdminGeneCuratorImport', () => {
     // Screen readers hear the summary, not every row
     expect(w.find('[aria-live="polite"]').text()).toContain('6 curations in the file, 1 imported')
     expect(w.find('[aria-live="polite"] [data-testid="gc-created"]').exists()).toBe(false)
+  })
+
+  it('does not report a run that imported nothing as a success', async () => {
+    const none = { created: [], conflicts: [], genes_not_in_kgdb: [], dropped_fields: [] }
+    upload.mockResolvedValue({
+      data: { ...none, rows: 1, already_imported: [ref('02', 'PKD2')], rejected: [] }
+    } as never)
+    await mountPage()
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(toast.info).toHaveBeenCalledWith('Imported 0 of 1 curations')
   })
 
   it('lists the schema paths of a 422', async () => {

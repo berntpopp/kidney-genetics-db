@@ -54,6 +54,7 @@ describe('AssociationForm', () => {
       citations: ['12345678', 'PMID:23456789'],
       evidence_summary: null,
       relationship_type: 'mendelian',
+      risk_allele: null,
       moi: null,
       methodology: null,
       methodology_version: null,
@@ -83,6 +84,24 @@ describe('AssociationForm', () => {
       'Refuted association'
     ])
     expect(wrapper.find('#gda-evidence_strength').element).toHaveProperty('value', '')
+  })
+
+  it('names a risk allele only for a susceptibility record', async () => {
+    expect((await submit(VALID)).find('#gda-risk_allele').exists()).toBe(false)
+    wrapper?.unmount()
+    const w = await submit({
+      gene_symbol: VALID.gene_symbol,
+      disease_id: VALID.disease_id,
+      disease_name: VALID.disease_name,
+      citations: VALID.citations,
+      relationship_type: 'susceptibility',
+      evidence_strength: 'Established association',
+      risk_allele: ' rs4664308 A '
+    })
+    expect(w.emitted('save')?.[0]?.[0]).toMatchObject({
+      relationship_type: 'susceptibility',
+      risk_allele: 'rs4664308 A'
+    })
   })
 
   it('requires an external ID and http(s) URL for a Gene Curator record', async () => {
@@ -154,6 +173,65 @@ describe('AssociationForm', () => {
     await flushPromises()
     expect(wrapper.find('#gda-res-0-error').text()).toContain('http')
     expect(wrapper.emitted('save')).toBeUndefined()
+  })
+
+  it('lets an adopted ClinGen record be saved without PMIDs, and nothing else', async () => {
+    const record = {
+      id: 3,
+      gene_symbol: 'DNAJB11',
+      disease_id: 'MONDO:0005300',
+      disease_name: 'chronic kidney disease',
+      relationship_type: 'mendelian',
+      evidence_strength: 'Definitive',
+      citations: [],
+      evidence_summary: null,
+      source: 'kgdb',
+      scores: null,
+      diagnostics: null
+    }
+    const save = async (r: object) => {
+      wrapper?.unmount()
+      wrapper = mount(AssociationForm, { props: { record: r as never }, attachTo: document.body })
+      await flushPromises()
+      await wrapper.find('form').trigger('submit')
+      await new Promise(resolve => setTimeout(resolve, 10))
+      await flushPromises()
+      return wrapper
+    }
+    const plain = await save(record)
+    expect(plain.find('#gda-citations-error').text()).toContain('At least one PMID')
+    expect(plain.emitted('save')).toBeUndefined()
+    const adopted = await save({
+      ...record,
+      adopted_clingen: { id: 'CGGV:a', url: 'https://x.org' }
+    })
+    expect(adopted.emitted('save')?.[0]?.[0]).toMatchObject({ citations: [] })
+  })
+
+  it('keeps imported association points it has no field for when saving an edit', async () => {
+    const record = {
+      id: 2,
+      gene_symbol: 'APOL1',
+      disease_id: 'MONDO:0005300',
+      disease_name: 'chronic kidney disease',
+      relationship_type: 'susceptibility',
+      evidence_strength: 'Established association',
+      citations: ['PMID:1'],
+      evidence_summary: null,
+      source: 'kgdb',
+      scores: { genetic: null, experimental: 1, association: 4, total: 5 },
+      diagnostics: null
+    }
+    wrapper = mount(AssociationForm, {
+      props: { record: record as never },
+      attachTo: document.body
+    })
+    await flushPromises()
+    await wrapper.find('form').trigger('submit')
+    await new Promise(resolve => setTimeout(resolve, 10))
+    await flushPromises()
+    const saved = wrapper.emitted('save')?.[0]?.[0] as Record<string, unknown>
+    expect(saved.scores).toEqual({ genetic: null, experimental: 1, association: 4, total: 5 })
   })
 
   it('asks for a new verification date when a verified link is changed', async () => {
