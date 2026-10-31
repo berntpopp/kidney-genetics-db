@@ -10,7 +10,7 @@ writes its outputs to; `<OUT_DIR>` / `<JUDGE_DIR>` for its curation and judge ou
 - `BRIEF_ADJUDICATOR.md`: non-blind adjudicator that compares a disagreement with the ClinGen report
 - `WORKFLOW.md`: the end-to-end Gene Curator → KGDB workflow (curate, export, upload, confirm)
 - `PROMPT_PRODUCTION.md`: production prompt for LLM curation in Gene Curator (GC MCP + GeneFoundry;
-  adopts ClinGen first, not blind, saves via GC tools, approved #473 susceptibility rules). The
+  records ClinGen and curates every entity in full, not blind, saves via GC tools, approved #473 susceptibility rules). The
   `BRIEF_*` files above are the blind test harness it was calibrated with.
 - `BRIEF_DIAGNOSTICS.md`: non-scoring clinical diagnostics section (transcript, detectability, resources)
 - `TOOL_POLICY.md`: GeneFoundry-first tool use, retry and fallback rules
@@ -33,6 +33,7 @@ scheme (Schmidt 2024, PMID 38054408): `Established association`, `Likely associa
 the approved proposal on #473; the 500-case size cut-off also applies to rare phenotypes such as
 aHUS.
 
-- **APOL1**: kept as ClinGen's Glomerulopathy GCEP curated it, Mendelian Definitive (AR), not
-  re-recorded as a susceptibility `Established association`. Entities ClinGen curated on the
-  Mendelian SOP are adopted as is.
+- **ClinGen-curated entities (2026-10-31)**: curated in full like any other entity, with ClinGen's
+  class cited beside ours; a different class needs a written reason. APOL1 (ClinGen Glomerulopathy
+  GCEP: Mendelian Definitive, AR) is re-curated under these rules; if it comes out as a
+  susceptibility `Established association`, the maintainer confirms before publishing.

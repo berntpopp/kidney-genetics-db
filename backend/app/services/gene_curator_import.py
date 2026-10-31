@@ -33,6 +33,7 @@ from app.models.gene_disease_association import MOI_TERMS
 from app.models.gene_disease_association import GeneDiseaseAssociation as GDA
 from app.models.user import User
 from app.schemas.gene_disease_association import (
+    ADOPTED,
     AssociationCreate,
     Detectability,
     Diagnostics,
@@ -72,7 +73,6 @@ CLASSES = {
         "refuted": "Refuted association",
     },
 }
-ADOPTED = "ClinGen gene-disease validity (adopted)"
 SCOPE = "kidney-genetics"  # the only Gene Curator scope KGDB imports
 MOI_ROOT = "HP:0000005"  # HPO "Mode of inheritance": no particular mode
 UNDETERMINED_MOI = {
@@ -284,6 +284,8 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
     if moi is not None and moi.upper() not in MOI_TERMS:
         raise ValueError(f"unknown MOI {moi!r}")
     adopted = _adopted(item["adoption"]) if item.get("adoption") else None
+    # Our own curation of an entity ClinGen also curated: ClinGen is cited, ours stands
+    reference = _adopted(item["clingen_reference"]) if item.get("clingen_reference") else None
     if item.get("evidence") is None:
         dropped.append("evidence (null: export with a kidney-genetics member's token)")
     evidence = _shaped(item.get("evidence") or {}, dict, "")
@@ -299,9 +301,20 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
             scores["association"] = (item.get("scores") or {}).get("association_total")
     summary = evidence.get("evidence_summary") or None
     computed, rationale = item.get("computed_verdict"), item.get("curator_classification_rationale")
-    if not adopted and rationale and _key(computed) != _key(item["final_classification"]):
-        override = f"Curator's call overrides the point model (computed: {computed}): {rationale}"
-        summary = f"{summary}\n\n{override}" if summary else override
+    final = _key(item["final_classification"])
+    notes = []
+    if not adopted and rationale and _key(computed) != final:
+        notes.append(
+            f"Curator's call overrides the point model (computed: {computed}): {rationale}"
+        )
+    if reference and (relationship != "mendelian" or _key(reference["classification"]) != final):
+        if not rationale:
+            raise ValueError(
+                f"differs from ClinGen ({reference['classification']}) without a written reason"
+            )
+        notes.append(f"Differs from ClinGen ({reference['classification']}): {rationale}")
+    if notes:
+        summary = "\n\n".join([summary, *notes] if summary else notes)
     fields: dict[str, Any] = {
         "gene_symbol": item["approved_symbol"],
         "disease_id": (item.get("mondo_id") or "").replace("_", ":", 1),  # GC keeps MONDO_ as typed
@@ -327,7 +340,7 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
         "diagnostics": _diagnostics(evidence, dropped),
         "citations": item.get("pmids") or [],
         "evidence_summary": summary,
-        "adopted_clingen": adopted,
+        "adopted_clingen": adopted or reference,
     }
     try:
         payload = AssociationCreate(**fields)
@@ -346,7 +359,7 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
 
 
 def _adopted(statement: Any) -> dict[str, Any]:
-    """GC's adoption statement (VA-Spec, export `adoption`) -> KGDB adopted_clingen."""
+    """GC's ClinGen statement (VA-Spec, export `adoption` or `clingen_reference`) -> adopted_clingen."""
     try:
         panel = next(
             c for c in statement["contributions"] if c["activityType"]["name"] == "interpreter"

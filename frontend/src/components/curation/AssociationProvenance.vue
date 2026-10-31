@@ -2,7 +2,13 @@
 /** Inheritance mode, methodology, origin and points of a curated association (#437) */
 import { computed } from 'vue'
 import { ExternalLink } from 'lucide-vue-next'
-import { isHttpUrl, MOI_TERMS, type Association } from '@/api/curation'
+import {
+  differsFromClinGen,
+  isAdoption,
+  isHttpUrl,
+  MOI_TERMS,
+  type Association
+} from '@/api/curation'
 
 // showMoi: false where a table already shows the inheritance mode in its own column
 const props = withDefaults(defineProps<{ record: Association; showMoi?: boolean }>(), {
@@ -19,6 +25,9 @@ const methodology = computed(() => {
   return /^\d+$/.test(version) ? `${name}, version ${version}` : `${name} (${version})`
 })
 const adopted = computed(() => props.record.adopted_clingen ?? null)
+// An adoption takes ClinGen's class; our own curation only cites it
+const adoption = computed(() => isAdoption(props.record))
+const differs = computed(() => differsFromClinGen(props.record))
 const fromGeneCurator = computed(() => props.record.source === 'gene_curator')
 // Software agents Gene Curator credits for the evidence
 const ai = computed(() => props.record.ai_agents?.join(', ') || null)
@@ -68,7 +77,7 @@ const points = computed(() => {
       <dd class="tabular-nums">{{ points }}</dd>
     </template>
     <template v-if="adopted">
-      <dt class="text-muted-foreground">Adopted from</dt>
+      <dt class="text-muted-foreground">{{ adoption ? 'Adopted from' : 'ClinGen' }}</dt>
       <dd>
         <a
           v-if="isHttpUrl(adopted.url)"
@@ -77,21 +86,24 @@ const points = computed(() => {
           rel="noopener noreferrer"
           class="inline-flex items-center gap-1 rounded-sm text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          ClinGen
+          {{ adoption ? 'ClinGen' : adopted.classification }}
           <ExternalLink class="size-3" aria-hidden="true" />
           <span class="sr-only">(opens in a new tab)</span>
         </a>
-        <span v-else>ClinGen</span>
+        <span v-else>{{ adoption ? 'ClinGen' : adopted.classification }}</span>
         {{
           [
             adopted.expert_panel,
-            adopted.classification,
+            adoption && adopted.classification,
             adopted.classified_date && `classified ${adopted.classified_date}`
           ]
             .filter(Boolean)
             .map(part => ` · ${part}`)
             .join('')
         }}
+        <span v-if="differs" class="font-medium text-foreground">
+          · differs from this curation</span
+        >
       </dd>
     </template>
     <template v-if="fromGeneCurator">

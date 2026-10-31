@@ -4,7 +4,7 @@ One-shot: a curation is made in Gene Curator (GC), imported into KGDB once, and 
 and is edited only in KGDB. GC never updates or retracts it; a new curation is a new import.
 
 1. **Curate in Gene Curator.** An LLM agent uses GC's MCP (`/mcp`) plus GeneFoundry with
-   `PROMPT_PRODUCTION.md`: adopt ClinGen where it exists, otherwise curate with explicit per-row
+   `PROMPT_PRODUCTION.md`: record ClinGen where it exists and curate every entity with explicit per-row
    points and reviewer flags, then submit. A human GC reviewer approves (four-eyes in GC).
 2. **Export.** From GC, export the approved `kidney-genetics` curations (`GET /api/v1/export/curations`,
    export v1) with a scope member's token; without one `evidence` is null, so no summary or
@@ -22,9 +22,13 @@ and is edited only in KGDB. GC never updates or retracts it; a new curation is a
 **Rules that matter**
 - Only `scope_name = kidney-genetics`; unknown verdict, MOI or relationship values are rejected.
 - A curation without a final classification (not yet approved in GC) is rejected.
-- An adopted ClinGen classification (GC `adoption`) imports as methodology "ClinGen gene-disease
-  validity (adopted)" with the expert panel, date and CGGV link in `adopted_clingen`, no points and
-  possibly no PMIDs.
+- Our own curation of a ClinGen-curated entity carries ClinGen's statement in `clingen_reference`
+  (same shape as `adoption`). It imports with our methodology, points and PMIDs, and ClinGen's panel,
+  class, date and link in `adopted_clingen`, shown as "ClinGen: <class>". A final class that differs
+  from ClinGen's needs `curator_classification_rationale` (else the row is rejected); the reason is
+  appended to the summary as "Differs from ClinGen (<class>): …".
+- A legacy adoption (GC `adoption`) imports as methodology "ClinGen gene-disease validity (adopted)"
+  with no points and possibly no PMIDs. Only an adoption may have no PMIDs.
 - Software agents GC credits (`contributions`, agentType software) are stored in `ai_agents` and
   shown as "AI-assisted (…)" next to the curator. A curator override of the point model is appended to the summary with its reason.
 - Susceptibility association points come from `scores.association_total` (`scores.association`).
