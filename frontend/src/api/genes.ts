@@ -4,6 +4,7 @@
 
 import apiClient from './client'
 import type { Gene, GeneListParams } from '@/types/gene'
+import type { DomainResult, PositionStatistics } from '@/types/positionStats'
 import { networkAnalysisConfig } from '@/config/networkAnalysis'
 
 /** JSON:API item wrapper returned from the backend */
@@ -67,7 +68,24 @@ export interface GetGenesByIdsOptions {
   sortDesc?: boolean
 }
 
+// JSON cannot carry Infinity: the API sends null for an unbounded odds ratio or upper CI bound.
+const unbounded = (d: DomainResult): DomainResult => ({
+  ...d,
+  or: d.or ?? Infinity,
+  hi: d.hi ?? Infinity
+})
+
 export const geneApi = {
+  /** Server-computed variant-position statistics (domains, scan, 3D clustering and hotspots) */
+  async getPositionStatistics(symbol: string, minStars: number): Promise<PositionStatistics> {
+    const { data } = await apiClient.get<PositionStatistics>(
+      `/api/genes/${encodeURIComponent(symbol)}/position-statistics`,
+      { params: { min_stars: minStars } }
+    )
+    if (data.linear) data.linear.domains = data.linear.domains.map(unbounded)
+    return data
+  },
+
   /**
    * Get paginated list of genes
    */

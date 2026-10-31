@@ -42,12 +42,22 @@
     </div>
 
     <!-- Visualization Container -->
-    <div class="overflow-x-auto">
+    <div class="relative overflow-x-auto">
       <div
         ref="chartContainer"
         class="chart-container"
         :style="{ minWidth: `${MIN_PLOT_WIDTH}px` }"
       ></div>
+      <div
+        v-if="scanTip"
+        class="pointer-events-none absolute z-10 rounded-md border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md tabular-nums"
+        :style="{ left: `${scanTip.left}px`, top: `${scanTip.top}px` }"
+        role="presentation"
+      >
+        <div v-for="(line, i) in scanTip.lines" :key="line" :class="i === 0 ? 'font-semibold' : ''">
+          {{ line }}
+        </div>
+      </div>
     </div>
     <p class="mt-1 text-xs text-muted-foreground sm:hidden">
       Scroll sideways to see the whole plot.
@@ -60,7 +70,7 @@ import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { Download, ZoomIn, ZoomOut, SearchX } from 'lucide-vue-next'
 import { useAppTheme } from '@/composables/useAppTheme'
 import { Button } from '@/components/ui/button'
-import { select, selectAll } from 'd3-selection'
+import { pointer, select, selectAll } from 'd3-selection'
 import { scaleLinear } from 'd3-scale'
 import { axisBottom } from 'd3-axis'
 import { zoom, zoomIdentity } from 'd3-zoom'
@@ -73,6 +83,7 @@ import {
   featureColor,
   significanceColor
 } from '@/components/gene/variantColors'
+import { formatP } from '@/utils/stats/sentences'
 
 const { isDark } = useAppTheme()
 const chartContainer = ref(null)
@@ -99,8 +110,25 @@ const props = defineProps({
   height: {
     type: Number,
     default: 280
+  },
+  /** Linear hotspot scan (ScanResult) drawn as a track under the plot */
+  scan: {
+    type: Object,
+    default: null
+  },
+  /** Reserve the scan track's height while the scan is computing (no layout shift) */
+  scanPending: {
+    type: Boolean,
+    default: false
   }
 })
+
+// Scan track: fixed height below the main plot, present while pending or when results exist
+const TRACK_GAP = 34
+const TRACK_PLOT = 56
+const TRACK_H = TRACK_GAP + TRACK_PLOT + 14
+const showTrack = computed(() => Boolean(props.scan) || props.scanPending)
+const scanTip = ref(null)
 
 // Filter state
 const colorBy = ref('classification')
@@ -321,14 +349,16 @@ const renderChart = () => {
   }
 
   // Create SVG
+  const svgHeight = containerHeight + (showTrack.value ? TRACK_H : 0)
+  const scanRegions = props.scan?.regions ?? []
   const svg = select(chartContainer.value)
     .append('svg')
     .attr('width', containerWidth)
-    .attr('height', containerHeight)
+    .attr('height', svgHeight)
     .attr('role', 'img')
     .attr(
       'aria-label',
-      `Protein ${props.uniprotData?.accession ?? ''}: ${proteinLength} amino acids, ${domains.value.length} features, ${filteredVariants.value.length} ClinVar variants shown`
+      `Protein ${props.uniprotData?.accession ?? ''}: ${proteinLength} amino acids, ${domains.value.length} features, ${filteredVariants.value.length} ClinVar variants shown${props.scan ? `; hotspot scan: ${scanRegions.length} significant region${scanRegions.length === 1 ? '' : 's'}` : ''}`
     )
 
   // Create clip path for zoom
@@ -363,6 +393,9 @@ const renderChart = () => {
     .style('font-weight', '600')
     .style('fill', colors.text)
     .text(`${props.uniprotData.protein_name || props.uniprotData.accession} (${proteinLength} aa)`)
+
+  // Hotspot region bands, behind the backbone, domains and lollipops
+  const bandsGroup = contentGroup.append('g').attr('class', 'scan-bands')
 
   // Draw protein backbone
   const backboneY = height / 2
@@ -605,7 +638,166 @@ const renderChart = () => {
     })
   }
 
+  // Hotspot scan track (shares the zoomed x scale) and region bands through the plot
+  const meaning = c(significanceColor('pathogenic'))
+  const muted = c('var(--muted-foreground)')
+  const bandTop = backboneY - domainHeight / 2 - lollipopHeight - 14
+  const bandBottom = backboneY + domainHeight / 2 + 6
+  const band = (group, scale, r, y, h) =>
+    group
+      .append('rect')
+      .attr('x', scale(r.start - 0.5))
+      .attr('y', y)
+      .attr('width', Math.max(scale(r.end + 0.5) - scale(r.start - 0.5), 2))
+      .attr('height', h)
+      .attr('fill', meaning)
+      .attr('fill-opacity', 0.08)
+  const drawBands = scale => {
+    bandsGroup.selectAll('*').remove()
+    scanRegions.forEach(r => band(bandsGroup, scale, r, bandTop, bandBottom - bandTop))
+  }
+  let drawScan = () => {}
+  if (showTrack.value) {
+    const trackTop = containerHeight + TRACK_GAP
+    const track = svg.append('g').attr('transform', `translate(${margin.left},${trackTop})`)
+    svg
+      .append('text')
+      .attr('x', margin.left)
+      .attr('y', trackTop - 12)
+      .style('font-size', '11px')
+      .style('font-weight', '600')
+      .style('fill', colors.text)
+      .text('Hotspot scan')
+      .append('tspan')
+      .attr('dx', 8)
+      .style('font-weight', '400')
+      .style('fill', muted)
+      .text(`−log₁₀ family-wise adjusted p, ${props.scan?.w ?? 15}-residue windows`)
+    const B = props.scan?.B ?? 10000
+    const yCap = Math.log10(B + 1)
+    const yScale = scaleLinear().domain([0, yCap]).range([TRACK_PLOT, 0])
+    const fwer = yScale(-Math.log10(0.05))
+    ;[0, Math.floor(yCap)].forEach(t =>
+      track
+        .append('text')
+        .attr('x', -6)
+        .attr('y', yScale(t) + 3)
+        .attr('text-anchor', 'end')
+        .style('font-size', '10px')
+        .style('font-variant-numeric', 'tabular-nums')
+        .style('fill', muted)
+        .text(t)
+    )
+    track
+      .append('line')
+      .attr('x1', 0)
+      .attr('x2', width)
+      .attr('y1', TRACK_PLOT)
+      .attr('y2', TRACK_PLOT)
+      .attr('stroke', colors.backbone)
+    track
+      .append('line')
+      .attr('x1', 0)
+      .attr('x2', width)
+      .attr('y1', fwer)
+      .attr('y2', fwer)
+      .attr('stroke', muted)
+      .attr('stroke-width', 1)
+      .attr('stroke-opacity', 0.6)
+    track
+      .append('text')
+      .attr('x', width)
+      .attr('y', fwer - 4)
+      .attr('text-anchor', 'end')
+      .style('font-size', '10px')
+      .style('fill', muted)
+      .text('FWER 0.05')
+    if (!props.scan) {
+      track
+        .append('text')
+        .attr('x', width / 2)
+        .attr('y', TRACK_PLOT / 2 + 4)
+        .attr('text-anchor', 'middle')
+        .style('font-size', '11px')
+        .style('fill', muted)
+        .text('Computing hotspot scan…')
+    } else {
+      svg
+        .select('defs')
+        .append('clipPath')
+        .attr('id', 'protein-scan-clip')
+        .append('rect')
+        .attr('x', 0)
+        .attr('y', -2)
+        .attr('width', width)
+        .attr('height', TRACK_PLOT + 4)
+      const trackContent = track.append('g').attr('clip-path', 'url(#protein-scan-clip)')
+      const windows = props.scan.windows
+      const yOf = w => yScale(Math.min(yCap, -Math.log10(w.adjP)))
+      const crosshair = track
+        .append('line')
+        .attr('y1', 0)
+        .attr('y2', TRACK_PLOT)
+        .attr('stroke', colors.text)
+        .attr('stroke-opacity', 0.5)
+        .style('display', 'none')
+      drawScan = scale => {
+        trackContent.selectAll('*').remove()
+        scanRegions.forEach(r => band(trackContent, scale, r, 0, TRACK_PLOT))
+        if (!windows.length) return
+        const pts = windows.map(w => `${scale(w.centre).toFixed(1)},${yOf(w).toFixed(1)}`)
+        const x0 = scale(windows[0].centre).toFixed(1)
+        const x1 = scale(windows[windows.length - 1].centre).toFixed(1)
+        trackContent
+          .append('path')
+          .attr('d', `M${x0},${TRACK_PLOT}L${pts.join('L')}L${x1},${TRACK_PLOT}Z`)
+          .attr('fill', meaning)
+          .attr('fill-opacity', 0.1)
+        trackContent
+          .append('path')
+          .attr('d', `M${pts.join('L')}`)
+          .attr('fill', 'none')
+          .attr('stroke', meaning)
+          .attr('stroke-width', 2)
+          .attr('stroke-linejoin', 'round')
+      }
+      track
+        .append('rect')
+        .attr('width', width)
+        .attr('height', TRACK_PLOT)
+        .attr('fill', 'transparent')
+        .on('mousemove', event => {
+          if (!windows.length) return
+          const [mx] = pointer(event, track.node())
+          const residue = xScaleZoomed.invert(mx)
+          const i = Math.min(
+            windows.length - 1,
+            Math.max(0, Math.round(residue - windows[0].centre))
+          )
+          const w = windows[i]
+          const x = xScaleZoomed(w.centre)
+          crosshair.attr('x1', x).attr('x2', x).style('display', null)
+          const left = margin.left + x
+          scanTip.value = {
+            left: left > containerWidth - 200 ? left - 190 : left + 12,
+            top: trackTop + 4,
+            lines: [
+              `Residues ${w.start}–${w.end}`,
+              `${w.cases} P/LP · ${w.ctrls} gnomAD`,
+              `Adjusted p ${formatP(w.adjP, B)}`
+            ]
+          }
+        })
+        .on('mouseleave', () => {
+          crosshair.style('display', 'none')
+          scanTip.value = null
+        })
+    }
+  }
+
   // Initial draw
+  drawBands(xScaleZoomed)
+  drawScan(xScaleZoomed)
   drawDomains(xScaleZoomed)
   drawLollipops(xScaleZoomed)
 
@@ -629,6 +821,9 @@ const renderChart = () => {
       zoomDomain.value = xScaleZoomed.domain()
 
       // Redraw with new scale
+      drawBands(xScaleZoomed)
+      drawScan(xScaleZoomed)
+      scanTip.value = null
       drawDomains(xScaleZoomed)
       drawLollipops(xScaleZoomed)
 
@@ -695,6 +890,11 @@ watch(
 
 watch(
   () => colorBy.value,
+  () => nextTick(renderChart)
+)
+
+watch(
+  () => [props.scan, props.scanPending],
   () => nextTick(renderChart)
 )
 
