@@ -35,9 +35,12 @@ and is edited only in KGDB. GC never updates or retracts it; a new curation is a
 - Methodology bundle: `docs/schemas/kidney-genetics/kgdb-methodology.json` in Gene Curator; after a
   change, a GC platform admin re-imports it (Schema Management → Import methodology, dry run first).
 
-**Status (2026-10-31):** KGDB side live in v0.21.0. First end-to-end local pilot (GC PR #609 head):
-agents curated NPHS2 and CLDN10 (full point model), PLA2R1 (susceptibility) and adopted DNAJB11
-from ClinGen; a second GC user approved; all four imported and published in KGDB. GC gaps found are
-gene-curator #610–#615. Open: the GC bundle is at draft iteration 3 while `PROMPT_PRODUCTION.md`
-scores with iteration 8 rules (gene-curator #615), and GC has no field for per-row quotes or
-reviewer flags (agents use `context_notes`).
+**Status (2026-10-31):** KGDB side live in v0.21.0; this branch adds adopted ClinGen
+classifications, AI credit (`ai_agents`), the susceptibility `risk_allele` key and the
+single-gene view. End-to-end runs on local Gene Curator: first at PR #609 head (NPHS2, CLDN10,
+PLA2R1 rs4664308, DNAJB11 adopted), then on master 0fda2285 with methodology version 2
+(iteration 8): MAGI2 (Strong, curator call over computed Definitive), PLA2R1 rs17831251 C
+(Likely association, polygenic) beside the first PLA2R1 entity, and KCNJ16 adopted from ClinGen
+with diagnostics. Agents curated via `/mcp`, a second GC user approved, all imported as drafts
+and were published in the KGDB UI. GC gaps found are gene-curator #610–#615 (closed); remaining
+GC friction is listed in the #448 PR.
