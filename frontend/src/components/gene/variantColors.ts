@@ -97,6 +97,8 @@ export const effectColor = (effect: string | null | undefined) =>
 
 export const FEATURE_COLORS: Record<string, string> = {
   Domain: 'var(--source-1)',
+  'DNA binding': 'var(--source-7)',
+  'Zinc finger': 'var(--source-7)',
   Region: 'var(--source-3)',
   Motif: 'var(--source-2)',
   Transmembrane: 'var(--source-6)',

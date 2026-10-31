@@ -331,3 +331,29 @@ class TestIdMappingGeneMap:
 
         assert 10 in mapped
         assert 20 not in mapped
+
+
+def test_dna_binding_kept_and_domain_count_excludes_chain_and_regions() -> None:
+    """HNF1B (P35680): the homeobox is a 'DNA binding' feature, not a 'Domain'."""
+
+    def feature(ftype: str, start: int, end: int) -> dict[str, Any]:
+        return {
+            "type": ftype,
+            "description": ftype,
+            "location": {"start": {"value": start}, "end": {"value": end}},
+        }
+
+    entry = {
+        **_PKD1_ENTRY,
+        "features": [
+            feature("Chain", 1, 557),
+            feature("Domain", 1, 32),
+            feature("Domain", 93, 188),
+            feature("DNA binding", 231, 311),
+            feature("Region", 1, 31),
+        ],
+    }
+    parsed = _make_source()._parse_protein_data("HNF1B", entry)
+    assert parsed is not None
+    assert "DNA binding" in {d["type"] for d in parsed["domains"]}
+    assert parsed["domain_count"] == 3
