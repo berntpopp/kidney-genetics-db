@@ -16,6 +16,11 @@ vi.mock('@/api/genes', () => ({
   geneApi: { getGene: vi.fn(), getGeneEvidence: vi.fn(), getGeneAnnotations: vi.fn() }
 }))
 import { geneApi } from '@/api/genes'
+vi.mock('@/api/curation', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/api/curation')>()),
+  curationApi: { listPublished: vi.fn() }
+}))
+import { curationApi } from '@/api/curation'
 
 vi.stubGlobal('logService', { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })
 
@@ -55,8 +60,14 @@ describe('GeneDetail load states (#316)', () => {
     vi.mocked(geneApi.getGeneAnnotations)
       .mockReset()
       .mockResolvedValue({} as never)
+    vi.mocked(curationApi.listPublished)
+      .mockReset()
+      .mockResolvedValue({ data: [], meta: { total: 0, limit: 100, offset: 0 } } as never)
   })
-  afterEach(() => wrapper?.unmount())
+  afterEach(() => {
+    wrapper?.unmount()
+    vi.useRealTimers()
+  })
 
   it.each([
     ['500', httpError(500)],
@@ -107,7 +118,35 @@ describe('GeneDetail load states (#316)', () => {
     expect(w.text()).toContain('No evidence records available')
   })
 
-  it('renders the gene before the slow annotation call returns', async () => {
+  it('reveals the body once, after annotations and curated records settle', async () => {
+    vi.mocked(geneApi.getGene).mockResolvedValue({ id: 1, approved_symbol: 'HNF1B' } as never)
+    let resolveAnnotations: (_v: unknown) => void = () => {}
+    vi.mocked(geneApi.getGeneAnnotations).mockReturnValue(
+      new Promise(r => (resolveAnnotations = r)) as never
+    )
+    const w = await mountGene('HNF1B')
+
+    // Evidence starts with the gene call; the body waits for the above-the-fold calls
+    expect(geneApi.getGeneEvidence).toHaveBeenCalledWith('HNF1B')
+    expect(curationApi.listPublished).toHaveBeenCalledWith({ gene_symbol: 'HNF1B' })
+    expect(w.text()).not.toContain('Evidence by source')
+
+    resolveAnnotations({})
+    await flushPromises()
+    expect(w.text()).toContain('Evidence by source')
+  })
+
+  it('shows no curated card when the curated request fails', async () => {
+    vi.mocked(geneApi.getGene).mockResolvedValue({ id: 1, approved_symbol: 'PKD1' } as never)
+    vi.mocked(curationApi.listPublished).mockRejectedValue(httpError(503))
+    const w = await mountGene()
+
+    expect(w.text()).toContain('Evidence by source')
+    expect(w.text()).not.toContain('Expert-reviewed')
+  })
+
+  it('renders the gene progressively when annotations exceed the reveal budget', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
     vi.mocked(geneApi.getGene).mockResolvedValue({
       id: 1,
       approved_symbol: 'HNF1B',
@@ -118,6 +157,8 @@ describe('GeneDetail load states (#316)', () => {
       new Promise(r => (resolveAnnotations = r)) as never
     )
     const w = await mountGene('HNF1B')
+    await vi.advanceTimersByTimeAsync(1000)
+    await flushPromises()
 
     expect(w.find('h1').text()).toBe('HNF1B')
     expect(w.text()).toContain('No evidence records available')
