@@ -106,15 +106,15 @@
               Likely, Uncertain or Refuted association, following ClinGen's risk-allele scheme.
             </li>
             <li>
-              <strong class="font-semibold">ClinGen first.</strong> Where a ClinGen expert panel has
-              curated the same gene, disease and inheritance, its classification is adopted and
-              linked, not curated again.
+              <strong class="font-semibold">Curated in Gene Curator.</strong> Each piece of genetic
+              and experimental evidence is a row with its PubMed reference and points under the KGDB
+              point model, which is still in alpha. The record names its methodology and version,
+              and links back to the curation in Gene Curator.
             </li>
             <li>
-              <strong class="font-semibold">Otherwise curated in Gene Curator.</strong> Each piece
-              of genetic and experimental evidence is a row with its PubMed reference and points
-              under the KGDB point model, which is still in alpha. The record names its methodology
-              and version, and links back to the curation in Gene Curator.
+              <strong class="font-semibold">ClinGen cited beside it.</strong> Where a ClinGen expert
+              panel has classified the same gene, disease and inheritance, the record shows that
+              classification and links to it. If our class differs, the record gives the reason.
             </li>
             <li>
               <strong class="font-semibold">AI-assisted, human-reviewed.</strong> An AI agent may

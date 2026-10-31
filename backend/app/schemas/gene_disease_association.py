@@ -154,13 +154,17 @@ def check_risk_allele(relationship_type: str, risk_allele: str | None) -> None:
         raise ValueError("risk_allele is only for a susceptibility association")
 
 
-def check_citations(citations: list[str], adopted_clingen: Any) -> None:
-    if not citations and adopted_clingen is None:
+ADOPTED = "ClinGen gene-disease validity (adopted)"
+
+
+def check_citations(citations: list[str], adopted_clingen: Any, methodology: str | None) -> None:
+    # Only an adoption may cite nothing: ClinGen holds its evidence. Our own curation cites PMIDs.
+    if not citations and (adopted_clingen is None or methodology != ADOPTED):
         raise ValueError("citations: give at least one PMID")
 
 
 class AdoptedClinGen(_Strict):
-    """A ClinGen classification adopted in Gene Curator, not curated there (GC #105)."""
+    """ClinGen's classification of the entity: adopted (GC #105) or cited beside our own curation."""
 
     id: _text(200, 1)  # CGGV assertion id
     classification: _text(40, 1)
@@ -202,7 +206,7 @@ class AssociationCreate(_Provenance):
     def _consistent(self) -> "AssociationCreate":
         check_classification(self.relationship_type, self.evidence_strength)
         check_provenance(self.source, self.external_id, self.external_url)
-        check_citations(self.citations, self.adopted_clingen)
+        check_citations(self.citations, self.adopted_clingen, self.methodology)
         check_risk_allele(self.relationship_type, self.risk_allele)
         if (self.adopted_clingen or self.ai_agents) and self.source != "gene_curator":
             raise ValueError("adopted_clingen and ai_agents are only for Gene Curator imports")
