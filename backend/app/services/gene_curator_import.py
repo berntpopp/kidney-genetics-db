@@ -302,19 +302,18 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
     summary = evidence.get("evidence_summary") or None
     computed, rationale = item.get("computed_verdict"), item.get("curator_classification_rationale")
     final = _key(item["final_classification"])
-    notes = []
+    departs = []  # what the curator's final class departs from, with one shared reason
     if not adopted and rationale and _key(computed) != final:
-        notes.append(
-            f"Curator's call overrides the point model (computed: {computed}): {rationale}"
-        )
+        departs.append(f"the point model (computed: {computed})")
     if reference and (relationship != "mendelian" or _key(reference["classification"]) != final):
         if not rationale:
             raise ValueError(
                 f"differs from ClinGen ({reference['classification']}) without a written reason"
             )
-        notes.append(f"Differs from ClinGen ({reference['classification']}): {rationale}")
-    if notes:
-        summary = "\n\n".join([summary, *notes] if summary else notes)
+        departs.append(f"ClinGen ({reference['classification']})")
+    if departs:
+        note = f"Curator's call differs from {' and from '.join(departs)}: {rationale}"
+        summary = f"{summary}\n\n{note}" if summary else note
     fields: dict[str, Any] = {
         "gene_symbol": item["approved_symbol"],
         "disease_id": (item.get("mondo_id") or "").replace("_", ":", 1),  # GC keeps MONDO_ as typed

@@ -448,7 +448,7 @@ def test_adopted_clingen_imports_without_points_or_pmids(db_session, genes, admi
     assert record.methodology == gc.ADOPTED and record.methodology_version is None
     assert record.adopted_clingen["expert_panel"].startswith("Kidney Cystic")
     assert record.adopted_clingen["classified_date"] == "2023-10-25"
-    assert "overrides" not in (record.evidence_summary or "")
+    assert "differs" not in (record.evidence_summary or "")
     with pytest.raises(ValueError, match="malformed"):
         gc._values(_row(row, adoption={"id": "x"}), [])
 
@@ -472,7 +472,20 @@ def test_values_need_a_reason_to_differ_from_clingen() -> None:
     with pytest.raises(ValueError, match="differs from ClinGen"):
         gc._values(row, [])
     values = gc._values(_row(row, curator_classification_rationale="no replication"), [])
-    assert values["evidence_summary"].endswith("Differs from ClinGen (Definitive): no replication")
+    assert values["evidence_summary"].endswith(
+        "Curator's call differs from ClinGen (Definitive): no replication"
+    )
+    both = gc._values(
+        _row(
+            row,
+            computed_verdict="definitive",
+            final_classification="moderate",
+            curator_classification_rationale="no replication",
+        ),
+        [],
+    )
+    assert both["evidence_summary"].count("no replication") == 1
+    assert "point model (computed: definitive) and from ClinGen" in both["evidence_summary"]
     with pytest.raises(ValueError, match="at least one PMID"):
         gc._values(_row(row, pmids=[], curator_classification_rationale="x"), [])
 
@@ -490,7 +503,7 @@ def test_values_credit_software_agents_and_keep_the_override_reason() -> None:
     assert values["ai_agents"] == ["claude-opus"]
     assert values["external_curator"] == MENDELIAN["curator_name"]
     assert values["evidence_summary"].endswith(
-        "overrides the point model (computed: limited): two large families"
+        "differs from the point model (computed: limited): two large families"
     )
 
 
