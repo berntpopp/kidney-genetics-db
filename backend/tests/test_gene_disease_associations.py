@@ -589,3 +589,11 @@ def test_schema_vocabularies_match_the_model() -> None:
 
     assert set(get_args(Moi)) == set(MOI_TERMS)
     assert set(get_args(EvidenceStrength)) == set(EVIDENCE_STRENGTHS)
+
+
+def test_refuted_association_is_a_susceptibility_class_only() -> None:
+    """#473: ClinGen's Refuted association tier for risk alleles."""
+    risk = {"relationship_type": "susceptibility", "evidence_strength": "Refuted association"}
+    assert AssociationCreate(**{**RECORD, **risk}).evidence_strength == "Refuted association"
+    with pytest.raises(ValidationError, match="not a mendelian classification"):
+        AssociationCreate(**{**RECORD, "evidence_strength": "Refuted association"})

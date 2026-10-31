@@ -79,7 +79,8 @@ describe('AssociationForm', () => {
     expect(options).toEqual([
       'Established association',
       'Likely association',
-      'Uncertain association'
+      'Uncertain association',
+      'Refuted association'
     ])
     expect(wrapper.find('#gda-evidence_strength').element).toHaveProperty('value', '')
   })

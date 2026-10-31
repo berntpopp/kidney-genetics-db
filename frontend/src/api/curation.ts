@@ -14,11 +14,12 @@ export const MENDELIAN_STRENGTHS = [
   'Refuted',
   'No Known Disease Relationship'
 ] as const
-/** Alpha draft modelled on the ClinGen risk-allele tiers (#437); never a Mendelian class */
+/** ClinGen risk-allele tiers plus Refuted association (#437) (#473); never a Mendelian class */
 export const SUSCEPTIBILITY_STRENGTHS = [
   'Established association',
   'Likely association',
-  'Uncertain association'
+  'Uncertain association',
+  'Refuted association'
 ] as const
 export const EVIDENCE_STRENGTHS = [...MENDELIAN_STRENGTHS, ...SUSCEPTIBILITY_STRENGTHS] as const
 export type EvidenceStrength = (typeof EVIDENCE_STRENGTHS)[number]

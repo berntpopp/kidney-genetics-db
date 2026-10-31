@@ -241,3 +241,36 @@ def test_0018_downgrade_restores_gene_disease_moi_key(db_0018):
     _alembic(url, "downgrade", "0017")
     with pytest.raises(IntegrityError), engine.begin() as conn:
         conn.execute(NEW, {"g": gene, "u": user, **_row(moi="HP:0000006", **SUSCEPTIBLE)})
+
+
+# --- 0019: Refuted association (#473) ---
+
+REFUTED = {"rt": "susceptibility", "st": "Refuted association"}
+
+
+@pytest.mark.integration
+def test_0019_accepts_refuted_association_for_susceptibility_only(db_0018):
+    engine, url, gene, user = db_0018
+    with pytest.raises(IntegrityError), engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(**REFUTED)})
+    _alembic(url, "upgrade", "0019")
+    with engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(**REFUTED)})
+    with pytest.raises(IntegrityError), engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(st="Refuted association")})
+
+
+@pytest.mark.integration
+def test_0019_downgrade_refuses_while_refuted_association_is_used(db_0018):
+    engine, url, gene, user = db_0018
+    _alembic(url, "upgrade", "0019")
+    with engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(**REFUTED)})
+    with pytest.raises(subprocess.CalledProcessError) as err:
+        _alembic(url, "downgrade", "0018")
+    assert b"Refuted association" in err.value.stderr
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM gene_disease_associations"))
+    _alembic(url, "downgrade", "0018")
+    with pytest.raises(IntegrityError), engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(**REFUTED)})

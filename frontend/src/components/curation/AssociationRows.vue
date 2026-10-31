@@ -12,6 +12,7 @@ import { hasShortReadLimit, type Association } from '@/api/curation'
 import AssociationDiagnostics from '@/components/curation/AssociationDiagnostics.vue'
 import AssociationProvenance from '@/components/curation/AssociationProvenance.vue'
 import MoiChip from '@/components/curation/MoiChip.vue'
+import SusceptibilityChip from '@/components/curation/SusceptibilityChip.vue'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { Chip, OntologyTerm, OntologyTermList } from '@/components/shared'
@@ -94,11 +95,9 @@ const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
         </TableCell>
         <TableCell :class="[STACK, 'align-top max-lg:inline-block']">
           <div class="flex flex-wrap gap-1.5">
-            <Chip
+            <SusceptibilityChip
               v-if="r.relationship_type === 'susceptibility'"
-              kind="neutral"
-              :label="r.evidence_strength"
-              tooltip="Susceptibility (risk) association, not a Mendelian validity class"
+              :strength="r.evidence_strength"
             />
             <Chip v-else :classification="r.evidence_strength" />
             <Chip

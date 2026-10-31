@@ -84,6 +84,24 @@ describe('GeneCuratedAssociations', () => {
     expect(susceptibility.text()).toContain('Likely association')
   })
 
+  it('renders a refuted association muted with a cross icon, not as a risk', async () => {
+    const refuted = {
+      ...RECORD,
+      relationship_type: 'susceptibility',
+      evidence_strength: 'Refuted association'
+    } as Association
+    api.listPublished.mockResolvedValue({
+      data: [refuted],
+      meta: { total: 1, limit: 100, offset: 0 }
+    })
+    const w = await mountFor('APOL1')
+    const chip = w.findAll('[data-slot="chip"]').find(c => c.text() === 'Refuted association')!
+    expect(chip.classes()).toEqual(
+      expect.arrayContaining(['text-muted-foreground', 'line-through'])
+    )
+    expect(chip.find('svg').exists()).toBe(true)
+  })
+
   it('renders nothing when there are no records or the request fails', async () => {
     api.listPublished.mockResolvedValue({ data: [], meta: { total: 0, limit: 100, offset: 0 } })
     expect((await mountFor('PKD1')).html()).not.toContain('Expert-reviewed')

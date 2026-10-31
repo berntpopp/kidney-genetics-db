@@ -22,3 +22,16 @@ writes its outputs to; `<OUT_DIR>` / `<JUDGE_DIR>` for its curation and judge ou
   hp.json, phenotype.hpoa, genes_to_phenotype.txt, the GenCC TSV and KGDB gene sources next to it)
 
 Results and decisions live in the issues, mainly #439.
+
+## Susceptibility tiers (#473, approved 2026-10-31)
+
+Still part of the alpha methodology. The KGDB tiers follow the ClinGen low-penetrance/risk-allele
+scheme (Schmidt 2024, PMID 38054408): `Established association`, `Likely association`,
+`Uncertain association` and `Refuted association`. Gene Curator class keys `established`,
+`likely`, `uncertain` and `refuted` map to them on import. The point model, bands and caps are in
+the approved proposal on #473; the 500-case size cut-off also applies to rare phenotypes such as
+aHUS.
+
+- **APOL1**: kept as ClinGen's Glomerulopathy GCEP curated it, Mendelian Definitive (AR), not
+  re-recorded as a susceptibility `Established association`. Entities ClinGen curated on the
+  Mendelian SOP are adopted as is.

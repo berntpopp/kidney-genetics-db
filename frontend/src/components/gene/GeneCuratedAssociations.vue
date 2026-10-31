@@ -18,7 +18,7 @@
           <li v-for="r in group.records" :key="r.id" class="space-y-1">
             <div class="flex flex-wrap items-center gap-2">
               <Chip v-if="group.type === 'mendelian'" :classification="r.evidence_strength" />
-              <Chip v-else kind="neutral" :label="r.evidence_strength" />
+              <SusceptibilityChip v-else :strength="r.evidence_strength" />
               <MoiChip :moi="r.moi" />
               <OntologyTerm
                 :id="r.disease_id"
@@ -61,6 +61,7 @@ import {
 import AssociationDiagnostics from '@/components/curation/AssociationDiagnostics.vue'
 import AssociationProvenance from '@/components/curation/AssociationProvenance.vue'
 import MoiChip from '@/components/curation/MoiChip.vue'
+import SusceptibilityChip from '@/components/curation/SusceptibilityChip.vue'
 import { Chip, OntologyTerm } from '@/components/shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 

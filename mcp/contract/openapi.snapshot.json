@@ -43,7 +43,8 @@
               "No Known Disease Relationship",
               "Established association",
               "Likely association",
-              "Uncertain association"
+              "Uncertain association",
+              "Refuted association"
             ],
             "title": "Evidence Strength",
             "type": "string"
@@ -278,7 +279,8 @@
               "No Known Disease Relationship",
               "Established association",
               "Likely association",
-              "Uncertain association"
+              "Uncertain association",
+              "Refuted association"
             ],
             "title": "Evidence Strength",
             "type": "string"
@@ -573,7 +575,8 @@
                   "No Known Disease Relationship",
                   "Established association",
                   "Likely association",
-                  "Uncertain association"
+                  "Uncertain association",
+                  "Refuted association"
                 ],
                 "type": "string"
               },

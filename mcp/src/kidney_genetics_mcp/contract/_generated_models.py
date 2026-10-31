@@ -67,6 +67,7 @@ class AssociationResponse(BaseModel):
             "Established association",
             "Likely association",
             "Uncertain association",
+            "Refuted association",
         ],
         Field(title="Evidence Strength"),
     ]
@@ -1284,6 +1285,7 @@ class AssociationCreate(BaseModel):
             "Established association",
             "Likely association",
             "Uncertain association",
+            "Refuted association",
         ],
         Field(title="Evidence Strength"),
     ]
@@ -1347,6 +1349,7 @@ class AssociationUpdate(BaseModel):
             "Established association",
             "Likely association",
             "Uncertain association",
+            "Refuted association",
         ]
         | None,
         Field(title="Evidence Strength"),
