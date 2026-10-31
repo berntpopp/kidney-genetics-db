@@ -241,32 +241,99 @@ def test_existing_record_on_the_entity_is_a_conflict(db_session, genes, admin) -
     assert report["created"] == [] and _records(db_session) == []
 
 
+def _publish(db_session, record: GDA, user: User) -> None:
+    db_session.refresh(record)
+    seen = ReviewDecision(expected_updated_at=record.updated_at)
+    workflow.publish(db_session, record.id, seen, user)
+
+
 @pytest.mark.integration
-def test_one_curator_takes_over_submits_and_publishes(db_session, genes, admin, curator) -> None:
+def test_unedited_import_one_curator_submits_and_publishes(
+    db_session, genes, admin, curator
+) -> None:
+    gc.import_export(db_session, [MENDELIAN], admin)
+    [record] = _records(db_session)
+    assert workflow.to_response(record)["imported_unclaimed"] is True
+    workflow.submit(db_session, record.id, curator)
+    _publish(db_session, record, curator)  # Gene Curator's review covers an unchanged import
+    assert (record.status, record.reviewer_id) == ("published", curator.id)
+    assert record.curator.username == "gene-curator-import"
+    assert [a for a, _ in _events(db_session, record)] == ["gc_import", "submit", "publish"]
+
+
+@pytest.mark.integration
+def test_editing_an_import_takes_it_over(db_session, genes, admin, curator) -> None:
+    second = get_or_create_user(db_session, "gc448_c2", "gc448_c2@example.com", "Pw-1!", "curator")
     gc.import_export(db_session, [MENDELIAN], admin)
     [record] = _records(db_session)
     workflow.update(db_session, record.id, AssociationUpdate(evidence_summary="Checked"), curator)
+    assert record.curator_id == curator.id
+    assert workflow.to_response(record)["imported_unclaimed"] is False
+    with pytest.raises(workflow.PermissionDeniedError):  # now author-only
+        workflow.submit(db_session, record.id, second)
     workflow.submit(db_session, record.id, curator)
-    seen = ReviewDecision(expected_updated_at=record.updated_at)
-    workflow.publish(db_session, record.id, seen, curator)
-    db_session.refresh(record)
-    assert (record.status, record.reviewer_id) == ("published", curator.id)
-    assert record.curator_id != curator.id  # reviewer is still not the author
-    actions = [a for a, _ in _events(db_session, record)]
-    assert actions == ["gc_import", "update", "submit", "publish"]
-
-    # Someone else's KGDB draft stays author-only
-    other = get_or_create_user(db_session, "gc448_other", "gc448_o@example.com", "Pw-1!", "curator")
-    mine = workflow.create(
-        db_session,
-        workflow.AssociationCreate(
-            gene_symbol="GC448B",
-            disease_id="MONDO:0011111",
-            disease_name="y",
-            evidence_strength="Limited",
-            citations=["1"],
-        ),
-        curator,
+    with pytest.raises(workflow.PermissionDeniedError):  # no self-review of the edit
+        _publish(db_session, record, curator)
+    _publish(db_session, record, second)
+    assert (record.status, record.curator_id, record.reviewer_id) == (
+        "published",
+        curator.id,
+        second.id,
     )
-    with pytest.raises(workflow.PermissionDeniedError):
-        workflow.submit(db_session, mine.id, other)
+
+
+@pytest.mark.integration
+def test_active_import_account_is_neither_author_nor_reused(db_session, genes, admin) -> None:
+    gc.import_export(db_session, [MENDELIAN], admin)
+    account = gc.import_account(db_session)
+    account.is_active = True
+    db_session.commit()
+    [record] = _records(db_session)
+    assert workflow.unclaimed_import(record) is False
+    with pytest.raises(gc.ResourceConflictError):
+        gc.import_export(db_session, [SUSCEPTIBILITY], admin)
+
+
+@pytest.mark.integration
+async def test_malformed_evidence_rejects_only_that_row(
+    async_client, db_session, genes, admin
+) -> None:
+    evidence = MENDELIAN["evidence"]
+    diagnostics = evidence["diagnostics"]
+    detectability = diagnostics["detectability"][0]
+    bad = {
+        "a1": {**evidence, "diagnostics_notes": "x"},
+        "a2": {**evidence, "diagnostics": ["x"]},
+        "a3": {**evidence, "diagnostics": {**diagnostics, "recommended_transcript": "NM_1.1"}},
+        "a4": {**evidence, "diagnostics": {**diagnostics, "detectability": ["x"]}},
+        "a5": {**evidence, "diagnostics": {**diagnostics, "resources": [1]}},
+        "a6": {
+            **evidence,
+            "diagnostics": {**diagnostics, "detectability": [{**detectability, "tools": "abc"}]},
+        },
+        "a7": {**evidence, "evidence_summary": 5},
+    }
+    rows = [
+        _row(MENDELIAN, curation_id=f"11111111-0000-4000-8000-0000000000{k}", evidence=v)
+        for k, v in bad.items()
+    ]
+    resp = await async_client.post(
+        URL, files=_file(_page(*rows, SUSCEPTIBILITY)), headers=_bearer(admin)
+    )
+    assert resp.status_code == 200, resp.text
+    report = resp.json()
+    assert [c["curation_id"] for c in report["created"]] == [SUSCEPTIBILITY["curation_id"]]
+    assert sorted(r["curation_id"][-2:] for r in report["rejected"]) == sorted(bad)
+    assert "tools must be a list" in str(report["rejected"])
+    assert len(_records(db_session)) == 1
+
+
+@pytest.mark.integration
+def test_other_scope_rejected_and_curation_id_normalised(db_session, genes, admin) -> None:
+    other = _row(SUSCEPTIBILITY, scope_name="other-scope")
+    upper = _row(MENDELIAN, curation_id=MENDELIAN["curation_id"].upper())
+    report = gc.import_export(db_session, [other, upper], admin)
+    assert "scope 'other-scope' is not 'kidney-genetics'" in report["rejected"][0]["reason"]
+    [record] = _records(db_session)
+    assert record.external_id == MENDELIAN["curation_id"]
+    assert gc.import_export(db_session, [MENDELIAN], admin)["already_imported"]

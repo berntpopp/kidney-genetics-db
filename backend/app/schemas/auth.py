@@ -46,7 +46,7 @@ class UserRegister(BaseModel):
     @field_validator("username")
     @classmethod
     def validate_username(cls, v: str) -> str:
-        if v.lower() in ["admin", "root", "administrator", "system"]:
+        if v.lower() in ["admin", "root", "administrator", "system", "gene-curator-import"]:
             raise ValueError("Reserved username")
         return v
 

@@ -72,7 +72,8 @@ type Action = { action: WorkflowAction | 'edit'; label: string; primary?: boolea
 function actionsFor(r: Association): Action[] {
   const mine = r.curator_id === auth.user?.id
   if (r.status === 'draft')
-    return mine
+    // An unedited Gene Curator import is any curator's to take over (#448)
+    return mine || r.imported_unclaimed
       ? [
           { action: 'edit', label: 'Edit' },
           { action: 'submit', label: 'Submit for review', primary: true }

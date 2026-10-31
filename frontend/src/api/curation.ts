@@ -169,6 +169,8 @@ export interface Association extends AssociationDetails {
   moi_label: string | null
   status: AssociationStatus
   curator_id: number
+  /** A Gene Curator import no KGDB curator has edited: any curator may act on it (#448) */
+  imported_unclaimed?: boolean
   reviewer_id: number | null
   created_at: string
   updated_at: string

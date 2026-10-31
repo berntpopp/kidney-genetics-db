@@ -247,6 +247,8 @@ class AssociationResponse(BaseModel):
     submitted_at: datetime | None = None
     reviewed_at: datetime | None = None
     published_at: datetime | None = None
+    # A Gene Curator import no KGDB curator has edited: any curator may act on it (#448)
+    imported_unclaimed: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

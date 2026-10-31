@@ -20,6 +20,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
+from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ResourceConflictError
@@ -65,24 +66,8 @@ CLASSES = {
         "uncertain": "Uncertain association",
     },
 }
+SCOPE = "kidney-genetics"  # the only Gene Curator scope KGDB imports
 UNDETERMINED_MOI = {"", "undetermined"}  # moi_hpo_id is null for these; anything else is unmapped
-FIELDS = (
-    "disease_id",
-    "disease_name",
-    "relationship_type",
-    "evidence_strength",
-    "moi",
-    "methodology",
-    "methodology_version",
-    "external_id",
-    "external_url",
-    "external_curator",
-    "external_reviewer",
-    "scores",
-    "diagnostics",
-    "citations",
-    "evidence_summary",
-)
 
 
 def _parses(parse: Callable[[str], Any]) -> Callable[[str], bool]:
@@ -146,7 +131,7 @@ def parse_export(content: bytes) -> list[dict[str, Any]]:
         raise DomainValidationError("file", f"larger than {MAX_UPLOAD // 2**20} MB")
     try:
         doc = json.loads(content)
-    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as e:
         raise DomainValidationError("file", f"not JSON ({e})") from e
     pages = doc if isinstance(doc, list) else [doc]
     page_schema = {"$ref": "#/components/schemas/CurationExportPage"}
@@ -163,7 +148,7 @@ def import_account(db: Session) -> User:
     """The inactive author of imported drafts; it cannot log in (random, discarded password)."""
     user = db.query(User).filter(User.username == IMPORT_USERNAME).first()
     if user is None:
-        user = User(
+        new = User(
             username=IMPORT_USERNAME,
             email=f"{IMPORT_USERNAME}@kidney-genetics.local",
             full_name="Gene Curator import",
@@ -171,8 +156,14 @@ def import_account(db: Session) -> User:
             role="viewer",
             is_active=False,
         )
-        db.add(user)
-        db.commit()
+        db.add(new)
+        try:
+            db.commit()
+        except IntegrityError:  # a concurrent upload created it first
+            db.rollback()
+        user = db.query(User).filter(User.username == IMPORT_USERNAME).one()
+    if user.is_active or user.role != "viewer":
+        raise ResourceConflictError("User", f"{IMPORT_USERNAME} must be an inactive viewer account")
     return user
 
 
@@ -197,19 +188,31 @@ def _known(model: type[BaseModel], data: dict[str, Any], path: str, dropped: lis
 
 def _tool(text: Any) -> dict[str, Any] | None:
     """`name | url | pmid_or_doi` evidence-table text -> KGDB DetectabilityTool."""
-    name, url, ref = ([part.strip() for part in str(text).split(" | ")] + ["", ""])[:3]
+    if not isinstance(text, str):
+        raise ValueError("evidence.diagnostics.detectability[].tools[] must be text")
+    name, url, ref = ([part.strip() for part in text.split(" | ")] + ["", ""])[:3]
     return {"name": name, "url": url or None, "pmid_or_doi": ref or None} if name else None
+
+
+TRANSCRIPT = ".diagnostics.recommended_transcript"
+
+
+def _shaped(value: Any, kind: type, path: str) -> Any:
+    """The evidence is free JSON in the export: check each part before reshaping it."""
+    if not isinstance(value, kind):
+        raise ValueError(f"evidence{path} must be a{'n object' if kind is dict else ' list'}")
+    return value
 
 
 def _diagnostics(evidence: dict[str, Any], dropped: list[str]) -> dict[str, Any] | None:
     """Reshape evidence.diagnostics per Gene Curator's KGDB mapping (kidney-genetics/README)."""
-    notes = _clean(evidence.get("diagnostics_notes") or {})
-    raw = _clean(evidence.get("diagnostics") or {})
+    notes = _clean(_shaped(evidence.get("diagnostics_notes") or {}, dict, ".diagnostics_notes"))
+    raw = _clean(_shaped(evidence.get("diagnostics") or {}, dict, ".diagnostics"))
     if note := notes.pop("detectability_note", None):
         raw["detectability_note"] = note
     if via := notes.pop("transcript_verified_via", None):
         raw["recommended_transcript"] = {
-            **raw.get("recommended_transcript", {}),
+            **_shaped(raw.get("recommended_transcript", {}), dict, TRANSCRIPT),
             "verified_via": via,
         }
     dropped += [f"diagnostics_notes.{k}" for k in notes]
@@ -217,19 +220,22 @@ def _diagnostics(evidence: dict[str, Any], dropped: list[str]) -> dict[str, Any]
         return None
     out = _known(Diagnostics, raw, "diagnostics", dropped)
     if transcript := out.get("recommended_transcript"):
-        transcript = {"mane_status": "not_checked", **transcript}
-        path = "diagnostics.recommended_transcript"
-        out["recommended_transcript"] = _known(RecommendedTranscript, transcript, path, dropped)
+        transcript = {"mane_status": "not_checked", **_shaped(transcript, dict, TRANSCRIPT)}
+        out["recommended_transcript"] = _known(
+            RecommendedTranscript, transcript, TRANSCRIPT[1:], dropped
+        )
     else:
         out.pop("recommended_transcript", None)  # every key blank
     rows = []
-    for row in out.get("detectability", []):
-        row = _known(Detectability, row, "diagnostics.detectability[]", dropped)
-        row["tools"] = [t for t in map(_tool, row.get("tools", [])) if t]
+    for row in _shaped(out.get("detectability", []), list, ".diagnostics.detectability"):
+        path = "diagnostics.detectability[]"
+        row = _known(Detectability, _shaped(row, dict, f".{path}"), path, dropped)
+        tools = _shaped(row.get("tools", []), list, f".{path}.tools")
+        row["tools"] = [t for t in map(_tool, tools) if t]
         rows.append(row)
     resources = []
-    for resource in out.get("resources", []):
-        resource = dict(resource)
+    for resource in _shaped(out.get("resources", []), list, ".diagnostics.resources"):
+        resource = dict(_shaped(resource, dict, ".diagnostics.resources[]"))
         verified = {"method": resource.pop("verified_method", None)}
         verified["date"] = resource.pop("verified_date", None)
         resource["verified"] = verified
@@ -239,6 +245,8 @@ def _diagnostics(evidence: dict[str, Any], dropped: list[str]) -> dict[str, Any]
 
 def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
     """Map an export row to KGDB fields; ValueError for anything KGDB cannot hold as is."""
+    if item["scope_name"] != SCOPE:
+        raise ValueError(f"scope {item['scope_name']!r} is not {SCOPE!r}")
     if item["status"] != "active":
         raise ValueError(
             f"curation is {item['status']} in Gene Curator ({item.get('archive_reason')})"
@@ -257,7 +265,7 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
         raise ValueError(f"mode of inheritance {item.get('mode_of_inheritance')!r} has no HPO term")
     if moi is not None and moi.upper() not in MOI_TERMS:
         raise ValueError(f"unknown MOI {moi!r}")
-    evidence = item.get("evidence") or {}
+    evidence = _shaped(item.get("evidence") or {}, dict, "")
     methodology = item.get("methodology") or {}
     scores = {
         "genetic": item.get("genetic_score"),
@@ -277,7 +285,7 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
                 str(methodology["version"]) if methodology.get("version") is not None else None
             ),
             source=SOURCE,
-            external_id=item["curation_id"],
+            external_id=_curation_id(item),
             external_url=item["url"],
             external_curator=item.get("curator_name") or None,
             external_reviewer=item.get("reviewer_name") or None,
@@ -289,19 +297,23 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
     except PydanticValidationError as e:
         reasons = (f"{'.'.join(map(str, err['loc']))}: {err['msg']}" for err in e.errors())
         raise ValueError("; ".join(reasons)) from e
-    return payload.model_dump(mode="json", include=set(FIELDS))
+    return payload.model_dump(mode="json", exclude={"gene_symbol"})
+
+
+def _curation_id(item: dict[str, Any]) -> str:
+    return str(UUID(item["curation_id"]))  # one spelling for storage and lookup
 
 
 def _import_row(
     db: Session, item: dict[str, Any], author: User, admin: User, report: dict[str, Any]
 ) -> None:
     ref = {
-        "curation_id": item["curation_id"],
+        "curation_id": _curation_id(item),
         "gene_symbol": item["approved_symbol"],
         "hgnc_id": item["hgnc_id"],
         "entity_key": item["entity_key"],
     }
-    done = db.query(GDA.id).filter_by(source=SOURCE, external_id=item["curation_id"]).scalar()
+    done = db.query(GDA.id).filter_by(source=SOURCE, external_id=ref["curation_id"]).scalar()
     if done:
         report["already_imported"].append({**ref, "record_id": done})
         return
@@ -312,7 +324,7 @@ def _import_row(
     dropped: list[str] = []
     try:
         values = _values(item, dropped)
-    except ValueError as e:
+    except (ValueError, TypeError, AttributeError) as e:
         report["rejected"].append({**ref, "reason": str(e)})
         return
     if dropped:
@@ -341,12 +353,16 @@ def _import_row(
             }
         )
         return
-    record = GDA(gene_id=gene.id, curator_id=author.id, status="draft", source=SOURCE, **values)
+    record = GDA(gene_id=gene.id, curator_id=author.id, status="draft", **values)
     db.add(record)
     try:
         _commit_unique(db, record, IMPORT, admin)  # event by the admin who uploaded
     except ResourceConflictError as e:  # a concurrent upload took the key
         report["conflicts"].append({**ref, "reason": e.message})
+        return
+    except (IntegrityError, DataError) as e:  # a database check the schema does not mirror
+        db.rollback()
+        report["rejected"].append({**ref, "reason": str(e.orig)})
         return
     report["created"].append({**ref, "record_id": record.id})
 
@@ -363,7 +379,7 @@ def import_export(db: Session, items: list[dict[str, Any]], admin: User) -> dict
         "dropped_fields": [],
     }
     author = import_account(db)
-    for item in {i["curation_id"]: i for i in items}.values():  # pages may overlap
+    for item in {_curation_id(i): i for i in items}.values():  # pages may overlap
         _import_row(db, item, author, admin, report)
     logger.sync_info(
         "Gene Curator import finished",

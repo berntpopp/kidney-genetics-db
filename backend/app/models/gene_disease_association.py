@@ -152,6 +152,7 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
     published_at = Column(DateTime(timezone=True), nullable=True)
 
     gene = relationship("Gene")
+    curator = relationship("User", foreign_keys=[curator_id])
 
     def __repr__(self) -> str:
         return f"<GeneDiseaseAssociation(gene_id={self.gene_id}, disease_id='{self.disease_id}')>"
