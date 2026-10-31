@@ -337,6 +337,11 @@ function selectCluster(residues: number[]) {
   residueFilter.value = residues
   colorMode.value = 'hotspots' // the zoom target is legible only when tinted
   structure?.autoView(caSelection(residues), duration())
+  // The hotspot table sits below the viewer: bring the zoom into view
+  viewport.value?.scrollIntoView({
+    block: 'nearest',
+    behavior: reducedMotion() ? 'auto' : 'smooth'
+  })
 }
 
 // Above this many pinned residues labels become clutter; the spheres alone stay readable
@@ -474,7 +479,7 @@ onBeforeUnmount(() => {
   <section class="space-y-3" aria-label="3D protein structure">
     <div class="flex flex-wrap items-start justify-between gap-2">
       <div class="min-w-0">
-        <h3 class="text-sm font-semibold">AlphaFold predicted model</h3>
+        <h2 class="text-sm font-semibold">AlphaFold predicted model</h2>
         <p class="text-xs text-muted-foreground">
           <template v-if="model">
             <a
@@ -614,9 +619,9 @@ onBeforeUnmount(() => {
       >
         <div class="space-y-2 border-b p-3">
           <div class="flex items-baseline justify-between gap-2">
-            <h4 id="missense-list-title" class="text-sm font-semibold">
+            <h3 id="missense-list-title" class="text-sm font-semibold">
               ClinVar missense variants
-            </h4>
+            </h3>
             <span
               v-if="status === 'ready'"
               class="flex shrink-0 items-center gap-1 text-xs whitespace-nowrap text-muted-foreground tabular-nums"

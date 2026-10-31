@@ -122,7 +122,7 @@ const clusterRows = computed(() => {
 <template>
   <section class="mt-6 space-y-5 border-t pt-5" aria-labelledby="spatial-stats-title">
     <div>
-      <h3 id="spatial-stats-title" class="text-base font-semibold">Spatial statistics</h3>
+      <h2 id="spatial-stats-title" class="text-lg font-semibold">Spatial statistics</h2>
       <p class="text-sm text-muted-foreground">
         Whether ClinVar pathogenic missense variants cluster in the folded protein, compared with
         gnomAD population missense variants. Only residues with pLDDT ≥ 70 are used.
@@ -150,7 +150,9 @@ const clusterRows = computed(() => {
     </div>
     <template v-else-if="spatial">
       <div class="space-y-2">
-        <h4 class="text-sm font-semibold">Clustering</h4>
+        <h3 class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          Clustering
+        </h3>
         <template v-if="cluster && chart">
           <p class="max-w-prose text-sm" data-testid="cluster-sentence">
             {{ clusterSentence(cluster) }}
@@ -267,7 +269,9 @@ const clusterRows = computed(() => {
       </div>
 
       <div v-if="hotspots" class="space-y-2">
-        <h4 class="text-sm font-semibold">3D hotspots</h4>
+        <h3 class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          3D hotspots
+        </h3>
         <p class="max-w-prose text-sm" data-testid="hotspot-sentence">
           {{ hotspotSentence(hotspots) }}
         </p>
@@ -325,7 +329,7 @@ const clusterRows = computed(() => {
               </TableRow>
             </TableBody>
           </Table>
-          <p class="text-xs text-muted-foreground">
+          <p class="max-w-prose text-xs text-muted-foreground">
             P/LP and gnomAD counts are within {{ hotspots.radius }} Å of the significant residues;
             nearby hotspots can share variants. The variant list after selecting a hotspot shows
             only variants at the significant residues themselves, so its count differs from these

@@ -74,14 +74,18 @@ export function scanSentence(scan: ScanResult): string {
   const ranges = regions.map(r => rangeText(r.start, r.end))
   const list =
     ranges.length === 1 ? ranges[0] : `${ranges.slice(0, -1).join(', ')} and ${ranges.at(-1)}`
-  const best = Math.min(...regions.map(r => r.adjP))
+  // Several regions: give the range of adjusted p, never only the best one.
+  const ps = regions.map(r => r.adjP)
+  const best = pText('p', Math.min(...ps), scan.B)
+  const worst = formatP(Math.max(...ps), scan.B)
+  const pRange = formatP(Math.min(...ps), scan.B) === worst ? best : `${best} to ${worst}`
   const benign = regions.reduce((n, r) => n + r.benign, 0)
   const them = regions.length === 1 ? 'it' : 'them'
   const benignText =
     benign === 0
       ? `no ClinVar benign or likely benign missense variant falls in ${them}`
       : `${benign} ClinVar benign or likely benign missense variant${benign > 1 ? 's fall' : ' falls'} in ${them}`
-  return `Pathogenic missense variants cluster in residues ${list} (family-wise adjusted ${pText('p', best, scan.B)}); ${benignText}.`
+  return `Pathogenic missense variants cluster in residues ${list} (family-wise adjusted ${pRange}); ${benignText}.`
 }
 
 export function clusterSentence(c: ClusterResult): string {
