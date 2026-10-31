@@ -6,9 +6,7 @@ import { fileURLToPath, URL } from 'node:url'
 import { readFileSync } from 'fs'
 
 // Read version from package.json
-const packageJson = JSON.parse(
-  readFileSync(new URL('./package.json', import.meta.url), 'utf-8')
-)
+const packageJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -17,7 +15,7 @@ export default defineConfig({
     vue(),
     // gzip + brotli by default. HTML is excluded: this runs before vite-ssg prerenders and
     // the entrypoint injects env-config.js, so a .html.gz would be a stale SPA shell (#312).
-    compression({ exclude: [/\.html$/] }),
+    compression({ exclude: [/\.html$/] })
   ],
   resolve: {
     alias: {
@@ -36,7 +34,7 @@ export default defineConfig({
     includedRoutes(paths) {
       // Only prerender public static pages (not dynamic gene pages or auth/admin routes)
       return paths.filter(
-        (p) =>
+        p =>
           !p.startsWith('/admin') &&
           !p.startsWith('/login') &&
           !p.startsWith('/profile') &&
@@ -54,7 +52,11 @@ export default defineConfig({
         manualChunks(id) {
           // vite-ssg externalises vue/pinia during SSR — use a function
           // to avoid EXTERNAL_MODULES_CANNOT_BE_INCLUDED_IN_MANUAL_CHUNKS
-          if (id.includes('node_modules/vue/') || id.includes('node_modules/vue-router/') || id.includes('node_modules/pinia/')) {
+          if (
+            id.includes('node_modules/vue/') ||
+            id.includes('node_modules/vue-router/') ||
+            id.includes('node_modules/pinia/')
+          ) {
             return 'vendor-vue'
           }
           if (id.includes('node_modules/d3-')) {
@@ -63,14 +65,20 @@ export default defineConfig({
           if (id.includes('node_modules/cytoscape/')) {
             return 'vendor-cytoscape'
           }
-        },
-      },
-    },
+        }
+      }
+    }
   },
   server: {
     port: 5173,
     proxy: {
       '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      },
+      // Backend-root routes nginx proxies in production (Swagger/ReDoc, OpenAPI, version,
+      // health); without this they fall through to the SPA's 404 in same-origin dev
+      '^/(docs|redoc|openapi\\.json|version|health)$': {
         target: 'http://localhost:8000',
         changeOrigin: true
       }

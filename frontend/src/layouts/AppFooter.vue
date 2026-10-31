@@ -101,7 +101,10 @@ function acknowledgeDisclaimer() {
 </script>
 
 <template>
-  <footer class="border-t bg-background pb-[env(safe-area-inset-bottom)]">
+  <!-- Fixed to the viewport: it never moves while content loads and adds no page scroll -->
+  <footer
+    class="fixed inset-x-0 bottom-0 z-40 border-t bg-background pb-[env(safe-area-inset-bottom)]"
+  >
     <div
       class="mx-auto flex h-11 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8"
     >
