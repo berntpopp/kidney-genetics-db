@@ -45,6 +45,12 @@ class AiAgents(RootModel[list[AiAgent]]):
     ]
 
 
+class ClassificationRationale(RootModel[str]):
+    root: Annotated[
+        str, Field(max_length=2000, min_length=1, title="Classification Rationale")
+    ]
+
+
 class EvidenceSummary(RootModel[str]):
     root: Annotated[str, Field(max_length=4000, title="Evidence Summary")]
 
@@ -97,6 +103,9 @@ class AssociationResponse(BaseModel):
     ] = None
     ai_agents: Annotated[list[str] | None, Field(title="Ai Agents")] = None
     citations: Annotated[list[str], Field(title="Citations")]
+    classification_rationale: Annotated[
+        str | None, Field(title="Classification Rationale")
+    ] = None
     created_at: Annotated[AwareDatetime, Field(title="Created At")]
     curator_id: Annotated[int, Field(title="Curator Id")]
     diagnostics: Annotated[dict[str, Any] | None, Field(title="Diagnostics")] = None
@@ -1337,6 +1346,9 @@ class AssociationCreate(BaseModel):
     adopted_clingen: AdoptedClinGen | None = None
     ai_agents: Annotated[AiAgents | None, Field(title="Ai Agents")] = None
     citations: Annotated[list[str], Field(max_length=100, title="Citations")]
+    classification_rationale: Annotated[
+        ClassificationRationale | None, Field(title="Classification Rationale")
+    ] = None
     diagnostics: Diagnostics | None = None
     disease_id: Annotated[str, Field(title="Disease Id")]
     disease_name: Annotated[
@@ -1412,6 +1424,9 @@ class AssociationCreate(BaseModel):
 
 class AssociationUpdate(BaseModel):
     citations: Annotated[Citations | None, Field(title="Citations")] = None
+    classification_rationale: Annotated[
+        ClassificationRationale | None, Field(title="Classification Rationale")
+    ] = None
     diagnostics: Diagnostics | None = None
     disease_id: Annotated[str | None, Field(title="Disease Id")] = None
     disease_name: Annotated[DiseaseName | None, Field(title="Disease Name")] = None

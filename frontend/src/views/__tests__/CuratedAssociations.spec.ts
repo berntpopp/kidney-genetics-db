@@ -168,12 +168,31 @@ describe('CuratedAssociations', () => {
   })
 
   it('says an adopted ClinGen record without PMIDs points to ClinGen', async () => {
-    const adopted = { ...RECORDS[3]!, citations: [], adopted_clingen: { id: 'CGGV:a' } }
+    const adopted = {
+      ...RECORDS[3]!,
+      citations: [],
+      methodology: 'ClinGen gene-disease validity (adopted)',
+      adopted_clingen: { id: 'CGGV:a' }
+    }
     api.listPublished.mockResolvedValue(page([adopted as unknown as Association]))
     const w = await mountAs(null)
     expect(w.find('[data-testid="gda-row"]').text()).toContain(
       'Classification adopted from ClinGen'
     )
+  })
+
+  it('cites ClinGen beside our own curation and marks a different class', async () => {
+    const ours = {
+      ...RECORDS[3]!,
+      relationship_type: 'mendelian',
+      evidence_strength: 'Strong',
+      methodology: 'KGDB Gene-Disease Validity',
+      adopted_clingen: { id: 'CGGV:a', classification: 'Definitive' }
+    }
+    api.listPublished.mockResolvedValue(page([ours as unknown as Association]))
+    const text = (await mountAs(null)).find('[data-testid="gda-row"]').text()
+    expect(text).toContain('ClinGen: Definitive (differs)')
+    expect(text).not.toContain('adopted from ClinGen')
   })
 
   it('publishes through the store', async () => {

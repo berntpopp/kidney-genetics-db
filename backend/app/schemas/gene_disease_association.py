@@ -62,7 +62,7 @@ def _http_link(value: str) -> str:
 DiseaseId = Annotated[str, AfterValidator(_disease_id)]
 DiseaseName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
 Citations = Annotated[list[str], Field(max_length=100), AfterValidator(_citations)]
-Summary = Annotated[str, Field(max_length=4000)]  # a GC synopsis (2000) plus an override note
+Summary = Annotated[str, Field(max_length=4000)]
 OddsRatio = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 HttpLink = Annotated[str, Field(max_length=2000), AfterValidator(_http_link)]
 
@@ -168,13 +168,17 @@ def check_odds_ratio(
         raise ValueError("odds_ratio must lie within its 95% CI")
 
 
-def check_citations(citations: list[str], adopted_clingen: Any) -> None:
-    if not citations and adopted_clingen is None:
+ADOPTED = "ClinGen gene-disease validity (adopted)"
+
+
+def check_citations(citations: list[str], adopted_clingen: Any, methodology: str | None) -> None:
+    # Only an adoption may cite nothing: ClinGen holds its evidence. Our own curation cites PMIDs.
+    if not citations and (adopted_clingen is None or methodology != ADOPTED):
         raise ValueError("citations: give at least one PMID")
 
 
 class AdoptedClinGen(_Strict):
-    """A ClinGen classification adopted in Gene Curator, not curated there (GC #105)."""
+    """ClinGen's classification of the entity: adopted (GC #105) or cited beside our own curation."""
 
     id: _text(200, 1)  # CGGV assertion id
     classification: _text(40, 1)
@@ -191,6 +195,8 @@ class _Provenance(BaseModel):
     odds_ratio: OddsRatio | None = None  # headline OR of the risk allele, with optional 95% CI
     odds_ratio_ci_low: OddsRatio | None = None
     odds_ratio_ci_high: OddsRatio | None = None
+    # why the final class departs from the point model or ClinGen (not part of the synopsis)
+    classification_rationale: _text(2000, 1) | None = None
     methodology: _text(100, 1) | None = None
     methodology_version: _text(50, 1) | None = None
     external_id: _text(100, 1) | None = None
@@ -219,7 +225,7 @@ class AssociationCreate(_Provenance):
     def _consistent(self) -> "AssociationCreate":
         check_classification(self.relationship_type, self.evidence_strength)
         check_provenance(self.source, self.external_id, self.external_url)
-        check_citations(self.citations, self.adopted_clingen)
+        check_citations(self.citations, self.adopted_clingen, self.methodology)
         check_risk_allele(self.relationship_type, self.risk_allele)
         check_odds_ratio(
             self.relationship_type, self.odds_ratio, self.odds_ratio_ci_low, self.odds_ratio_ci_high
@@ -286,6 +292,7 @@ class AssociationResponse(BaseModel):
     methodology_version: str | None = None
     citations: list[str]
     evidence_summary: str | None = None
+    classification_rationale: str | None = None
     source: Source
     external_id: str | None = None
     external_url: str | None = None

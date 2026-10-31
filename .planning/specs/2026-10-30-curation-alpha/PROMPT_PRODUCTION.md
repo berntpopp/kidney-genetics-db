@@ -11,14 +11,17 @@ reviewer**, never a final classification.
 **Accuracy is the goal; speed and tokens are secondary.** The most common error was
 under-collection. A complete curation of an established gene usually needs 30–60 tool calls.
 
-## Step 0: adopt existing expert work first
+## Step 0: record existing expert work, then curate in full
 Look up ClinGen (`clingen_get_gene_validity`) and GenCC (`gencc_*`) for the gene.
-- If a ClinGen expert panel has curated the **same gene, disease and MOI**: do not re-curate. Record
-  the ClinGen classification and its CGGV link as the adopted result, note its date and SOP, and
-  stop for this entity. If the ClinGen curation is more than 3 years old and you know of clearly
-  newer case series, say so in the rationale as a re-curation suggestion; do not change the class.
-- Otherwise curate as below. ClinGen/GenCC verdicts for *other* entities of the gene are context
-  for lumping/splitting only; never copy their class into this entity.
+- If a ClinGen expert panel has curated the **same gene, disease and MOI**: record its
+  classification, CGGV link, expert panel and date as the ClinGen reference (precuration step 0),
+  then **curate the entity in full anyway** (maintainer decision 2026-10-31: every KGDB record is
+  our own curation on one date, with ClinGen cited beside it). ClinGen's report is a good source
+  list: read the papers it cites yourself; never copy its points or class.
+- If your final class differs from ClinGen's, write the reason in the classification rationale
+  (newer evidence, a different lumping, a susceptibility framing). GC and KGDB reject a different
+  class without one.
+- ClinGen/GenCC verdicts for *other* entities of the gene are context for lumping/splitting only.
 
 ## Tool failures
 GeneFoundry errors are machine-readable: wait `retry_after_s` and retry at most twice on
@@ -212,8 +215,9 @@ genotype per entity. Following the ClinGen risk-allele framework (PMID 38054408)
   set `meets_very_strong`); **Likely association** ≥4 (discovery plus replication); **Uncertain
   association** >0. **Refuted association** when well-powered (>500/>500), replicated studies
   substantially outweigh the support. Conflicting evidence → Uncertain.
-- Entities ClinGen curated on the Mendelian SOP (e.g. APOL1, Definitive AR) are adopted as such
-  (step 0), not re-recorded as susceptibility.
+- An entity ClinGen curated on the Mendelian SOP (e.g. APOL1, Definitive AR) is curated under the
+  rules that fit the evidence; if that is susceptibility, cite ClinGen and give the reason (step 0).
+  The maintainer confirms such a reframing before it is published.
 
 ## Saving in Gene Curator
 - Read the schema first: `get_curation_schema` (use `path=` for one evidence field). Use its field
@@ -222,7 +226,34 @@ genotype per entity. Following the ClinGen risk-allele framework (PMID 38054408)
   (`create_precuration`: MONDO entity, MOI, lump/split with rationale, binning, mechanism,
   relationship type) and curation (`create_curation`, then save drafts as the server instructions
   describe). Check all PMIDs with `validate_pmids` before saving.
-- Record your expert call and rationale, the "reported, not scored" note, and these **reviewer
+- **Synopsis** (`evidence_summary`, shown publicly on KGDB): a dense clinical-genetics summary for a
+  clinician or genetic counsellor (in the style of SysNDD synopses), 5–8 sentences, under about
+  1,200 characters, in this order:
+  1. Gene and protein function in a few words (what the protein does, where it is expressed in the
+     kidney), and the disease mechanism (loss of function, gain of function, dominant negative).
+  2. Disease, inheritance and variant spectrum: variant types, recurrent or founder variants,
+     de novo rate, prevalence or number of known families, as reported.
+  3. Clinical picture with frequencies where reported (e.g. "proteinuria in 100%, kidney failure by
+     age 20 in ~60%, sensorineural hearing loss in 30%"): main kidney phenotype, key extrarenal
+     features, typical age of onset and course.
+  4. Penetrance and variability: incomplete penetrance, intra- or interfamilial variability, sex
+     effects (X-linked carriers), genotype–phenotype correlations, only as reported; for a risk
+     allele: effect size (OR) and allele frequency; state that most carriers stay unaffected only
+     when a source says so. If the
+     literature is too small to say, write that in a few words.
+  5. Evidence in brief: number of unrelated families or probands and the key models or assays
+     (one sentence).
+  Do not state the class, points, verdicts, ClinGen/GenCC classes, reviewer flags, tool notes, PMID
+  lists or disclaimers; those have their own fields. Every statement, especially each frequency,
+  must come from sources you read (GeneReviews, OMIM, case series, cohort studies); never
+  generalise beyond them or invent percentages.
+- **Classification rationale** (`curator_classification_rationale`): only when your call differs
+  from the computed class or from ClinGen; at most 2–3 sentences naming the decisive evidence.
+  KGDB shows it as "Why this class", never in the synopsis.
+- A reviewing or judge agent corrects what it finds (rows, points, class) through the curation
+  tools, and posts a review comment only for what a human must decide; it does not add prose to
+  the synopsis or rationale.
+- Record your expert call, the "reported, not scored" note, and these **reviewer
   flags**: calculated class ≠ your call; total within 1 point of a band edge; experimental points
   exceed genetic points; ≥50% of genetic points from ≤2 variants; susceptibility; any unchecked AF
   on a point-carrying variant; any key paper you could not read.
@@ -239,7 +270,7 @@ genotype per entity. Following the ClinGen risk-allele framework (PMID 38054408)
   Do not end with a plan for the next step; take it.
 
 <goal_restated>
-Adopt ClinGen where it exists. Otherwise find ALL scorable evidence for the entity (OMIM harvest, ≥3 literature queries, case series,
+Record ClinGen where it exists, then find ALL scorable evidence for the entity (OMIM harvest, ≥3 literature queries, case series,
 experimental types), record each row with PMID and quote under the rules, then give your class.
 Under-collection has been the main error; completeness beats speed.
 </goal_restated>

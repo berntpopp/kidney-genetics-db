@@ -9,7 +9,13 @@
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ChevronDown } from 'lucide-vue-next'
-import { hasShortReadLimit, SHORT_READ_NOTE, type Association } from '@/api/curation'
+import {
+  differsFromClinGen,
+  hasShortReadLimit,
+  isAdoption,
+  SHORT_READ_NOTE,
+  type Association
+} from '@/api/curation'
 import AssociationDiagnostics from '@/components/curation/AssociationDiagnostics.vue'
 import AssociationProvenance from '@/components/curation/AssociationProvenance.vue'
 import MoiChip from '@/components/curation/MoiChip.vue'
@@ -146,7 +152,13 @@ const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
               {{ r.citations.length === 1 ? 'citation' : 'citations' }}
             </span>
             <!-- An adopted classification may cite no PMIDs: say where the evidence lives -->
-            <span v-else-if="r.adopted_clingen">Classification adopted from ClinGen</span>
+            <span v-else-if="isAdoption(r)">Classification adopted from ClinGen</span>
+            <span v-if="r.adopted_clingen && !isAdoption(r)">
+              ClinGen: {{ r.adopted_clingen.classification
+              }}<span v-if="differsFromClinGen(r)" class="font-medium text-foreground">
+                (differs)</span
+              >
+            </span>
             <span v-if="r.ai_agents?.length">AI-assisted curation</span>
             <Button
               v-if="hasDetails(r)"

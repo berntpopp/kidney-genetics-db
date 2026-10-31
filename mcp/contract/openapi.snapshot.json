@@ -88,6 +88,19 @@
             "title": "Citations",
             "type": "array"
           },
+          "classification_rationale": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classification Rationale"
+          },
           "diagnostics": {
             "anyOf": [
               {
@@ -390,6 +403,17 @@
             },
             "title": "Citations",
             "type": "array"
+          },
+          "classification_rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classification Rationale"
           },
           "created_at": {
             "format": "date-time",
@@ -722,6 +746,19 @@
               }
             ],
             "title": "Citations"
+          },
+          "classification_rationale": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classification Rationale"
           },
           "diagnostics": {
             "anyOf": [

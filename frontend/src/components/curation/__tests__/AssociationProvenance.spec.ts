@@ -84,6 +84,37 @@ describe('AssociationProvenance', () => {
     expect(w2.text()).toContain('Adopted fromClinGen')
   })
 
+  it('cites ClinGen beside our own curation and says when the class differs', () => {
+    const record = {
+      ...BASE,
+      source: 'gene_curator',
+      relationship_type: 'mendelian',
+      evidence_strength: 'Strong',
+      methodology: 'KGDB Gene-Disease Validity',
+      adopted_clingen: {
+        id: 'CGGV:assertion_1',
+        classification: 'Definitive',
+        expert_panel: 'Glomerulopathy GCEP',
+        classified_date: '2024-01-02',
+        url: 'https://search.clinicalgenome.org/x'
+      }
+    } as Association
+    const text = mount(AssociationProvenance, { props: { record } }).text()
+    expect(text).not.toContain('Adopted from')
+    expect(text).toMatch(
+      /ClinGenDefinitive \(opens in a new tab\)\s+· Glomerulopathy GCEP · classified/
+    )
+    expect(text).toContain('differs from this curation')
+    const why = { ...record, classification_rationale: 'Two newer families' } as Association
+    expect(mount(AssociationProvenance, { props: { record: why } }).text()).toContain(
+      'Why this classTwo newer families'
+    )
+    const same = { ...record, evidence_strength: 'Definitive' } as Association
+    expect(mount(AssociationProvenance, { props: { record: same } }).text()).not.toContain(
+      'differs'
+    )
+  })
+
   it('shows association and functional points for a susceptibility record', () => {
     const risk = {
       ...BASE,

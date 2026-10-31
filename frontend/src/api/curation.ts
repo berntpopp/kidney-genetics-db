@@ -191,7 +191,7 @@ export interface AssociationDetails {
 export type AssociationStatus = 'draft' | 'in_review' | 'published'
 export type WorkflowAction = 'submit' | 'publish' | 'return-to-draft'
 
-/** A ClinGen gene-disease validity classification a Gene Curator curation adopted */
+/** ClinGen's classification of the entity: adopted, or cited beside our own curation */
 export interface AdoptedClinGen {
   /** ClinGen CGGV assertion id */
   id: string
@@ -210,6 +210,8 @@ export interface Association extends AssociationDetails {
   evidence_strength: EvidenceStrength
   citations: string[]
   evidence_summary: string | null
+  /** Why the final class departs from the point model or ClinGen (kept out of the synopsis) */
+  classification_rationale?: string | null
   moi_label: string | null
   adopted_clingen?: AdoptedClinGen | null
   // Software agents Gene Curator credits for the evidence (AI-assisted curation)
@@ -287,3 +289,20 @@ export function pubmedUrl(pmid: string): string {
 /** Only http(s) links are rendered as anchors (the API enforces the same) */
 export const isHttpUrl = (url: string | null | undefined): url is string =>
   !!url && /^https?:\/\/\S+$/.test(url)
+
+/** Methodology of an imported ClinGen adoption (backend ADOPTED); other records are our own curation */
+export const ADOPTED_METHODOLOGY = 'ClinGen gene-disease validity (adopted)'
+export const isAdoption = (r: Pick<Association, 'methodology' | 'adopted_clingen'>): boolean =>
+  !!r.adopted_clingen && r.methodology === ADOPTED_METHODOLOGY
+
+/** ClinGen classified the entity differently (a susceptibility record never uses ClinGen's scale) */
+export const differsFromClinGen = (
+  r: Pick<
+    Association,
+    'methodology' | 'adopted_clingen' | 'relationship_type' | 'evidence_strength'
+  >
+): boolean =>
+  !!r.adopted_clingen &&
+  !isAdoption(r) &&
+  (r.relationship_type !== 'mendelian' ||
+    r.adopted_clingen.classification.toLowerCase() !== r.evidence_strength.toLowerCase())

@@ -209,7 +209,7 @@ def update(db: Session, record_id: int, payload: AssociationUpdate, user: User) 
     try:
         check_classification(record.relationship_type, record.evidence_strength)
         check_provenance(record.source, record.external_id, record.external_url)
-        check_citations(record.citations, record.adopted_clingen)
+        check_citations(record.citations, record.adopted_clingen, record.methodology)
         check_risk_allele(record.relationship_type, record.risk_allele)
         check_odds_ratio(
             record.relationship_type,

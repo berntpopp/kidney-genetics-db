@@ -339,3 +339,27 @@ def test_0021_odds_ratio_check_and_downgrade(db_0018):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM gene_disease_associations"))
     _alembic(url, "downgrade", "0020")
+
+
+# --- 0022: classification rationale apart from the synopsis ---
+
+
+@pytest.mark.integration
+def test_0022_rationale_column_and_downgrade_guard(db_0018):
+    engine, url, gene, user = db_0018
+    _alembic(url, "upgrade", "0022")
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO gene_disease_associations (gene_id, disease_id, disease_name,"
+                " evidence_strength, citations, curator_id, classification_rationale)"
+                " VALUES (:g, 'MONDO:0000001', 'x', 'Strong', '[\"PMID:1\"]', :u, 'newer cases')"
+            ),
+            {"g": gene, "u": user},
+        )
+    with pytest.raises(subprocess.CalledProcessError) as err:
+        _alembic(url, "downgrade", "0021")
+    assert b"rationale" in err.value.stderr
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM gene_disease_associations"))
+    _alembic(url, "downgrade", "0021")
