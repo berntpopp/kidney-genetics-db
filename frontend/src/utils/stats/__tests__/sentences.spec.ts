@@ -82,8 +82,20 @@ describe('sentences', () => {
       ])
     )
     expect(s).toBe(
-      'Pathogenic missense variants cluster in residues 122–179 and 282–309 (family-wise adjusted p < 0.0001); no ClinVar benign or likely benign missense variant falls in them.'
+      'Pathogenic missense variants cluster in residues 122–179 and 282–309 (family-wise adjusted p < 0.0001 to 0.0002); no ClinVar benign or likely benign missense variant falls in them.'
     )
+    // PKD1-like: the sentence spans every region's adjusted p, not only the best
+    expect(
+      scanSentence(
+        scan([
+          { start: 100, end: 120, cases: 30, ctrls: 5, benign: 0, adjP: 1 / 10001 },
+          { start: 3132, end: 3146, cases: 6, ctrls: 1, benign: 1, adjP: 0.046 }
+        ])
+      )
+    ).toContain('(family-wise adjusted p < 0.0001 to 0.046)')
+    expect(
+      scanSentence(scan([{ start: 5, end: 9, cases: 6, ctrls: 1, benign: 0, adjP: 0.012 }]))
+    ).toContain('(family-wise adjusted p = 0.01)')
     expect(scanSentence(scan([]))).toContain('No stretch of the protein is significantly enriched')
   })
 

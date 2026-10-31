@@ -50,8 +50,12 @@
       ></div>
       <div
         v-if="scanTip"
-        class="pointer-events-none absolute z-10 rounded-md border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md tabular-nums"
-        :style="{ left: `${scanTip.left}px`, top: `${scanTip.top}px` }"
+        class="pointer-events-none absolute z-10 w-max rounded-md border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md tabular-nums"
+        :style="{
+          left: `${scanTip.left}px`,
+          top: `${scanTip.top}px`,
+          transform: `translate(${scanTip.flip ? '-100%' : '0'}, -50%)`
+        }"
         role="presentation"
       >
         <div v-for="(line, i) in scanTip.lines" :key="line" :class="i === 0 ? 'font-semibold' : ''">
@@ -778,9 +782,12 @@ const renderChart = () => {
           const x = xScaleZoomed(w.centre)
           crosshair.attr('x1', x).attr('x2', x).style('display', null)
           const left = margin.left + x
+          // Beside the cursor, centred on the track (clear of the title above); flips left near the edge.
+          const flip = left > containerWidth - 200
           scanTip.value = {
-            left: left > containerWidth - 200 ? left - 190 : left + 12,
-            top: trackTop + 4,
+            left: flip ? left - 12 : left + 12,
+            top: trackTop + TRACK_PLOT / 2,
+            flip,
             lines: [
               `Residues ${w.start}–${w.end}`,
               `${w.cases} P/LP · ${w.ctrls} gnomAD`,

@@ -68,7 +68,14 @@ const label = computed(() =>
     <text :x="x(1)" y="9" text-anchor="middle" class="fill-muted-foreground text-[10px]">
       no enrichment
     </text>
-    <line :x1="x(1)" :x2="x(1)" y1="12" :y2="H - 13" stroke="var(--border)" stroke-width="1" />
+    <line
+      :x1="x(1)"
+      :x2="x(1)"
+      y1="11"
+      :y2="H - 11"
+      stroke="var(--muted-foreground)"
+      stroke-width="1"
+    />
   </svg>
   <svg
     v-else
@@ -79,7 +86,16 @@ const label = computed(() =>
     role="img"
     :aria-label="label"
   >
-    <line :x1="x(1)" :x2="x(1)" y1="0" :y2="H" stroke="var(--border)" stroke-width="1" />
+    <!-- Dashed muted-foreground: ≥ 3:1 on the card in both themes (WCAG 1.4.11) -->
+    <line
+      :x1="x(1)"
+      :x2="x(1)"
+      y1="0"
+      :y2="H"
+      stroke="var(--muted-foreground)"
+      stroke-width="1"
+      stroke-dasharray="2 2"
+    />
     <template v-if="or !== undefined">
       <line
         :x1="x(lo ?? 0)"
@@ -101,15 +117,17 @@ const label = computed(() =>
         :fill="color"
         data-arrow="right"
       />
-      <!-- An odds ratio of 0 or ∞ has no point on the axis; the arrow carries it -->
+      <!-- An odds ratio of 0 or ∞ has no point on the axis; the arrow carries it.
+           Filled = significant, hollow = not: shape, not only red vs grey (dark-mode protan ΔE 6.7) -->
       <circle
         v-if="!offLeft(or) && !offRight(or)"
         :cx="x(or)"
         :cy="mid"
         r="4"
-        :fill="color"
-        stroke="var(--card)"
-        stroke-width="1"
+        :fill="significant ? color : 'var(--card)'"
+        :stroke="significant ? 'var(--card)' : color"
+        :stroke-width="significant ? 1 : 1.5"
+        :data-filled="significant ? 'true' : 'false'"
       />
     </template>
   </svg>

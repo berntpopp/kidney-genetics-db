@@ -22,6 +22,7 @@ import {
   scanSentence,
   PM1_CAVEAT
 } from '@/utils/stats/sentences'
+import { significanceColor } from '@/components/gene/variantColors'
 import ForestCell from './ForestCell.vue'
 import StatsMethods from './StatsMethods.vue'
 
@@ -67,13 +68,19 @@ const visible = computed(() => {
   const keep = Math.max(ROW_LIMIT, domains.value.filter(d => d.q < 0.05).length)
   return showAll.value ? domains.value : domains.value.slice(0, keep)
 })
+// Sticky first column: opaque, matching the row's hover/focus tint, and carrying the row's
+// focus ring on its edge (an opaque sticky cell would otherwise hide the row's inset ring).
+const STICKY =
+  'sticky left-0 z-[1] bg-card group-hover:bg-[color-mix(in_oklch,var(--muted)_50%,var(--card))] group-focus-visible:bg-[color-mix(in_oklch,var(--muted)_50%,var(--card))]'
+const FOCUS_EDGE =
+  'group-focus-visible:shadow-[inset_2px_2px_0_var(--ring),inset_0_-2px_0_var(--ring)]'
 const skeletonRows = computed(() => Math.min(Math.max(props.rows ?? 4, 1), ROW_LIMIT))
 </script>
 
 <template>
   <section class="mt-6 space-y-5 border-t pt-5" aria-labelledby="position-stats-title">
     <div>
-      <h3 id="position-stats-title" class="text-base font-semibold">Position statistics</h3>
+      <h2 id="position-stats-title" class="text-lg font-semibold">Position statistics</h2>
       <p class="text-sm text-muted-foreground">
         Where ClinVar pathogenic missense variants fall along the protein, compared with gnomAD
         population missense variants.
@@ -112,21 +119,26 @@ const skeletonRows = computed(() => Math.min(Math.max(props.rows ?? 4, 1), ROW_L
 
     <template v-else-if="status === 'ready' && linear">
       <div class="space-y-2">
-        <h4 class="text-sm font-semibold">Domain enrichment</h4>
+        <h3 class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          Domain enrichment
+        </h3>
         <p class="max-w-prose text-sm" data-testid="domain-sentence">
           {{ domainSentence(domains) }}
         </p>
         <Table v-if="domains.length" class="tabular-nums lg:max-w-4xl">
           <TableHeader>
             <TableRow class="hover:bg-transparent">
-              <TableHead>Feature</TableHead>
+              <TableHead
+                class="sticky left-0 z-[1] bg-[color-mix(in_oklch,var(--muted)_40%,var(--card))]"
+                >Feature</TableHead
+              >
               <TableHead class="text-right">P/LP</TableHead>
               <TableHead class="text-right">gnomAD</TableHead>
               <TableHead class="w-[180px] align-bottom">
                 <span class="sr-only">Odds ratio plot, log scale</span>
                 <ForestCell axis :min="axis.min" :max="axis.max" />
               </TableHead>
-              <TableHead class="text-right whitespace-nowrap">OR (95% CI)</TableHead>
+              <TableHead class="text-right whitespace-nowrap">OR (95% CI, unadjusted)</TableHead>
               <TableHead class="text-right">q</TableHead>
             </TableRow>
           </TableHeader>
@@ -137,13 +149,13 @@ const skeletonRows = computed(() => Math.min(Math.max(props.rows ?? 4, 1), ROW_L
               :data-significant="d.q < 0.05 ? 'true' : 'false'"
               tabindex="0"
               :aria-label="rowLabel(d)"
-              class="focus-visible:bg-muted/50 focus-visible:outline-none"
+              class="group focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
               @mouseenter="active = d"
               @mouseleave="active = null"
               @focus="active = d"
               @blur="active = null"
             >
-              <TableCell class="min-w-40">
+              <TableCell :class="[STICKY, FOCUS_EDGE, 'min-w-40']">
                 <span class="block" :class="d.q < 0.05 ? 'font-medium' : ''">{{ d.label }}</span>
                 <span class="block text-xs text-muted-foreground">
                   {{ d.type }} · {{ rangeText(d.start, d.end) }}
@@ -183,6 +195,31 @@ const skeletonRows = computed(() => Math.min(Math.max(props.rows ?? 4, 1), ROW_L
         >
           {{ showAll ? 'Show fewer features' : `Show all ${domains.length} features` }}
         </Button>
+        <p
+          v-if="domains.length"
+          class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground"
+          data-testid="forest-key"
+        >
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+              <circle cx="5" cy="5" r="4" :fill="significanceColor('pathogenic')" />
+            </svg>
+            q &lt; 0.05 (Benjamini–Hochberg)
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+              <circle
+                cx="5"
+                cy="5"
+                r="3.5"
+                fill="none"
+                stroke="var(--muted-foreground)"
+                stroke-width="1.5"
+              />
+            </svg>
+            Not significant
+          </span>
+        </p>
         <p v-if="domains.length" class="text-xs text-muted-foreground sm:hidden">
           Scroll the table sideways for the odds-ratio plot.
         </p>
@@ -196,12 +233,17 @@ const skeletonRows = computed(() => Math.min(Math.max(props.rows ?? 4, 1), ROW_L
       </div>
 
       <div v-if="scan" class="space-y-2">
-        <h4 class="text-sm font-semibold">Hotspot regions</h4>
+        <h3 class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          Hotspot regions
+        </h3>
         <p class="max-w-prose text-sm" data-testid="scan-sentence">{{ scanSentence(scan) }}</p>
         <Table v-if="scan.regions.length" class="tabular-nums lg:max-w-2xl">
           <TableHeader>
             <TableRow class="hover:bg-transparent">
-              <TableHead>Residues</TableHead>
+              <TableHead
+                class="sticky left-0 z-[1] bg-[color-mix(in_oklch,var(--muted)_40%,var(--card))]"
+                >Residues</TableHead
+              >
               <TableHead class="text-right">P/LP</TableHead>
               <TableHead class="text-right">gnomAD</TableHead>
               <TableHead class="text-right">ClinVar B/LB</TableHead>
@@ -209,8 +251,10 @@ const skeletonRows = computed(() => Math.min(Math.max(props.rows ?? 4, 1), ROW_L
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow v-for="r in scan.regions" :key="r.start">
-              <TableCell class="font-medium">{{ rangeText(r.start, r.end) }}</TableCell>
+            <TableRow v-for="r in scan.regions" :key="r.start" class="group">
+              <TableCell :class="[STICKY, 'font-medium']">
+                {{ rangeText(r.start, r.end) }}
+              </TableCell>
               <TableCell class="text-right">{{ n(r.cases) }}</TableCell>
               <TableCell class="text-right">{{ n(r.ctrls) }}</TableCell>
               <TableCell class="text-right">{{ n(r.benign) }}</TableCell>
@@ -218,6 +262,9 @@ const skeletonRows = computed(() => Math.min(Math.max(props.rows ?? 4, 1), ROW_L
             </TableRow>
           </TableBody>
         </Table>
+        <p v-if="scan.regions.length" class="text-xs text-muted-foreground sm:hidden">
+          Scroll the table sideways for all columns.
+        </p>
       </div>
     </template>
 
