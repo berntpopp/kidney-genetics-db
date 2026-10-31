@@ -9,6 +9,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     String,
@@ -55,6 +56,15 @@ MOI_TERMS = {
     "HP:0001426": "Non-Mendelian inheritance",
     "HP:0010982": "Polygenic inheritance",  # GC's "Multifactorial (polygenic)" option (#619)
 }
+
+
+# COALESCE: a NULL CI bound must fail the check, not pass it as unknown
+ODDS_RATIO_CHECK = (
+    "(odds_ratio IS NULL AND odds_ratio_ci_low IS NULL AND odds_ratio_ci_high IS NULL) OR "
+    "COALESCE(relationship_type = 'susceptibility' AND odds_ratio > 0 AND ("
+    "(odds_ratio_ci_low IS NULL AND odds_ratio_ci_high IS NULL) OR (odds_ratio_ci_low > 0 "
+    "AND odds_ratio_ci_low <= odds_ratio AND odds_ratio <= odds_ratio_ci_high)), false)"
+)
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -128,6 +138,7 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
             "risk_allele IS NULL OR relationship_type = 'susceptibility'",
             name="ck_gda_risk_allele",
         ),
+        CheckConstraint(ODDS_RATIO_CHECK, name="ck_gda_odds_ratio"),
         CheckConstraint(
             "ai_agents IS NULL OR (source = 'gene_curator' AND jsonb_typeof(ai_agents) = 'array')",
             name="ck_gda_ai_agents",
@@ -150,6 +161,10 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
     relationship_type = Column(String(20), nullable=False, server_default="mendelian")
     moi = Column(String(10), nullable=True)
     risk_allele = Column(String(100), nullable=True)  # susceptibility: the named allele
+    # susceptibility: the curation's headline odds ratio and optional 95% CI (#482)
+    odds_ratio = Column(Float, nullable=True)
+    odds_ratio_ci_low = Column(Float, nullable=True)
+    odds_ratio_ci_high = Column(Float, nullable=True)
     methodology = Column(String(100), nullable=True)
     methodology_version = Column(String(50), nullable=True)
     # Where the curation was made; a KGDB curator other than the author still publishes it

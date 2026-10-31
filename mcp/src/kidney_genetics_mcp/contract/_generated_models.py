@@ -18,6 +18,23 @@ from pydantic import (
 )
 
 
+class AdoptedClinGen(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    classification: Annotated[
+        str, Field(max_length=40, min_length=1, title="Classification")
+    ]
+    classified_date: Annotated[date_aliased | None, Field(title="Classified Date")] = (
+        None
+    )
+    expert_panel: Annotated[
+        str, Field(max_length=200, min_length=1, title="Expert Panel")
+    ]
+    id: Annotated[str, Field(max_length=200, min_length=1, title="Id")]
+    url: Annotated[str, Field(max_length=2000, title="Url")]
+
+
 class AiAgent(RootModel[str]):
     root: Annotated[str, Field(max_length=100, min_length=1)]
 
@@ -56,6 +73,18 @@ class MethodologyVersion(RootModel[str]):
     root: Annotated[
         str, Field(max_length=50, min_length=1, title="Methodology Version")
     ]
+
+
+class OddsRatio(RootModel[float]):
+    root: Annotated[float, Field(gt=0.0, title="Odds Ratio")]
+
+
+class OddsRatioCiHigh(RootModel[float]):
+    root: Annotated[float, Field(gt=0.0, title="Odds Ratio Ci High")]
+
+
+class OddsRatioCiLow(RootModel[float]):
+    root: Annotated[float, Field(gt=0.0, title="Odds Ratio Ci Low")]
 
 
 class RiskAllele(RootModel[str]):
@@ -106,6 +135,11 @@ class AssociationResponse(BaseModel):
     )
     moi: Annotated[str | None, Field(title="Moi")] = None
     moi_label: Annotated[str | None, Field(title="Moi Label")] = None
+    odds_ratio: Annotated[float | None, Field(title="Odds Ratio")] = None
+    odds_ratio_ci_high: Annotated[float | None, Field(title="Odds Ratio Ci High")] = (
+        None
+    )
+    odds_ratio_ci_low: Annotated[float | None, Field(title="Odds Ratio Ci Low")] = None
     published_at: Annotated[AwareDatetime | None, Field(title="Published At")] = None
     relationship_type: Annotated[
         Literal["mendelian", "susceptibility"], Field(title="Relationship Type")
@@ -134,6 +168,17 @@ class BackupStatus(
     root: Annotated[
         Literal["pending", "running", "completed", "failed", "restored"],
         Field(description="Backup job status enum", title="BackupStatus"),
+    ]
+
+
+class BodyImportGeneCuratorApiAdminGeneCuratorImportPost(BaseModel):
+    file: Annotated[
+        str,
+        Field(
+            description="Gene Curator export v1: one CurationExportPage or a JSON list of pages",
+            json_schema_extra={"contentMediaType": "application/octet-stream"},
+            title="File",
+        ),
     ]
 
 
@@ -995,6 +1040,10 @@ class ReviewDecision(BaseModel):
     expected_updated_at: Annotated[AwareDatetime, Field(title="Expected Updated At")]
 
 
+class Association(RootModel[float]):
+    root: Annotated[float, Field(ge=0.0, le=100.0, title="Association")]
+
+
 class Experimental(RootModel[float]):
     root: Annotated[float, Field(ge=0.0, le=100.0, title="Experimental")]
 
@@ -1011,6 +1060,7 @@ class Scores(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
+    association: Annotated[Association | None, Field(title="Association")] = None
     experimental: Annotated[Experimental | None, Field(title="Experimental")] = None
     genetic: Annotated[Genetic | None, Field(title="Genetic")] = None
     total: Annotated[Total | None, Field(title="Total")] = None
@@ -1196,10 +1246,6 @@ class Verified(BaseModel):
     ]
 
 
-class AdoptedClinGen(RootModel[Any]):
-    root: Any
-
-
 class AssociationList(BaseModel):
     data: Annotated[list[AssociationResponse], Field(title="Data")]
     meta: Annotated[dict[str, int], Field(title="Meta")]
@@ -1347,6 +1393,13 @@ class AssociationCreate(BaseModel):
         | None,
         Field(title="Moi"),
     ] = None
+    odds_ratio: Annotated[OddsRatio | None, Field(title="Odds Ratio")] = None
+    odds_ratio_ci_high: Annotated[
+        OddsRatioCiHigh | None, Field(title="Odds Ratio Ci High")
+    ] = None
+    odds_ratio_ci_low: Annotated[
+        OddsRatioCiLow | None, Field(title="Odds Ratio Ci Low")
+    ] = None
     relationship_type: Annotated[
         Literal["mendelian", "susceptibility"] | None, Field(title="Relationship Type")
     ] = "mendelian"
@@ -1410,6 +1463,13 @@ class AssociationUpdate(BaseModel):
         ]
         | None,
         Field(title="Moi"),
+    ] = None
+    odds_ratio: Annotated[OddsRatio | None, Field(title="Odds Ratio")] = None
+    odds_ratio_ci_high: Annotated[
+        OddsRatioCiHigh | None, Field(title="Odds Ratio Ci High")
+    ] = None
+    odds_ratio_ci_low: Annotated[
+        OddsRatioCiLow | None, Field(title="Odds Ratio Ci Low")
     ] = None
     relationship_type: Annotated[
         Literal["mendelian", "susceptibility"] | None, Field(title="Relationship Type")

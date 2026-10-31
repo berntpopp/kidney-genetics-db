@@ -104,6 +104,7 @@ const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
             <SusceptibilityChip
               v-if="r.relationship_type === 'susceptibility'"
               :strength="r.evidence_strength"
+              :odds-ratio="r.odds_ratio"
             />
             <Chip v-else :classification="r.evidence_strength" />
             <span

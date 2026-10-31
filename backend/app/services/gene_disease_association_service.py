@@ -30,6 +30,7 @@ from app.schemas.gene_disease_association import (
     ReviewDecision,
     check_citations,
     check_classification,
+    check_odds_ratio,
     check_provenance,
     check_risk_allele,
 )
@@ -210,6 +211,12 @@ def update(db: Session, record_id: int, payload: AssociationUpdate, user: User) 
         check_provenance(record.source, record.external_id, record.external_url)
         check_citations(record.citations, record.adopted_clingen)
         check_risk_allele(record.relationship_type, record.risk_allele)
+        check_odds_ratio(
+            record.relationship_type,
+            record.odds_ratio,
+            record.odds_ratio_ci_low,
+            record.odds_ratio_ci_high,
+        )
     except ValueError as e:
         db.rollback()
         raise DomainValidationError("association", str(e)) from e
