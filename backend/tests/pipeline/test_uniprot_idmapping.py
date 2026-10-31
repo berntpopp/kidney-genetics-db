@@ -242,13 +242,41 @@ class TestPKD1Disambiguation:
             )
             assert parsed["PKD1"]["accession"] == "P98161"
 
-    def test_lone_synonym_hit_is_kept(self) -> None:
-        """A single synonym-only hit (UniProt lagging an HGNC rename) still maps."""
+    def test_lone_synonym_hit_is_dropped(self) -> None:
+        """A synonym-only hit is never taken (production: HPP1 -> TMEFF2, ST2 -> IL1RL1)."""
         source = _make_source()
-        parsed = source._parse_id_mapping_results(
-            {"results": [{"from": "NEWSYM", "to": _PKD2_ENTRY}]}
-        )
-        assert parsed["NEWSYM"]["accession"] == "Q13563"
+        parsed = source._parse_id_mapping_results({"results": [{"from": "ST2", "to": _PKD2_ENTRY}]})
+        assert parsed == {}
+
+    @pytest.mark.asyncio
+    async def test_definitive_miss_clears_a_stale_annotation(self) -> None:
+        """A successful search without a primary-name entry removes the old, wrong protein."""
+        import httpx
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"results": [_PKD2_ENTRY]})  # primary name PKD2
+
+        source = _make_source()
+        source.rate_limiter = MagicMock()
+        source.rate_limiter.wait = AsyncMock()
+        source.clear_annotation = MagicMock(return_value=True)
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        with patch.object(source, "get_http_client", AsyncMock(return_value=client)):
+            assert await source.fetch_annotation(_make_gene(7, "ST2")) is None
+        source.clear_annotation.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_upstream_error_never_clears(self) -> None:
+        import httpx
+
+        source = _make_source()
+        source.rate_limiter = MagicMock()
+        source.rate_limiter.wait = AsyncMock()
+        source.clear_annotation = MagicMock()
+        client = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(503)))
+        with patch.object(source, "get_http_client", AsyncMock(return_value=client)):
+            assert await source.fetch_annotation(_make_gene(7, "ST2")) is None
+        source.clear_annotation.assert_not_called()
 
     def test_ambiguous_synonym_hits_are_dropped(self) -> None:
         """Several hits, none with the primary name: no guess."""

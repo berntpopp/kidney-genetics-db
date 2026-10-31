@@ -268,6 +268,26 @@ class BaseAnnotationSource(ABC):
 
         return annotation
 
+    def clear_annotation(self, gene: Gene) -> bool:
+        """Remove this source's annotation when the source definitively has none for the gene.
+
+        Call only on an authoritative "no record" answer, never on an error: a stale row (e.g.
+        another gene's protein) would otherwise survive every re-run. Recorded in history.
+        """
+        existing: GeneAnnotation | None = (
+            self.session.query(GeneAnnotation)
+            .filter_by(gene_id=gene.id, source=self.source_name)
+            .first()
+        )
+        if not existing:
+            return False
+        self._record_history(gene_id=gene.id, operation="delete", old_data=existing.annotations)
+        self.session.delete(existing)
+        if not self.batch_mode:
+            self.session.commit()
+            self._invalidate_api_cache_sync(gene.id)
+        return True
+
     def _invalidate_api_cache_sync(self, gene_id: int) -> None:
         """
         Synchronously invalidate API cache for a gene's annotations.

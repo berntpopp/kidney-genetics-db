@@ -153,7 +153,13 @@ class UniProtAnnotationSource(BaseAnnotationSource):
 
             match = next((r for r in results if _has_primary_name(r, gene.approved_symbol)), None)
             if not match:
-                logger.sync_debug("Gene not found in UniProt", gene_symbol=gene.approved_symbol)
+                # A successful search with no reviewed entry under this primary name is
+                # authoritative: drop any earlier (possibly wrong) protein for the gene.
+                if self.clear_annotation(gene):
+                    logger.sync_warning(
+                        "Removed UniProt annotation without a primary-name match",
+                        gene_symbol=gene.approved_symbol,
+                    )
                 return None
 
             return self._parse_protein_data(gene.approved_symbol, match)
@@ -356,25 +362,18 @@ class UniProtAnnotationSource(BaseAnnotationSource):
             Mapping of gene symbol → parsed annotation dict.
         """
         # Gene_Name mapping also matches synonyms: "PKD1" returns P98161 and PRKD1 (Q15139,
-        # synonym PKD1). Take the entry whose primary name is the symbol; a lone synonym hit
-        # (UniProt lagging an HGNC rename) is kept; several synonym-only hits are not guessed.
-        hits: dict[str, list[dict[str, Any]]] = {}
+        # synonym PKD1). Only an entry whose primary name is the symbol counts. A synonym-only
+        # hit is never taken: on production it was wrong every time (HPP1 -> TMEFF2, HPT -> MRS2,
+        # ST2 -> IL1RL1: loci and non-coding genes without a protein of their own).
+        parsed: dict[str, dict[str, Any]] = {}
         for item in response_data.get("results", []):
             gene_symbol = item.get("from", "")
             entry = item.get("to", {})
-            if gene_symbol and entry:
-                hits.setdefault(gene_symbol, []).append(entry)
-
-        parsed: dict[str, dict[str, Any]] = {}
-        for gene_symbol, entries in hits.items():
-            primary = [e for e in entries if _has_primary_name(e, gene_symbol)]
-            chosen = primary[:1] or (entries if len(entries) == 1 else [])
-            if not chosen:
-                logger.sync_warning(
-                    "Ambiguous UniProt mapping skipped", gene_symbol=gene_symbol, hits=len(entries)
-                )
+            if not gene_symbol or not entry or gene_symbol in parsed:
                 continue
-            annotation = self._parse_protein_data(gene_symbol, chosen[0])
+            if not _has_primary_name(entry, gene_symbol):
+                continue
+            annotation = self._parse_protein_data(gene_symbol, entry)
             if annotation:
                 parsed[gene_symbol] = annotation
 
