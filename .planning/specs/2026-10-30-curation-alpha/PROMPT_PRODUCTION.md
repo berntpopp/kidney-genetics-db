@@ -134,7 +134,11 @@ Compute each row's points with these rules and enter them explicitly in Gene Cur
     these). Do not guess: "unknown" if the paper does not say.
   - Phase: **confirmed** = parents tested or "in trans" stated; **suspected** = affected sibling
     with the same genotype, "segregated with the disease", or one parent shown heterozygous;
-    **unknown** otherwise. Compound-het with phase unknown scores half (local rule).
+    **unknown** otherwise. Compound-het with phase unknown scores half (local rule): enter the
+    full allele sum and set phase: unknown; Gene Curator halves it and caps a consanguineous
+    homozygote at 2, so do not halve or cap the points yourself. Points must sit on the field's
+    step (0.2 at step 0.5 is refused at submit); Gene Curator caps functional subtypes
+    (function 2, alteration 2).
   - de_novo confirmed (trio testing or both parents tested) adds 0.5. De novo stated without the
     method = assumed = no bonus.
   - `points: 0` (keep the row for the record) if: variant_source = not_given; variant gnomAD
