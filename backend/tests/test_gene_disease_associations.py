@@ -536,6 +536,16 @@ async def test_unique_per_moi(async_client, db_session, gene) -> None:
 
 
 @pytest.mark.integration
+async def test_unique_per_relationship_type(async_client, db_session, gene) -> None:
+    """#472: a Mendelian and a susceptibility claim on one gene/disease/MOI are distinct."""
+    author = _auth(db_session, "author")
+    risk = {"relationship_type": "susceptibility", "evidence_strength": "Likely association"}
+    assert (await _post(async_client, author, moi="HP:0000006")).status_code == 201
+    assert (await _post(async_client, author, moi="HP:0000006", **risk)).status_code == 201
+    assert (await _post(async_client, author, moi="HP:0000006", **risk)).status_code == 409
+
+
+@pytest.mark.integration
 async def test_imported_record_needs_distinct_confirmer(async_client, db_session, gene) -> None:
     author, other = _auth(db_session, "author"), _auth(db_session, "reviewer", "admin")
     rec = await _create(async_client, author, **GC)

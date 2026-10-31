@@ -64,12 +64,13 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
 
     __tablename__ = "gene_disease_associations"
     __table_args__ = (
-        # NULLS NOT DISTINCT: two records without an MOI still collide (migration 0013)
+        # NULLS NOT DISTINCT: two records without an MOI still collide (migrations 0013, 0018)
         UniqueConstraint(
             "gene_id",
             "disease_id",
             "moi",
-            name="uq_gda_gene_disease_moi",
+            "relationship_type",
+            name="uq_gda_gene_disease_moi_relationship",
             postgresql_nulls_not_distinct=True,
         ),
         Index(
