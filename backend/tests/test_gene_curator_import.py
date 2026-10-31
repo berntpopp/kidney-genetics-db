@@ -453,6 +453,30 @@ def test_adopted_clingen_imports_without_points_or_pmids(db_session, genes, admi
         gc._values(_row(row, adoption={"id": "x"}), [])
 
 
+def test_values_cite_clingen_beside_our_own_curation() -> None:
+    row = _row(MENDELIAN, clingen_reference=ADOPTION, final_classification="definitive")
+    values = gc._values(row, [])
+    assert values["methodology"] != gc.ADOPTED and values["scores"] is not None
+    assert values["adopted_clingen"]["classification"] == "Definitive"
+    assert "ClinGen" not in (values["evidence_summary"] or "")
+
+
+def test_values_need_a_reason_to_differ_from_clingen() -> None:
+    row = _row(
+        MENDELIAN,
+        clingen_reference=ADOPTION,
+        final_classification="strong",
+        computed_verdict="strong",
+        curator_classification_rationale=None,
+    )
+    with pytest.raises(ValueError, match="differs from ClinGen"):
+        gc._values(row, [])
+    values = gc._values(_row(row, curator_classification_rationale="no replication"), [])
+    assert values["evidence_summary"].endswith("Differs from ClinGen (Definitive): no replication")
+    with pytest.raises(ValueError, match="at least one PMID"):
+        gc._values(_row(row, pmids=[], curator_classification_rationale="x"), [])
+
+
 def test_values_credit_software_agents_and_keep_the_override_reason() -> None:
     software = {"contributor": {"name": "claude-opus", "agentType": "software"}}
     row = _row(

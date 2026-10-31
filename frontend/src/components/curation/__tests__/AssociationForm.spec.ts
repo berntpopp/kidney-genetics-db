@@ -210,8 +210,11 @@ describe('AssociationForm', () => {
     const plain = await save(record)
     expect(plain.find('#gda-citations-error').text()).toContain('At least one PMID')
     expect(plain.emitted('save')).toBeUndefined()
+    const cited = await save({ ...record, adopted_clingen: { id: 'CGGV:a', url: 'https://x.org' } })
+    expect(cited.emitted('save')).toBeUndefined() // our own curation citing ClinGen needs PMIDs
     const adopted = await save({
       ...record,
+      methodology: 'ClinGen gene-disease validity (adopted)',
       adopted_clingen: { id: 'CGGV:a', url: 'https://x.org' }
     })
     expect(adopted.emitted('save')?.[0]?.[0]).toMatchObject({ citations: [] })

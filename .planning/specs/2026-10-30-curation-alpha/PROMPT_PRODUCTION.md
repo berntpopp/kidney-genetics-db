@@ -11,14 +11,17 @@ reviewer**, never a final classification.
 **Accuracy is the goal; speed and tokens are secondary.** The most common error was
 under-collection. A complete curation of an established gene usually needs 30–60 tool calls.
 
-## Step 0: adopt existing expert work first
+## Step 0: record existing expert work, then curate in full
 Look up ClinGen (`clingen_get_gene_validity`) and GenCC (`gencc_*`) for the gene.
-- If a ClinGen expert panel has curated the **same gene, disease and MOI**: do not re-curate. Record
-  the ClinGen classification and its CGGV link as the adopted result, note its date and SOP, and
-  stop for this entity. If the ClinGen curation is more than 3 years old and you know of clearly
-  newer case series, say so in the rationale as a re-curation suggestion; do not change the class.
-- Otherwise curate as below. ClinGen/GenCC verdicts for *other* entities of the gene are context
-  for lumping/splitting only; never copy their class into this entity.
+- If a ClinGen expert panel has curated the **same gene, disease and MOI**: record its
+  classification, CGGV link, expert panel and date as the ClinGen reference (precuration step 0),
+  then **curate the entity in full anyway** (maintainer decision 2026-10-31: every KGDB record is
+  our own curation on one date, with ClinGen cited beside it). ClinGen's report is a good source
+  list: read the papers it cites yourself; never copy its points or class.
+- If your final class differs from ClinGen's, write the reason in the classification rationale
+  (newer evidence, a different lumping, a susceptibility framing). GC and KGDB reject a different
+  class without one.
+- ClinGen/GenCC verdicts for *other* entities of the gene are context for lumping/splitting only.
 
 ## Tool failures
 GeneFoundry errors are machine-readable: wait `retry_after_s` and retry at most twice on
@@ -212,8 +215,9 @@ genotype per entity. Following the ClinGen risk-allele framework (PMID 38054408)
   set `meets_very_strong`); **Likely association** ≥4 (discovery plus replication); **Uncertain
   association** >0. **Refuted association** when well-powered (>500/>500), replicated studies
   substantially outweigh the support. Conflicting evidence → Uncertain.
-- Entities ClinGen curated on the Mendelian SOP (e.g. APOL1, Definitive AR) are adopted as such
-  (step 0), not re-recorded as susceptibility.
+- An entity ClinGen curated on the Mendelian SOP (e.g. APOL1, Definitive AR) is curated under the
+  rules that fit the evidence; if that is susceptibility, cite ClinGen and give the reason (step 0).
+  The maintainer confirms such a reframing before it is published.
 
 ## Saving in Gene Curator
 - Read the schema first: `get_curation_schema` (use `path=` for one evidence field). Use its field
@@ -239,7 +243,7 @@ genotype per entity. Following the ClinGen risk-allele framework (PMID 38054408)
   Do not end with a plan for the next step; take it.
 
 <goal_restated>
-Adopt ClinGen where it exists. Otherwise find ALL scorable evidence for the entity (OMIM harvest, ≥3 literature queries, case series,
+Record ClinGen where it exists, then find ALL scorable evidence for the entity (OMIM harvest, ≥3 literature queries, case series,
 experimental types), record each row with PMID and quote under the rules, then give your class.
 Under-collection has been the main error; completeness beats speed.
 </goal_restated>

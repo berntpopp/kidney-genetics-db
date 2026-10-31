@@ -16,6 +16,7 @@ import {
   RESOURCE_LABELS,
   RESOURCE_TYPES,
   VERIFIED_METHODS,
+  isAdoption,
   isHttpUrl,
   strengthsFor,
   type Association,
@@ -101,7 +102,7 @@ const schema = toTypedSchema(
         .string()
         // An adopted ClinGen classification may cite none; the backend allows [] only then
         .refine(
-          v => !!props.record?.adopted_clingen || splitCitations(v).length > 0,
+          v => (!!props.record && isAdoption(props.record)) || splitCitations(v).length > 0,
           'At least one PMID is required'
         )
         .refine(
