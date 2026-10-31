@@ -88,6 +88,7 @@ class RecommendedTranscript(_Strict):
     mane_status: Literal["select", "plus_clinical", "none", "not_checked"]
     legacy_transcript: _text(50) | None = None
     numbering_conversion: _text(500) | None = None
+    verified_via: _text(300) | None = None  # tool and field the transcript was checked in
 
 
 class DetectabilityTool(_Strict):
@@ -119,6 +120,7 @@ class Resource(_Strict):
     audiences: Annotated[list[_text(50, 1)], Field(max_length=10)] = []
     maintainer: _text(200) | None = None
     conflict_of_interest: _text(500) | None = None
+    country_or_scope: _text(100) | None = None
     verified: Verified
 
 
@@ -127,6 +129,8 @@ class Diagnostics(_Strict):
 
     recommended_transcript: RecommendedTranscript | None = None
     detectability: Annotated[list[Detectability], Field(max_length=20)] = []
+    # Free text for the whole list, e.g. "standard short-read testing adequate" when it is empty
+    detectability_note: _text(500) | None = None
     resources: Annotated[list[Resource], Field(max_length=50)] = []
 
 
