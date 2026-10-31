@@ -66,11 +66,11 @@ onUnmounted(() => {
         Skip to main content
       </a>
       <AppHeader />
-      <!-- Fills the viewport below the h-14 header, so the footer starts off-screen and loading content never pushes it (layout shift) -->
+      <!-- Bottom padding = the fixed footer (h-11 + border + safe area), so it never covers content -->
       <main
         id="main-content"
         tabindex="-1"
-        class="min-h-[calc(100dvh-3.5rem)] flex-1 focus:outline-none"
+        class="flex-1 pb-[calc(2.75rem+1px+env(safe-area-inset-bottom))] focus:outline-none"
       >
         <!-- No route transition: an out-in fade emptied <main> and shifted the page on every navigation -->
         <router-view v-slot="{ Component }">
@@ -80,7 +80,8 @@ onUnmounted(() => {
       </main>
       <AppFooter />
       <LogViewer v-if="logViewerUsed" />
-      <Toaster position="bottom-right" :expand="false" rich-colors />
+      <!-- Offset clears the fixed footer -->
+      <Toaster position="bottom-right" :expand="false" rich-colors offset="3.5rem" />
     </div>
   </TooltipProvider>
 </template>
