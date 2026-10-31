@@ -1,7 +1,8 @@
-# Curation methodology: alpha drafts (2026-10-30)
+# Curation methodology v1 (2026-10-31)
 
-Working material from the Gene Curator integration (#437, #438, #439). **Alpha**: these are draft
-rules (now draft iteration 8), not versioned releases. `<WORK_DIR>` stands for the folder an agent
+Working material from the Gene Curator integration (#437, #438, #439). **v1** (declared by the
+maintainer 2026-10-31): `PROMPT_PRODUCTION.md` is the v1 production prompt, built on draft
+iteration 8 of the rules. The `BRIEF_*` files remain the blind test harness. `<WORK_DIR>` stands for the folder an agent
 writes its outputs to; `<OUT_DIR>` / `<JUDGE_DIR>` for its curation and judge output folders.
 
 - `BRIEF_CURATOR_DRAFT.md`: blind curator-agent brief (draft iteration 8: per-allele scoring,
@@ -26,7 +27,7 @@ Results and decisions live in the issues, mainly #439.
 
 ## Susceptibility tiers (#473, approved 2026-10-31)
 
-Still part of the alpha methodology. The KGDB tiers follow the ClinGen low-penetrance/risk-allele
+Part of methodology v1. The KGDB tiers follow the ClinGen low-penetrance/risk-allele
 scheme (Schmidt 2024, PMID 38054408): `Established association`, `Likely association`,
 `Uncertain association` and `Refuted association`. Gene Curator class keys `established`,
 `likely`, `uncertain` and `refuted` map to them on import. The point model, bands and caps are in

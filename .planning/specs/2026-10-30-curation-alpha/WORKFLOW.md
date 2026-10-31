@@ -1,4 +1,4 @@
-# Gene Curator → KGDB curation workflow (alpha)
+# Gene Curator → KGDB curation workflow (v1)
 
 One-shot: a curation is made in Gene Curator (GC), imported into KGDB once, and from then on lives
 and is edited only in KGDB. GC never updates or retracts it; a new curation is a new import.
