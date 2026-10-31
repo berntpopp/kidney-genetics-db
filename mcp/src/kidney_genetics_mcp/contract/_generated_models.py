@@ -18,8 +18,18 @@ from pydantic import (
 )
 
 
+class AiAgent(RootModel[str]):
+    root: Annotated[str, Field(max_length=100, min_length=1)]
+
+
+class AiAgents(RootModel[list[AiAgent]]):
+    root: Annotated[
+        list[AiAgent], Field(max_length=10, min_length=1, title="Ai Agents")
+    ]
+
+
 class EvidenceSummary(RootModel[str]):
-    root: Annotated[str, Field(max_length=2000, title="Evidence Summary")]
+    root: Annotated[str, Field(max_length=4000, title="Evidence Summary")]
 
 
 class ExternalCurator(RootModel[str]):
@@ -48,7 +58,15 @@ class MethodologyVersion(RootModel[str]):
     ]
 
 
+class RiskAllele(RootModel[str]):
+    root: Annotated[str, Field(max_length=100, min_length=1, title="Risk Allele")]
+
+
 class AssociationResponse(BaseModel):
+    adopted_clingen: Annotated[
+        dict[str, Any] | None, Field(title="Adopted Clingen")
+    ] = None
+    ai_agents: Annotated[list[str] | None, Field(title="Ai Agents")] = None
     citations: Annotated[list[str], Field(title="Citations")]
     created_at: Annotated[AwareDatetime, Field(title="Created At")]
     curator_id: Annotated[int, Field(title="Curator Id")]
@@ -94,6 +112,7 @@ class AssociationResponse(BaseModel):
     ]
     reviewed_at: Annotated[AwareDatetime | None, Field(title="Reviewed At")] = None
     reviewer_id: Annotated[int | None, Field(title="Reviewer Id")] = None
+    risk_allele: Annotated[str | None, Field(title="Risk Allele")] = None
     scores: Annotated[dict[str, Any] | None, Field(title="Scores")] = None
     source: Annotated[Literal["kgdb", "gene_curator"], Field(title="Source")]
     status: Annotated[Literal["draft", "in_review", "published"], Field(title="Status")]
@@ -102,7 +121,7 @@ class AssociationResponse(BaseModel):
 
 
 class Citations(RootModel[list[str]]):
-    root: Annotated[list[str], Field(max_length=100, min_length=1, title="Citations")]
+    root: Annotated[list[str], Field(max_length=100, title="Citations")]
 
 
 class DiseaseName(RootModel[str]):
@@ -1177,6 +1196,10 @@ class Verified(BaseModel):
     ]
 
 
+class AdoptedClinGen(RootModel[Any]):
+    root: Any
+
+
 class AssociationList(BaseModel):
     data: Annotated[list[AssociationResponse], Field(title="Data")]
     meta: Annotated[dict[str, int], Field(title="Meta")]
@@ -1265,9 +1288,9 @@ class Diagnostics(BaseModel):
 
 
 class AssociationCreate(BaseModel):
-    citations: Annotated[
-        list[str], Field(max_length=100, min_length=1, title="Citations")
-    ]
+    adopted_clingen: AdoptedClinGen | None = None
+    ai_agents: Annotated[AiAgents | None, Field(title="Ai Agents")] = None
+    citations: Annotated[list[str], Field(max_length=100, title="Citations")]
     diagnostics: Diagnostics | None = None
     disease_id: Annotated[str, Field(title="Disease Id")]
     disease_name: Annotated[
@@ -1319,6 +1342,7 @@ class AssociationCreate(BaseModel):
             "HP:0001450",
             "HP:0010984",
             "HP:0001426",
+            "HP:0010982",
         ]
         | None,
         Field(title="Moi"),
@@ -1326,6 +1350,7 @@ class AssociationCreate(BaseModel):
     relationship_type: Annotated[
         Literal["mendelian", "susceptibility"] | None, Field(title="Relationship Type")
     ] = "mendelian"
+    risk_allele: Annotated[RiskAllele | None, Field(title="Risk Allele")] = None
     scores: Scores | None = None
     source: Annotated[Literal["kgdb", "gene_curator"] | None, Field(title="Source")] = (
         "kgdb"
@@ -1381,6 +1406,7 @@ class AssociationUpdate(BaseModel):
             "HP:0001450",
             "HP:0010984",
             "HP:0001426",
+            "HP:0010982",
         ]
         | None,
         Field(title="Moi"),
@@ -1388,6 +1414,7 @@ class AssociationUpdate(BaseModel):
     relationship_type: Annotated[
         Literal["mendelian", "susceptibility"] | None, Field(title="Relationship Type")
     ] = None
+    risk_allele: Annotated[RiskAllele | None, Field(title="Risk Allele")] = None
     scores: Scores | None = None
     source: Annotated[Literal["kgdb", "gene_curator"] | None, Field(title="Source")] = (
         None

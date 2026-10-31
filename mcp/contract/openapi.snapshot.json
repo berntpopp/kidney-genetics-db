@@ -3,12 +3,39 @@
     "schemas": {
       "AssociationCreate": {
         "properties": {
+          "adopted_clingen": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdoptedClinGen"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ai_agents": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 10,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Agents"
+          },
           "citations": {
             "items": {
               "type": "string"
             },
             "maxItems": 100,
-            "minItems": 1,
             "title": "Citations",
             "type": "array"
           },
@@ -52,7 +79,7 @@
           "evidence_summary": {
             "anyOf": [
               {
-                "maxLength": 2000,
+                "maxLength": 4000,
                 "type": "string"
               },
               {
@@ -157,7 +184,8 @@
                   "HP:0001427",
                   "HP:0001450",
                   "HP:0010984",
-                  "HP:0001426"
+                  "HP:0001426",
+                  "HP:0010982"
                 ],
                 "type": "string"
               },
@@ -175,6 +203,19 @@
             ],
             "title": "Relationship Type",
             "type": "string"
+          },
+          "risk_allele": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Allele"
           },
           "scores": {
             "anyOf": [
@@ -232,6 +273,32 @@
       },
       "AssociationResponse": {
         "properties": {
+          "adopted_clingen": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adopted Clingen"
+          },
+          "ai_agents": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Agents"
+          },
           "citations": {
             "items": {
               "type": "string"
@@ -444,6 +511,17 @@
             ],
             "title": "Reviewer Id"
           },
+          "risk_allele": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Allele"
+          },
           "scores": {
             "anyOf": [
               {
@@ -519,7 +597,6 @@
                   "type": "string"
                 },
                 "maxItems": 100,
-                "minItems": 1,
                 "type": "array"
               },
               {
@@ -589,7 +666,7 @@
           "evidence_summary": {
             "anyOf": [
               {
-                "maxLength": 2000,
+                "maxLength": 4000,
                 "type": "string"
               },
               {
@@ -688,7 +765,8 @@
                   "HP:0001427",
                   "HP:0001450",
                   "HP:0010984",
-                  "HP:0001426"
+                  "HP:0001426",
+                  "HP:0010982"
                 ],
                 "type": "string"
               },
@@ -712,6 +790,19 @@
               }
             ],
             "title": "Relationship Type"
+          },
+          "risk_allele": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Allele"
           },
           "scores": {
             "anyOf": [
