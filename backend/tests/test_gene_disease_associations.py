@@ -282,6 +282,7 @@ def test_unique_violation_on_commit_maps_to_409() -> None:
         evidence_strength="Strong",
         source="kgdb",
         moi=None,
+        risk_allele=None,
         external_id=None,
         external_url=None,
     )

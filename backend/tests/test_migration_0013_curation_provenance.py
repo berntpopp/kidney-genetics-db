@@ -274,3 +274,33 @@ def test_0019_downgrade_refuses_while_refuted_association_is_used(db_0018):
     _alembic(url, "downgrade", "0018")
     with pytest.raises(IntegrityError), engine.begin() as conn:
         conn.execute(NEW, {"g": gene, "u": user, **_row(**REFUTED)})
+
+
+ALLELE = text(
+    "INSERT INTO gene_disease_associations (gene_id, disease_id, disease_name, evidence_strength,"
+    " citations, curator_id, relationship_type, source, external_id, external_url, risk_allele,"
+    " ai_agents) VALUES (:g, 'MONDO:0013860', 'x', 'Likely association', '[\"PMID:1\"]', :u,"
+    " 'susceptibility', 'gene_curator', :xid, 'https://gc.example/c', :allele,"
+    " CAST(:ai AS jsonb))"
+)
+
+
+@pytest.mark.integration
+def test_0020_keys_alleles_and_guards_its_downgrade(db_0018):
+    engine, url, gene, user = db_0018
+    _alembic(url, "upgrade", "0020")
+    row = {"g": gene, "u": user, "ai": None}
+    with engine.begin() as conn:  # two alleles of one gene, disease and MOI are two entities
+        conn.execute(ALLELE, {**row, "xid": "a", "allele": "rs1 A"})
+        conn.execute(ALLELE, {**row, "xid": "b", "allele": "rs2 G"})
+    with pytest.raises(IntegrityError), engine.begin() as conn:
+        conn.execute(ALLELE, {**row, "xid": "c", "allele": "rs1 A"})
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM gene_disease_associations"))
+        conn.execute(ALLELE, {**row, "xid": "d", "allele": None, "ai": '["model-x"]'})
+    with pytest.raises(subprocess.CalledProcessError) as err:  # never drop AI credit silently
+        _alembic(url, "downgrade", "0019")
+    assert b"credit AI" in err.value.stderr
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM gene_disease_associations"))
+    _alembic(url, "downgrade", "0019")

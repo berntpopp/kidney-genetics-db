@@ -61,8 +61,8 @@ def _http_link(value: str) -> str:
 
 DiseaseId = Annotated[str, AfterValidator(_disease_id)]
 DiseaseName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
-Citations = Annotated[list[str], Field(min_length=1, max_length=100), AfterValidator(_citations)]
-Summary = Annotated[str, Field(max_length=2000)]
+Citations = Annotated[list[str], Field(max_length=100), AfterValidator(_citations)]
+Summary = Annotated[str, Field(max_length=4000)]  # a GC synopsis (2000) plus an override note
 HttpLink = Annotated[str, Field(max_length=2000), AfterValidator(_http_link)]
 
 
@@ -79,6 +79,7 @@ class _Strict(BaseModel):
 class Scores(_Strict):
     genetic: float | None = Field(None, ge=0, le=100)
     experimental: float | None = Field(None, ge=0, le=100)
+    association: float | None = Field(None, ge=0, le=100)  # susceptibility studies (#473)
     total: float | None = Field(None, ge=0, le=100)
 
 
@@ -148,10 +149,31 @@ def check_provenance(source: str, external_id: str | None, external_url: str | N
         raise ValueError("a Gene Curator record needs external_id and external_url")
 
 
+def check_risk_allele(relationship_type: str, risk_allele: str | None) -> None:
+    if risk_allele and relationship_type != "susceptibility":
+        raise ValueError("risk_allele is only for a susceptibility association")
+
+
+def check_citations(citations: list[str], adopted_clingen: Any) -> None:
+    if not citations and adopted_clingen is None:
+        raise ValueError("citations: give at least one PMID")
+
+
+class AdoptedClinGen(_Strict):
+    """A ClinGen classification adopted in Gene Curator, not curated there (GC #105)."""
+
+    id: _text(200, 1)  # CGGV assertion id
+    classification: _text(40, 1)
+    expert_panel: _text(200, 1)
+    classified_date: date | None = None
+    url: HttpLink
+
+
 class _Provenance(BaseModel):
     """Fields shared by create and update (#437)."""
 
     moi: Moi | None = None
+    risk_allele: _text(100, 1) | None = None  # e.g. "rs4664308 A"; susceptibility only
     methodology: _text(100, 1) | None = None
     methodology_version: _text(50, 1) | None = None
     external_id: _text(100, 1) | None = None
@@ -171,11 +193,19 @@ class AssociationCreate(_Provenance):
     citations: Citations
     evidence_summary: Summary | None = None
     source: Source = "kgdb"
+    # Set only by the Gene Curator import; such a record may have no PMIDs
+    adopted_clingen: AdoptedClinGen | None = None
+    # Software agents Gene Curator credits for the evidence (import only)
+    ai_agents: Annotated[list[_text(100, 1)], Field(min_length=1, max_length=10)] | None = None
 
     @model_validator(mode="after")
     def _consistent(self) -> "AssociationCreate":
         check_classification(self.relationship_type, self.evidence_strength)
         check_provenance(self.source, self.external_id, self.external_url)
+        check_citations(self.citations, self.adopted_clingen)
+        check_risk_allele(self.relationship_type, self.risk_allele)
+        if (self.adopted_clingen or self.ai_agents) and self.source != "gene_curator":
+            raise ValueError("adopted_clingen and ai_agents are only for Gene Curator imports")
         return self
 
 
@@ -228,6 +258,7 @@ class AssociationResponse(BaseModel):
     evidence_strength: EvidenceStrength
     moi: str | None = None
     moi_label: str | None = None
+    risk_allele: str | None = None
     methodology: str | None = None
     methodology_version: str | None = None
     citations: list[str]
@@ -239,6 +270,8 @@ class AssociationResponse(BaseModel):
     external_reviewer: str | None = None
     scores: dict[str, Any] | None = None
     diagnostics: dict[str, Any] | None = None
+    adopted_clingen: dict[str, Any] | None = None
+    ai_agents: list[str] | None = None
     status: AssociationStatus
     curator_id: int
     reviewer_id: int | None = None
