@@ -1,6 +1,6 @@
 <template>
   <!-- Viewport-tall in every state: the footer never slides up when loading turns into content -->
-  <div :class="[PAGE_CONTAINER, 'min-h-svh']">
+  <div :class="PAGE_CONTAINER">
     <PageHeader
       :title="gene?.approved_symbol ?? symbol"
       description="Gene structure and protein domains with ClinVar variants"
