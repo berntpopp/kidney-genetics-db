@@ -226,11 +226,19 @@ genotype per entity. Following the ClinGen risk-allele framework (PMID 38054408)
   (`create_precuration`: MONDO entity, MOI, lump/split with rationale, binning, mechanism,
   relationship type) and curation (`create_curation`, then save drafts as the server instructions
   describe). Check all PMIDs with `validate_pmids` before saving.
-- **Synopsis** (`evidence_summary`, shown publicly on KGDB): 3–6 plain sentences, under about 800
-  characters, about the gene, the disease and the evidence only: mechanism, number and kind of
-  unrelated probands, key variants, segregation, models and assays. No points, classes, verdicts,
-  ClinGen/GenCC classes, reviewer flags, tool notes, PMID lists or disclaimers; those have their
-  own fields.
+- **Synopsis** (`evidence_summary`, shown publicly on KGDB): 4–6 plain sentences, under about 900
+  characters, for a clinician or genetic counsellor. In this order:
+  1. Gene, disease, inheritance and disease mechanism (one sentence).
+  2. Clinical picture: the main kidney phenotype, key extrarenal features, typical age of onset and
+     course (e.g. progression to kidney failure).
+  3. Penetrance and variability: incomplete penetrance, intra- or interfamilial variability, sex
+     effects (X-linked carriers), and genotype–phenotype correlations, only as reported; if the
+     literature is too small to say, write that in a few words.
+  4. Evidence in brief: number of unrelated families or probands, variant types, and the key models
+     or assays (one sentence).
+  Do not state the class, points, verdicts, ClinGen/GenCC classes, reviewer flags, tool notes, PMID
+  lists or disclaimers; those have their own fields. Every clinical statement must come from
+  sources you read (GeneReviews, OMIM, case series); never generalise beyond them.
 - **Classification rationale** (`curator_classification_rationale`): only when your call differs
   from the computed class or from ClinGen; at most 2–3 sentences naming the decisive evidence.
   KGDB shows it as "Why this class", never in the synopsis.
