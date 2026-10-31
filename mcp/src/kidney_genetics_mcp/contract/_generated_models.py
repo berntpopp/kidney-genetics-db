@@ -350,6 +350,12 @@ class DetectabilityTool(BaseModel):
     url: Annotated[Url1 | None, Field(title="Url")] = None
 
 
+class DetectabilityNote(RootModel[str]):
+    root: Annotated[
+        str, Field(max_length=500, min_length=0, title="Detectability Note")
+    ]
+
+
 class EnrichmentResult(BaseModel):
     background_count: Annotated[int | None, Field(title="Background Count")] = None
     cluster_size: Annotated[int, Field(title="Cluster Size")]
@@ -868,6 +874,10 @@ class Refseq(RootModel[str]):
     root: Annotated[str, Field(pattern="^NM_\\d+\\.\\d+$", title="Refseq")]
 
 
+class VerifiedVia(RootModel[str]):
+    root: Annotated[str, Field(max_length=300, min_length=0, title="Verified Via")]
+
+
 class RecommendedTranscript(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -884,6 +894,7 @@ class RecommendedTranscript(BaseModel):
         NumberingConversion | None, Field(title="Numbering Conversion")
     ] = None
     refseq: Annotated[Refseq | None, Field(title="Refseq")] = None
+    verified_via: Annotated[VerifiedVia | None, Field(title="Verified Via")] = None
 
 
 class ReleaseResponse(BaseModel):
@@ -927,6 +938,10 @@ class ConflictOfInterest(RootModel[str]):
     root: Annotated[
         str, Field(max_length=500, min_length=0, title="Conflict Of Interest")
     ]
+
+
+class CountryOrScope(RootModel[str]):
+    root: Annotated[str, Field(max_length=100, min_length=0, title="Country Or Scope")]
 
 
 class Language(RootModel[str]):
@@ -1211,6 +1226,9 @@ class Resource(BaseModel):
     conflict_of_interest: Annotated[
         ConflictOfInterest | None, Field(title="Conflict Of Interest")
     ] = None
+    country_or_scope: Annotated[
+        CountryOrScope | None, Field(title="Country Or Scope")
+    ] = None
     language: Annotated[Language | None, Field(title="Language")] = None
     maintainer: Annotated[Maintainer | None, Field(title="Maintainer")] = None
     name: Annotated[str, Field(max_length=200, min_length=1, title="Name")]
@@ -1232,6 +1250,9 @@ class Diagnostics(BaseModel):
         list[Detectability] | None,
         Field(max_length=20, title="Detectability", validate_default=True),
     ] = []
+    detectability_note: Annotated[
+        DetectabilityNote | None, Field(title="Detectability Note")
+    ] = None
     recommended_transcript: RecommendedTranscript | None = None
     resources: Annotated[
         list[Resource] | None,

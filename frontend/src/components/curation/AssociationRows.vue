@@ -50,6 +50,7 @@ const hasDiagnostics = (r: Association) =>
   !!r.diagnostics &&
   (!!r.diagnostics.recommended_transcript ||
     r.diagnostics.detectability.length > 0 ||
+    !!r.diagnostics.detectability_note ||
     r.diagnostics.resources.length > 0)
 const hasDetails = (r: Association) =>
   !!(r.evidence_summary || r.methodology || r.scores || r.source === 'gene_curator') ||

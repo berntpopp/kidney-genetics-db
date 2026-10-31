@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import AssociationForm from '@/components/curation/AssociationForm.vue'
+import type { Diagnostics } from '@/api/curation'
 
 let wrapper: VueWrapper | null = null
 afterEach(() => wrapper?.unmount())
@@ -122,12 +123,14 @@ describe('AssociationForm', () => {
     expect(saved.diagnostics).toEqual({
       recommended_transcript: null,
       detectability: [],
+      detectability_note: null,
       resources: [
         {
           type: 'patient_organisation',
           name: 'Example group',
           url: 'https://example.org/group',
           language: null,
+          country_or_scope: null,
           audiences: [],
           maintainer: null,
           conflict_of_interest: null,
@@ -223,6 +226,7 @@ describe('AssociationForm', () => {
             sources: []
           }
         ],
+        detectability_note: 'CNV calling advised',
         resources: []
       }
     }
@@ -232,11 +236,34 @@ describe('AssociationForm', () => {
     })
     await flushPromises()
     expect(wrapper.find('#gda-det-0-challenge').element).toHaveProperty('value', 'VNTR')
+    expect(wrapper.find('#gda-det-note').element).toHaveProperty('value', 'CNV calling advised')
     expect(wrapper.find('#gda-det-0-negative').element).toHaveProperty('checked', true)
     for (const el of wrapper.findAll('input, select, textarea')) {
       const id = el.attributes('id')
       expect(id, el.html()).toBeTruthy()
       expect(wrapper.find(`label[for="${id}"]`).exists(), id).toBe(true)
     }
+  })
+
+  it('emits the transcript verified-via, detectability note and resource scope', async () => {
+    wrapper = mount(AssociationForm, { attachTo: document.body })
+    for (const [field, value] of Object.entries(VALID)) {
+      await wrapper.find(`#gda-${field}`).setValue(value)
+    }
+    await wrapper.find('#gda-tx-mane').setValue('select')
+    await wrapper.find('#gda-tx-verified_via').setValue('MANE v1.4 summary')
+    await wrapper.find('#gda-det-note').setValue('standard short-read testing adequate')
+    await wrapper.find('[data-testid="add-resource"]').trigger('click')
+    await wrapper.find('#gda-res-0-name').setValue('Example group')
+    await wrapper.find('#gda-res-0-url').setValue('https://example.org/group')
+    await wrapper.find('#gda-res-0-country').setValue('Germany')
+    await wrapper.find('#gda-res-0-date').setValue('2026-10-30')
+    await wrapper.find('form').trigger('submit')
+    await new Promise(resolve => setTimeout(resolve, 10))
+    await flushPromises()
+    const d = (wrapper.emitted('save')?.[0]?.[0] as { diagnostics: Diagnostics }).diagnostics
+    expect(d.recommended_transcript?.verified_via).toBe('MANE v1.4 summary')
+    expect(d.detectability_note).toBe('standard short-read testing adequate')
+    expect(d.resources[0]?.country_or_scope).toBe('Germany')
   })
 })

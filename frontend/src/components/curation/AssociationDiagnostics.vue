@@ -12,9 +12,14 @@ const props = defineProps<{ diagnostics: Diagnostics | null | undefined }>()
 
 const transcript = computed(() => props.diagnostics?.recommended_transcript ?? null)
 const detectability = computed(() => props.diagnostics?.detectability ?? [])
+const detectabilityNote = computed(() => props.diagnostics?.detectability_note ?? null)
 const resources = computed(() => props.diagnostics?.resources ?? [])
 const hasContent = computed(
-  () => !!transcript.value || detectability.value.length > 0 || resources.value.length > 0
+  () =>
+    !!transcript.value ||
+    detectability.value.length > 0 ||
+    !!detectabilityNote.value ||
+    resources.value.length > 0
 )
 const warn = computed(() => detectability.value.some(d => d.negative_report_does_not_exclude))
 const linkClass =
@@ -49,6 +54,13 @@ const linkClass =
       <span v-if="transcript.numbering_conversion" class="block text-muted-foreground">
         {{ transcript.numbering_conversion }}
       </span>
+      <span v-if="transcript.verified_via" class="block text-muted-foreground">
+        Verified via {{ transcript.verified_via }}
+      </span>
+    </p>
+
+    <p v-if="detectabilityNote">
+      <span class="text-muted-foreground">Detectability: </span>{{ detectabilityNote }}
     </p>
 
     <ul v-if="detectability.length" class="list-disc space-y-1 pl-4">
@@ -90,6 +102,9 @@ const linkClass =
         >
         <span v-else>{{ r.name }}</span>
         <span v-if="r.language" class="text-muted-foreground"> · {{ r.language }}</span>
+        <span v-if="r.country_or_scope" class="text-muted-foreground">
+          · {{ r.country_or_scope }}</span
+        >
         <span class="text-muted-foreground"> · verified {{ r.verified.date }}</span>
       </li>
     </ul>

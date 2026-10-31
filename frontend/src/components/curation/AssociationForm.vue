@@ -175,6 +175,7 @@ interface TranscriptRow {
   mane_status: string
   legacy_transcript: string
   numbering_conversion: string
+  verified_via: string
 }
 interface DetectabilityRow {
   challenge: string
@@ -188,6 +189,7 @@ interface ResourceRow {
   name: string
   url: string
   language: string
+  country_or_scope: string
   method: Resource['verified']['method']
   date: string
   raw: Resource | null
@@ -197,10 +199,12 @@ const emptyTranscript = (): TranscriptRow => ({
   ensembl: '',
   mane_status: '',
   legacy_transcript: '',
-  numbering_conversion: ''
+  numbering_conversion: '',
+  verified_via: ''
 })
 const transcript = ref<TranscriptRow>(emptyTranscript())
 const detectability = ref<DetectabilityRow[]>([])
+const detectabilityNote = ref('')
 const resources = ref<ResourceRow[]>([])
 const rowErrors = ref<Record<string, string>>({})
 
@@ -218,6 +222,7 @@ const addResource = () =>
     name: '',
     url: '',
     language: '',
+    country_or_scope: '',
     method: 'fetched',
     date: '',
     raw: null
@@ -231,9 +236,11 @@ function loadDiagnostics(d: Diagnostics | null | undefined) {
         ensembl: t.ensembl ?? '',
         mane_status: t.mane_status,
         legacy_transcript: t.legacy_transcript ?? '',
-        numbering_conversion: t.numbering_conversion ?? ''
+        numbering_conversion: t.numbering_conversion ?? '',
+        verified_via: t.verified_via ?? ''
       }
     : emptyTranscript()
+  detectabilityNote.value = d?.detectability_note ?? ''
   detectability.value = (d?.detectability ?? []).map(x => ({
     challenge: x.challenge,
     share_of_variants: x.share_of_variants ?? '',
@@ -246,6 +253,7 @@ function loadDiagnostics(d: Diagnostics | null | undefined) {
     name: x.name,
     url: x.url,
     language: x.language ?? '',
+    country_or_scope: x.country_or_scope ?? '',
     method: x.verified.method,
     date: x.verified.date,
     raw: x
@@ -257,9 +265,13 @@ function loadDiagnostics(d: Diagnostics | null | undefined) {
 function buildDiagnostics(): Diagnostics | null | false {
   const errs: Record<string, string> = {}
   const t = transcript.value
-  const hasTranscript = [t.refseq, t.ensembl, t.legacy_transcript, t.numbering_conversion].some(v =>
-    v.trim()
-  )
+  const hasTranscript = [
+    t.refseq,
+    t.ensembl,
+    t.legacy_transcript,
+    t.numbering_conversion,
+    t.verified_via
+  ].some(v => v.trim())
   if (hasTranscript && !t.mane_status) errs.tx = 'Select the MANE status of the transcript'
   detectability.value.forEach((d, i) => {
     if (!d.challenge.trim()) errs[`det-${i}`] = 'Describe the detection challenge'
@@ -282,7 +294,8 @@ function buildDiagnostics(): Diagnostics | null | false {
             ensembl: blank(t.ensembl),
             mane_status: t.mane_status as RecommendedTranscript['mane_status'],
             legacy_transcript: blank(t.legacy_transcript),
-            numbering_conversion: blank(t.numbering_conversion)
+            numbering_conversion: blank(t.numbering_conversion),
+            verified_via: blank(t.verified_via)
           }
         : null,
     // Fields the editor does not show (tools, sources, ...) are kept from the loaded record
@@ -299,6 +312,7 @@ function buildDiagnostics(): Diagnostics | null | false {
         .filter(Boolean),
       negative_report_does_not_exclude: d.negative_report_does_not_exclude
     })),
+    detectability_note: blank(detectabilityNote.value),
     resources: resources.value.map(r => ({
       audiences: [],
       maintainer: null,
@@ -308,12 +322,14 @@ function buildDiagnostics(): Diagnostics | null | false {
       name: r.name.trim(),
       url: r.url.trim(),
       language: blank(r.language),
+      country_or_scope: blank(r.country_or_scope),
       verified: { method: r.method, date: r.date }
     }))
   }
   const empty =
     !diagnostics.recommended_transcript &&
     !diagnostics.detectability.length &&
+    !diagnostics.detectability_note &&
     !diagnostics.resources.length
   return empty ? null : diagnostics
 }
@@ -737,6 +753,15 @@ const fieldClass =
             :disabled="busy"
           />
         </div>
+        <div class="space-y-2 sm:col-span-3">
+          <Label for="gda-tx-verified_via">Transcript verified via (tool and field)</Label>
+          <Input
+            id="gda-tx-verified_via"
+            v-model="transcript.verified_via"
+            maxlength="300"
+            :disabled="busy"
+          />
+        </div>
         <p v-if="rowErrors.tx" class="text-sm text-destructive sm:col-span-3">
           {{ rowErrors.tx }}
         </p>
@@ -744,6 +769,16 @@ const fieldClass =
 
       <div class="space-y-3">
         <h4 class="text-sm font-medium">Detectability limits</h4>
+        <div class="space-y-2">
+          <Label for="gda-det-note">Detectability note (optional)</Label>
+          <Input
+            id="gda-det-note"
+            v-model="detectabilityNote"
+            maxlength="500"
+            placeholder="e.g. standard short-read testing adequate"
+            :disabled="busy"
+          />
+        </div>
         <div
           v-for="(d, i) in detectability"
           :key="`det-${i}`"
@@ -850,6 +885,15 @@ const fieldClass =
               :id="`gda-res-${i}-language`"
               v-model="r.language"
               maxlength="20"
+              :disabled="busy"
+            />
+          </div>
+          <div class="space-y-2">
+            <Label :for="`gda-res-${i}-country`">Country or scope (optional)</Label>
+            <Input
+              :id="`gda-res-${i}-country`"
+              v-model="r.country_or_scope"
+              maxlength="100"
               :disabled="busy"
             />
           </div>

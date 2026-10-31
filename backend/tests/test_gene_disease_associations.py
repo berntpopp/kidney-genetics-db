@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 
 from app.core.exceptions import ResourceConflictError
@@ -12,7 +13,11 @@ from app.core.security import create_access_token
 from app.models.gene import Gene
 from app.models.gene_disease_association import GeneDiseaseAssociationEvent
 from app.models.user import User
-from app.schemas.gene_disease_association import AssociationCreate, AssociationUpdate
+from app.schemas.gene_disease_association import (
+    AssociationCreate,
+    AssociationUpdate,
+    Diagnostics,
+)
 from app.services import gene_disease_association_service as service
 from tests.fixtures.auth import get_or_create_user
 
@@ -393,6 +398,7 @@ DIAGNOSTICS = {
         "mane_status": "none",
         "legacy_transcript": "NM_002456.5",
         "numbering_conversion": "No MANE Select; literature uses NM_002456.5.",
+        "verified_via": "MANE v1.4 summary, Ensembl canonical flag",
     },
     "detectability": [
         {
@@ -407,6 +413,7 @@ DIAGNOSTICS = {
             "sources": ["PMID:12345678"],
         }
     ],
+    "detectability_note": "CNV calling recommended in addition to short-read sequencing",
     "resources": [
         {
             "type": "patient_organisation",
@@ -416,6 +423,7 @@ DIAGNOSTICS = {
             "audiences": ["patients"],
             "maintainer": None,
             "conflict_of_interest": None,
+            "country_or_scope": "Germany",
             "verified": {"method": "fetched", "date": "2026-10-30"},
         }
     ],
@@ -524,6 +532,22 @@ async def test_diagnostics_round_trip(async_client, db_session, gene) -> None:
     ).status_code == 400
 
 
+def test_diagnostics_notes_are_bounded_text() -> None:
+    transcript = DIAGNOSTICS["recommended_transcript"]
+    resource = DIAGNOSTICS["resources"][0]
+    note = Diagnostics.model_validate({"detectability_note": "  adequate  "})
+    assert note.detectability_note == "adequate"
+    assert note.detectability == []
+    for bad in (
+        {"detectability_note": "x" * 501},
+        {"recommended_transcript": {**transcript, "verified_via": "x" * 301}},
+        {"resources": [{**resource, "country_or_scope": "x" * 101}]},
+        {"resources": [{**resource, "country": "DE"}]},
+    ):
+        with pytest.raises(ValidationError):
+            Diagnostics.model_validate(bad)
+
+
 @pytest.mark.integration
 async def test_unique_per_moi(async_client, db_session, gene) -> None:
     author = _auth(db_session, "author")
@@ -534,6 +558,16 @@ async def test_unique_per_moi(async_client, db_session, gene) -> None:
     assert (await _post(async_client, author, **other)).status_code == 201
     assert (await _post(async_client, author, **other)).status_code == 409
     assert (await _post(async_client, author, moi="HP:9999999")).status_code == 400
+
+
+@pytest.mark.integration
+async def test_unique_per_relationship_type(async_client, db_session, gene) -> None:
+    """#472: a Mendelian and a susceptibility claim on one gene/disease/MOI are distinct."""
+    author = _auth(db_session, "author")
+    risk = {"relationship_type": "susceptibility", "evidence_strength": "Likely association"}
+    assert (await _post(async_client, author, moi="HP:0000006")).status_code == 201
+    assert (await _post(async_client, author, moi="HP:0000006", **risk)).status_code == 201
+    assert (await _post(async_client, author, moi="HP:0000006", **risk)).status_code == 409
 
 
 @pytest.mark.integration

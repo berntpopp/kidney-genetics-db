@@ -1412,6 +1412,19 @@
             "title": "Detectability",
             "type": "array"
           },
+          "detectability_note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detectability Note"
+          },
           "recommended_transcript": {
             "anyOf": [
               {
@@ -2667,6 +2680,19 @@
               }
             ],
             "title": "Refseq"
+          },
+          "verified_via": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified Via"
           }
         },
         "required": [
@@ -2907,6 +2933,19 @@
               }
             ],
             "title": "Conflict Of Interest"
+          },
+          "country_or_scope": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Or Scope"
           },
           "language": {
             "anyOf": [
