@@ -77,4 +77,29 @@ describe('AssociationDiagnostics', () => {
       mountWith({ recommended_transcript: null, detectability: [], resources: [] }).text()
     ).toBe('')
   })
+
+  it('shows the transcript verified-via, detectability note and resource scope', () => {
+    const w = mountWith({
+      ...DIAGNOSTICS,
+      recommended_transcript: {
+        ...DIAGNOSTICS.recommended_transcript!,
+        verified_via: 'MANE v1.4 summary'
+      },
+      detectability_note: 'CNV calling recommended',
+      resources: [{ ...DIAGNOSTICS.resources[0]!, country_or_scope: 'Germany' }]
+    })
+    expect(w.text()).toContain('Verified via MANE v1.4 summary')
+    expect(w.text()).toContain('CNV calling recommended')
+    expect(w.text()).toContain('Germany')
+  })
+
+  it('renders a detectability note on its own', () => {
+    const w = mountWith({
+      recommended_transcript: null,
+      detectability: [],
+      detectability_note: 'standard short-read testing adequate',
+      resources: []
+    })
+    expect(w.text()).toContain('standard short-read testing adequate')
+  })
 })

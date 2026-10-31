@@ -100,6 +100,8 @@ export interface RecommendedTranscript {
   mane_status: (typeof MANE_STATUSES)[number]
   legacy_transcript: string | null
   numbering_conversion: string | null
+  /** Absent on records saved before issue 474 */
+  verified_via?: string | null
 }
 
 export interface DetectabilityTool {
@@ -126,6 +128,7 @@ export interface Resource {
   audiences: string[]
   maintainer: string | null
   conflict_of_interest: string | null
+  country_or_scope?: string | null
   verified: { method: (typeof VERIFIED_METHODS)[number]; date: string }
 }
 
@@ -133,6 +136,7 @@ export interface Resource {
 export interface Diagnostics {
   recommended_transcript: RecommendedTranscript | null
   detectability: Detectability[]
+  detectability_note?: string | null
   resources: Resource[]
 }
 
