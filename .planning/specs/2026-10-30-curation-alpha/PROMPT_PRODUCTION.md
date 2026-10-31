@@ -238,7 +238,8 @@ genotype per entity. Following the ClinGen risk-allele framework (PMID 38054408)
      features, typical age of onset and course.
   4. Penetrance and variability: incomplete penetrance, intra- or interfamilial variability, sex
      effects (X-linked carriers), genotype–phenotype correlations, only as reported; for a risk
-     allele: effect size (OR), allele frequency and that most carriers stay unaffected. If the
+     allele: effect size (OR) and allele frequency; state that most carriers stay unaffected only
+     when a source says so. If the
      literature is too small to say, write that in a few words.
   5. Evidence in brief: number of unrelated families or probands and the key models or assays
      (one sentence).
