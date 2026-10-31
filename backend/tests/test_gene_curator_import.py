@@ -541,3 +541,63 @@ def test_values_read_gc_iteration8_fields() -> None:
     assert (values["moi"], values["scores"]["association"]) == (None, 6)
     no_id = _row(SUSCEPTIBILITY, moi_hpo_id=None, mode_of_inheritance="HP:0000005")
     assert gc._values(no_id, [])["moi"] is None
+
+
+AI_ROW = {"approval_kind": "ai", "approval_model": "model-x"}
+
+
+@pytest.mark.integration
+def test_ai_approved_import_is_published_pending_human_review(db_session, genes, admin) -> None:
+    gc.import_export(db_session, [_row(MENDELIAN, **AI_ROW), SUSCEPTIBILITY], admin)
+    ai, human = _records(db_session)
+    assert (ai.status, ai.reviewer_id, ai.approval_kind, ai.approval_model) == (
+        "published",
+        None,
+        "ai",
+        "model-x",
+    )
+    assert ai.published_at is not None and ai.human_reviewed_at is None
+    assert (human.status, human.approval_kind, human.approval_model) == ("draft", "human", None)
+    assert workflow.to_response(ai)["human_reviewer_name"] is None
+
+
+@pytest.mark.integration
+async def test_human_review_endpoint(async_client, db_session, genes, admin, curator) -> None:
+    gc.import_export(db_session, [_row(MENDELIAN, **AI_ROW)], admin)
+    [record] = _records(db_session)
+    url = f"/api/curation/associations/{record.id}/human-review"
+    seen = {"expected_updated_at": record.updated_at.isoformat()}
+    viewer = get_or_create_user(db_session, "gc639_v", "gc639_v@example.com", "Pw-1!", "viewer")
+    assert (await async_client.post(url, json=seen, headers=_bearer(viewer))).status_code == 403
+    stale = {"expected_updated_at": "2000-01-01T00:00:00+00:00"}
+    assert (await async_client.post(url, json=stale, headers=_bearer(curator))).status_code == 409
+    with pytest.raises(workflow.PermissionDeniedError):  # the import account never reviews
+        workflow.human_review(
+            db_session, record.id, ReviewDecision(**seen), gc.import_account(db_session)
+        )
+    db_session.rollback()
+    response = await async_client.post(url, json=seen, headers=_bearer(curator))
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["human_reviewed_at"] and body["human_reviewer_name"]
+    assert body["approval_kind"] == "ai" and body["status"] == "published"
+    again = {"expected_updated_at": body["updated_at"]}
+    assert (await async_client.post(url, json=again, headers=_bearer(curator))).status_code == 409
+    db_session.refresh(record)
+    assert [a for a, _ in _events(db_session, record)] == ["gc_import", "human_review"]
+
+
+@pytest.mark.integration
+def test_human_publishing_an_ai_import_is_its_human_review(
+    db_session, genes, admin, curator
+) -> None:
+    second = get_or_create_user(db_session, "gc639_c2", "gc639_c2@example.com", "Pw-1!", "curator")
+    gc.import_export(db_session, [_row(MENDELIAN, **AI_ROW)], admin)
+    [record] = _records(db_session)
+    seen = ReviewDecision(expected_updated_at=record.updated_at)
+    workflow.return_to_draft(db_session, record.id, seen, second)
+    workflow.update(db_session, record.id, AssociationUpdate(evidence_summary="Checked"), curator)
+    workflow.submit(db_session, record.id, curator)
+    _publish(db_session, record, second)
+    assert (record.human_reviewer_id, record.approval_kind) == (second.id, "ai")
+    assert record.human_reviewed_at == record.published_at

@@ -339,4 +339,34 @@ describe('CuratedAssociations', () => {
     const w = await mountAs(null)
     expect(w.text()).toContain('Showing 1 of 1500')
   })
+
+  it('marks AI-approved imports and lets a curator mark them human-reviewed (#639)', async () => {
+    const ai = {
+      ...RECORDS[3]!,
+      id: 5,
+      disease_id: 'MONDO:0000005',
+      source: 'gene_curator',
+      approval_kind: 'ai',
+      approval_model: 'model-x'
+    } as Association
+    const reviewed = { ...ai, id: 6, disease_id: 'MONDO:0000006', human_reviewed_at: '2026-10-31' }
+    api.listPublished.mockResolvedValue(page([ai, reviewed, RECORDS[3]!]))
+    api.listWorkflow.mockResolvedValue(page([...RECORDS, ai]))
+    api.transition.mockResolvedValue(ai)
+    const w = await mountAs('curator')
+    const rows = w.findAll('[data-testid="gda-row"]').map(r => r.text())
+    expect(rows.filter(t => t.includes('AI-reviewed · pending human review'))).toHaveLength(1)
+    expect(rows.filter(t => t.includes('Human-reviewed'))).toHaveLength(1)
+    expect(labels(w, 5)).toEqual(['Mark human-reviewed', 'Return to draft'])
+    expect(labels(w, 4)).toEqual(['Return to draft'])
+
+    const filter = w.find('[data-testid="wf-pending-human"]')
+    expect(filter.text()).toBe('Pending human review (1)')
+    await filter.trigger('click')
+    expect(filter.attributes('aria-pressed')).toBe('true')
+    expect(w.find('[data-testid="wf-4"]').exists()).toBe(false)
+    await w.find('[data-testid="wf-5"] [data-testid="wf-actions"] button').trigger('click')
+    await flushPromises()
+    expect(api.transition).toHaveBeenCalledWith(ai, 'human-review')
+  })
 })

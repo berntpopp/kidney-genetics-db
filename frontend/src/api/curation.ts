@@ -189,7 +189,7 @@ export interface AssociationDetails {
   diagnostics: Diagnostics | null
 }
 export type AssociationStatus = 'draft' | 'in_review' | 'published'
-export type WorkflowAction = 'submit' | 'publish' | 'return-to-draft'
+export type WorkflowAction = 'submit' | 'publish' | 'return-to-draft' | 'human-review'
 
 /** ClinGen's classification of the entity: adopted, or cited beside our own curation */
 export interface AdoptedClinGen {
@@ -220,6 +220,11 @@ export interface Association extends AssociationDetails {
   curator_id: number
   /** A Gene Curator import no KGDB curator has edited: any curator may act on it (#448) */
   imported_unclaimed?: boolean
+  /** Who approved a Gene Curator import there (#639); 'ai' awaits a KGDB human review */
+  approval_kind?: 'human' | 'ai' | null
+  approval_model?: string | null
+  human_reviewed_at?: string | null
+  human_reviewer_name?: string | null
   reviewer_id: number | null
   created_at: string
   updated_at: string

@@ -19,6 +19,7 @@ import {
 import AssociationDiagnostics from '@/components/curation/AssociationDiagnostics.vue'
 import AssociationProvenance from '@/components/curation/AssociationProvenance.vue'
 import MoiChip from '@/components/curation/MoiChip.vue'
+import ReviewChip from '@/components/curation/ReviewChip.vue'
 import SusceptibilityChip from '@/components/curation/SusceptibilityChip.vue'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
@@ -113,6 +114,7 @@ const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
               :odds-ratio="r.odds_ratio"
             />
             <Chip v-else :classification="r.evidence_strength" />
+            <ReviewChip :record="r" />
             <span
               v-if="r.risk_allele"
               class="font-mono text-xs text-muted-foreground"

@@ -397,6 +397,32 @@
             ],
             "title": "Ai Agents"
           },
+          "approval_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "human",
+                  "ai"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Kind"
+          },
+          "approval_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Model"
+          },
           "citations": {
             "items": {
               "type": "string"
@@ -523,6 +549,29 @@
           "gene_symbol": {
             "title": "Gene Symbol",
             "type": "string"
+          },
+          "human_reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Human Reviewed At"
+          },
+          "human_reviewer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Human Reviewer Name"
           },
           "id": {
             "title": "Id",

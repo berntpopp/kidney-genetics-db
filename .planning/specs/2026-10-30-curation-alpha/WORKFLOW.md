@@ -18,6 +18,10 @@ and is edited only in KGDB. GC never updates or retracts it; a new curation is a
 4. **Confirm in KGDB.** Imported drafts are owned by the inactive `gene-curator-import` account.
    A curator may submit and publish an unchanged import alone (GC's review covers it). Editing it
    makes the editor its curator, so a different curator must review before publishing.
+   A row only an AI approved in GC (`approval_kind = "ai"`, read in `_approval` in
+   `gene_curator_import.py`; field names pending GC #639) is imported **published**, marked
+   "AI-reviewed · pending human review", until a KGDB curator marks it human-reviewed
+   (`POST /api/curation/associations/{id}/human-review`) or publishes an edited version.
 
 **Rules that matter**
 - Only `scope_name = kidney-genetics`; unknown verdict, MOI or relationship values are rejected.
