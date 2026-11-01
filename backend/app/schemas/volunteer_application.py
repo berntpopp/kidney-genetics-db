@@ -40,6 +40,12 @@ class ApplicationResponse(BaseModel):
     created_at: datetime
 
 
+class DecisionResponse(ApplicationResponse):
+    """Decision result only (never listed): carries the invite link when it could not be emailed."""
+
+    invite_url: str | None = None
+
+
 class ApplicationMeta(BaseModel):
     total: int
     limit: int

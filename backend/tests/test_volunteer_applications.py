@@ -143,3 +143,19 @@ async def test_reject_emails_note_and_creates_no_user(async_client, db_session, 
     assert resp.json()["status"] == "rejected" and resp.json()["user_id"] is None
     assert db_session.query(User).filter_by(email="ada@example.org").count() == 0
     assert "Not a fit right now" in mail.await_args.args[2]
+
+
+@pytest.mark.integration
+async def test_invite_url_returned_only_when_email_disabled(
+    async_client, db_session, gene, monkeypatch
+) -> None:
+    monkeypatch.setattr(settings, "SMTP_HOST", None)
+    await _apply(async_client)
+    admin = _auth(db_session, "adm5", "admin")
+    app_id = db_session.query(VolunteerApplication).one().id
+    resp = await async_client.post(
+        f"{URL}/{app_id}/decision", json={"decision": "approved"}, headers=admin
+    )
+    assert "/reset-password?token=" in resp.json()["invite_url"]
+    listing = await async_client.get(URL + "/", headers=admin)
+    assert all("invite_url" not in row for row in listing.json()["data"])

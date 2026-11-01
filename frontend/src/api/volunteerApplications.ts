@@ -34,6 +34,11 @@ export interface Application {
   created_at: string
 }
 
+/** Decision result: the invite link is set only when email is not configured */
+export interface Decision extends Application {
+  invite_url: string | null
+}
+
 export interface ApplicationList {
   data: Application[]
   meta: { total: number; limit: number; offset: number; pending_count: number }
@@ -52,8 +57,8 @@ export const volunteerApplicationsApi = {
   async list(params: { status?: ApplicationStatus; limit?: number; offset?: number } = {}) {
     return (await apiClient.get<ApplicationList>('/api/volunteer-applications/', { params })).data
   },
-  async decide(id: number, input: DecisionInput): Promise<Application> {
-    return (await apiClient.post<Application>(`/api/volunteer-applications/${id}/decision`, input))
+  async decide(id: number, input: DecisionInput): Promise<Decision> {
+    return (await apiClient.post<Decision>(`/api/volunteer-applications/${id}/decision`, input))
       .data
   }
 }

@@ -1,4 +1,4 @@
-/* global HTMLButtonElement */
+/* global HTMLButtonElement, HTMLInputElement */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import AdminVolunteerApplications from '@/views/admin/AdminVolunteerApplications.vue'
@@ -25,7 +25,11 @@ vi.mock('@/api/volunteerApplications', () => ({
       data: [row],
       meta: { total: 1, limit: 100, offset: 0, pending_count: 1 }
     })),
-    decide: vi.fn(async () => ({ ...row, status: 'approved' }))
+    decide: vi.fn(async () => ({
+      ...row,
+      status: 'approved',
+      invite_url: 'https://kgdb.example/reset-password?token=abc'
+    }))
   }
 }))
 import { volunteerApplicationsApi } from '@/api/volunteerApplications'
@@ -65,5 +69,9 @@ describe('AdminVolunteerApplications', () => {
       note: undefined,
       role: 'curator'
     })
+    expect(document.body.textContent).toContain('Email is not configured')
+    expect(
+      (document.body.querySelector('input[aria-label="Invite link"]') as HTMLInputElement).value
+    ).toContain('/reset-password?token=abc')
   })
 })

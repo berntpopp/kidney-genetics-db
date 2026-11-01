@@ -90,6 +90,26 @@
       </Table>
     </DataState>
 
+    <AlertDialog v-model:open="showInvite">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Send the invite link</AlertDialogTitle>
+          <AlertDialogDescription>
+            Email is not configured: send this link to the applicant (valid 7 days)
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div class="flex gap-2">
+          <Input :model-value="inviteUrl" readonly aria-label="Invite link" />
+          <Button type="button" variant="outline" @click="copyInvite">
+            {{ copied ? 'Copied' : 'Copy' }}
+          </Button>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Close</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     <AlertDialog v-model:open="showDialog">
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -162,6 +182,7 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -196,6 +217,9 @@ const error = ref('')
 const expanded = ref(new Set<number>())
 
 // `target` outlives the dialog: Radix closes it on the action click, before confirm() runs
+const showInvite = ref(false)
+const inviteUrl = ref('')
+const copied = ref(false)
 const showDialog = ref(false)
 const target = ref<Application | null>(null)
 const decision = ref<'approved' | 'rejected'>('approved')
@@ -238,18 +262,28 @@ async function confirm() {
   deciding.value = true
   decideError.value = ''
   try {
-    await volunteerApplicationsApi.decide(target.value.id, {
+    const result = await volunteerApplicationsApi.decide(target.value.id, {
       decision: decision.value,
       note: note.value.trim() || undefined,
       role: decision.value === 'approved' ? role.value : undefined
     })
     showDialog.value = false
+    if (result.invite_url) {
+      inviteUrl.value = result.invite_url
+      copied.value = false
+      showInvite.value = true
+    }
     await load()
   } catch {
     decideError.value = 'Could not save the decision (it may already be decided).'
   } finally {
     deciding.value = false
   }
+}
+
+async function copyInvite() {
+  await navigator.clipboard?.writeText(inviteUrl.value)
+  copied.value = true
 }
 
 onMounted(load)

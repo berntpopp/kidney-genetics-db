@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import require_admin
+from app.core.email import email_enabled
 from app.core.rate_limit import LIMIT_VOLUNTEER_APPLICATION, limiter
 from app.core.security import (
     generate_password_reset_token,
@@ -26,6 +27,7 @@ from app.schemas.volunteer_application import (
     ApplicationDecision,
     ApplicationList,
     ApplicationResponse,
+    DecisionResponse,
 )
 from app.services import notifications
 
@@ -143,7 +145,7 @@ def list_applications(
     }
 
 
-@router.post("/{application_id}/decision", response_model=ApplicationResponse)
+@router.post("/{application_id}/decision", response_model=DecisionResponse)
 def decide_application(
     application_id: int,
     body: ApplicationDecision,
@@ -189,11 +191,11 @@ def decide_application(
     application.decision_note = body.note
     db.commit()
 
+    link = f"{settings.SITE_URL}/reset-password?token={invite_token}" if invite_token else None
     subject = f"[Kidney-Genetics] Your application for {symbol}"
     if body.decision == "approved":
         text = f"Hello {application.name},\n\nYour application to curate {symbol} was approved.\n"
-        if invite_token:
-            link = f"{settings.SITE_URL}/reset-password?token={invite_token}"
+        if link:
             text += f"\nSet your password within {INVITE_VALID_DAYS} days to sign in:\n{link}\n"
         else:
             text += f"\nSign in with your existing account: {settings.SITE_URL}/login\n"
@@ -205,4 +207,6 @@ def decide_application(
     if body.note:
         text += f"\nNote from the administrator:\n{body.note}\n"
     notifications.send_transactional(application.email, subject, text, background_tasks)
-    return _to_response(application)
+    # Without SMTP nobody else can see the link, so the deciding admin gets it to pass on.
+    invite_url = link if not email_enabled() else None
+    return {**_to_response(application), "invite_url": invite_url}
