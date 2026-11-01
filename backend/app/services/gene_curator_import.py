@@ -33,6 +33,7 @@ from app.core.security import get_password_hash
 from app.models.gene import Gene
 from app.models.gene_disease_association import MOI_TERMS
 from app.models.gene_disease_association import GeneDiseaseAssociation as GDA
+from app.models.gene_disease_association import GeneDiseaseAssociationEvent as Event
 from app.models.user import User
 from app.schemas.gene_disease_association import (
     ADOPTED,
@@ -55,6 +56,7 @@ SCHEMAS: dict[str, Any] = json.loads(SNAPSHOT.read_text())["schemas"]
 MAX_UPLOAD = 20 * 1024 * 1024
 SOURCE = "gene_curator"
 IMPORT = "gc_import"
+REPLACE = "gc_reimport"
 # Gene Curator class keys (trimmed, lowercase, spaces/hyphens as underscores) -> KGDB classes
 CLASSES = {
     "mendelian": {
@@ -394,11 +396,14 @@ def _adopted(statement: Any) -> dict[str, Any]:
 
 
 def _ai_agents(item: dict[str, Any]) -> list[str] | None:
-    """Software agents GC credits for writing evidence rows (VA-Spec contributions)."""
+    """Software agents GC credits for curating or writing evidence rows (VA-Spec contributions);
+    an approving agent is the reviewer (approval_kind), not a curation author."""
     names = {
         c["contributor"]["name"]
         for c in item.get("contributions") or []
-        if c.get("contributor", {}).get("agentType") == "software" and c["contributor"].get("name")
+        if c.get("contributor", {}).get("agentType") == "software"
+        and c["contributor"].get("name")
+        and c.get("activityType", {}).get("name") not in ("assessor", "approver")
     }
     return sorted(names) or None
 
@@ -432,6 +437,16 @@ def _import_row(
     if done:
         report["already_imported"].append({**ref, "record_id": done})
         return
+    # An older curation replaced by a newer import must not come back from an old file
+    replaced = (
+        db.query(Event.association_id)
+        .filter(Event.snapshot["source"].astext == SOURCE)
+        .filter(Event.snapshot["external_id"].astext == ref["curation_id"])
+        .first()
+    )
+    if replaced:
+        report["already_imported"].append({**ref, "record_id": replaced[0], "replaced": True})
+        return
     gene = db.query(Gene).filter(Gene.hgnc_id == item["hgnc_id"]).first()
     if gene is None:
         report["genes_not_in_kgdb"].append(ref)
@@ -446,6 +461,15 @@ def _import_row(
         report["dropped_fields"].append({**ref, "fields": sorted(set(dropped))})
     # The unique key: gene + disease + MOI + relationship type + risk allele (uq_gda_entity)
     existing = same_entity(db.query(GDA), SimpleNamespace(gene_id=gene.id, **values)).first()
+    approval = _approval(item)
+    this_upload = {r["record_id"] for r in report["created"] + report["replaced"]}
+    if existing is not None and existing.source == SOURCE and existing.id not in this_upload:
+        # A Gene Curator re-curation replaces its earlier import; the event trace keeps the old one.
+        # Two curations of one entity in the same file stay a conflict.
+        _replace(existing, values, approval, author)
+        _commit_unique(db, existing, REPLACE, admin)
+        report["replaced"].append({**ref, "record_id": existing.id})
+        return
     if existing is not None:
         report["conflicts"].append(
             {
@@ -458,7 +482,6 @@ def _import_row(
             }
         )
         return
-    approval = _approval(item)
     # AI-approved rows are published at once, pending a KGDB human review (#639)
     published = {"status": "published", "published_at": datetime.now(UTC)}
     record = GDA(
@@ -482,12 +505,27 @@ def _import_row(
     report["created"].append({**ref, "record_id": record.id})
 
 
+def _replace(record: GDA, values: dict[str, Any], approval: dict[str, Any], author: User) -> None:
+    """Overwrite an imported record with its re-curation: GC's review starts over in KGDB too."""
+    for key, value in values.items():
+        setattr(record, key, value)
+    ai = approval["kind"] == "ai"
+    record.status = "published" if ai else "draft"
+    record.published_at = datetime.now(UTC) if ai else None
+    record.approval_kind, record.approval_model = approval["kind"], approval["model"]
+    record.curator_id = author.id
+    record.reviewer_id = record.submitted_at = record.reviewed_at = None
+    record.human_reviewed_at = record.human_reviewer_id = None
+
+
 def import_export(db: Session, items: list[dict[str, Any]], admin: User) -> dict[str, Any]:
-    """Create a draft (published if AI-approved) per export row; nothing existing is changed."""
+    """Create a draft (published if AI-approved) per export row, or replace the earlier import of
+    a re-curated entity; records not from Gene Curator are never changed."""
     report: dict[str, Any] = {
         "rows": len(items),
         "created": [],
         "already_imported": [],
+        "replaced": [],
         "conflicts": [],
         "rejected": [],
         "genes_not_in_kgdb": [],
