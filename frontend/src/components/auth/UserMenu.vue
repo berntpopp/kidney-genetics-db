@@ -13,7 +13,14 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CircleUser, ShieldEllipsis, LogOut, ChevronDown, ListChecks, MessageSquareWarning } from 'lucide-vue-next'
+import {
+  CircleUser,
+  ShieldEllipsis,
+  LogOut,
+  ChevronDown,
+  ListChecks,
+  MessageSquareWarning
+} from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 const router = useRouter()

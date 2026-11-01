@@ -75,11 +75,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import {
-  curationReportsApi,
-  type Report,
-  type ReportStatus
-} from '@/api/curationReports'
+import { curationReportsApi, type Report, type ReportStatus } from '@/api/curationReports'
 import { DataState, PageHeader, PAGE_CONTAINER } from '@/components/shared'
 import { Button } from '@/components/ui/button'
 import {
