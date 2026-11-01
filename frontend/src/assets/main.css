@@ -353,6 +353,13 @@
    Print layout ("Export as PDF"): light, full width, no chrome
    ============================================================ */
 @media print {
+  /* print synopses in full, not clamped to two lines */
+  [class*='line-clamp-'] {
+    display: block !important;
+    -webkit-line-clamp: unset !important;
+    overflow: visible !important;
+  }
+
   @page {
     margin: 12mm;
   }
