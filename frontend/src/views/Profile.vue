@@ -71,6 +71,8 @@
         </Card>
       </div>
 
+      <NotificationPrefsCard v-if="authStore.isAuthenticated" class="lg:col-span-3" />
+
       <Card class="lg:col-span-2">
         <CardHeader>
           <CardTitle tag="h2" class="text-base font-semibold">Change password</CardTitle>
@@ -143,6 +145,7 @@ import { useForm } from 'vee-validate'
 import { ShieldCheck, Users } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { Chip, PageHeader, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
+import NotificationPrefsCard from '@/components/auth/NotificationPrefsCard.vue'
 import FormAlert from '@/components/auth/FormAlert.vue'
 import PasswordInput from '@/components/auth/PasswordInput.vue'
 import { focusFirstInvalid } from '@/components/auth/focusFirstInvalid'

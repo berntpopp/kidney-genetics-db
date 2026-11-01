@@ -25,12 +25,14 @@ from app.api.endpoints import (
     auth,
     cache,
     client_logs,
+    curation_reports,
     datasources,
     gene_disease_associations,
     gene_staging,
     genes,
     ingestion,
     network_analysis,
+    notification_prefs,
     percentile_management,
     progress,
     releases,
@@ -315,6 +317,12 @@ app.include_router(
     prefix="/api/curation/associations",
     tags=["Core Resources - Curated Associations"],
 )
+app.include_router(
+    curation_reports.router,
+    prefix="/api/curation/reports",
+    tags=["Core Resources - Curated Associations"],
+)
+app.include_router(notification_prefs.router, prefix="/api/users", tags=["Authentication"])
 
 # 3. Data Pipeline - Ingestion and processing operations
 app.include_router(gene_staging.router, prefix="/api/staging", tags=["Pipeline - Staging"])

@@ -5,6 +5,7 @@ Database models
 from app.models.backup_job import BackupJob, BackupStatus, BackupTrigger
 from app.models.base import Base, TimestampMixin
 from app.models.cache import CacheEntry
+from app.models.curation_report import CurationReport, UserNotificationPref
 from app.models.data_release import DataRelease
 from app.models.gene import Gene, GeneCuration, GeneEvidence, PipelineRun
 from app.models.gene_annotation import AnnotationHistory, AnnotationSource, GeneAnnotation
@@ -29,6 +30,7 @@ __all__ = [
     "BackupTrigger",
     "Base",
     "CacheEntry",
+    "CurationReport",
     "DataRelease",
     "DataSourceProgress",
     "Gene",
@@ -53,4 +55,5 @@ __all__ = [
     "SettingCategory",
     "TimestampMixin",
     "User",
+    "UserNotificationPref",
 ]

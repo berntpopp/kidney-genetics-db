@@ -13,7 +13,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CircleUser, ShieldEllipsis, LogOut, ChevronDown, ListChecks } from 'lucide-vue-next'
+import { CircleUser, ShieldEllipsis, LogOut, ChevronDown, ListChecks, MessageSquareWarning } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -63,6 +63,10 @@ const handleLogout = async () => {
       <DropdownMenuItem @click="goToProfile">
         <CircleUser class="mr-2 size-4" />
         My Profile
+      </DropdownMenuItem>
+      <DropdownMenuItem v-if="authStore.isCurator" @click="router.push('/curation/reports')">
+        <MessageSquareWarning class="mr-2 size-4" />
+        Curation Reports
       </DropdownMenuItem>
       <DropdownMenuItem v-if="authStore.isCurator && !authStore.isAdmin" @click="goToStaging">
         <ListChecks class="mr-2 size-4" />

@@ -29,6 +29,7 @@ import {
   CircleUser,
   ShieldEllipsis,
   ListChecks,
+  MessageSquareWarning,
   LogOut,
   BookCheck
 } from 'lucide-vue-next'
@@ -190,6 +191,14 @@ const drawerItem =
           <button :class="[drawerItem, 'text-foreground']" @click="navigateMobile('/profile')">
             <CircleUser class="size-4" aria-hidden="true" />
             My Profile
+          </button>
+          <button
+            v-if="authStore.isCurator"
+            :class="[drawerItem, 'text-foreground']"
+            @click="navigateMobile('/curation/reports')"
+          >
+            <MessageSquareWarning class="size-4" aria-hidden="true" />
+            Curation Reports
           </button>
           <button
             v-if="authStore.isCurator && !authStore.isAdmin"
