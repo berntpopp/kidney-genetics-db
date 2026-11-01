@@ -51,6 +51,18 @@ describe('AssociationProvenance', () => {
     expect(w.text()).toContain('Curator A')
     expect(w.text()).toContain('Reviewer B')
     expect(w.text()).toContain('15 points (genetic 10, experimental 5)')
+    // a local dev Gene Curator URL is a dead link for visitors: plain text, no anchor
+    for (const dead of [
+      'http://localhost:5193/c/1',
+      'https://10.0.0.5/c/1',
+      'https://gc.test/c/1'
+    ]) {
+      const local = mount(AssociationProvenance, {
+        props: { record: { ...gc, external_url: dead } }
+      })
+      expect(local.find('a[href*="/c/1"]').exists()).toBe(false)
+      expect(local.text()).toContain('Curated in Gene Curator')
+    }
   })
 
   it('shows an adopted ClinGen classification with an http(s)-only link and no points', () => {

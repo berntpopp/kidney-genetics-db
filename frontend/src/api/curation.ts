@@ -295,6 +295,16 @@ export function pubmedUrl(pmid: string): string {
 export const isHttpUrl = (url: string | null | undefined): url is string =>
   !!url && /^https?:\/\/\S+$/.test(url)
 
+/** A link a visitor can open: https on a public host (not a local or private dev Gene Curator) */
+export const isPublicUrl = (url: string | null | undefined): url is string => {
+  if (!isHttpUrl(url) || !url.startsWith('https://')) return false
+  const host = new URL(url).hostname
+  return !(
+    /^(localhost|0\.0\.0\.0|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[)/.test(host) ||
+    /\.(local|localhost|test)$/.test(host)
+  )
+}
+
 /** Methodology of an imported ClinGen adoption (backend ADOPTED); other records are our own curation */
 export const ADOPTED_METHODOLOGY = 'ClinGen gene-disease validity (adopted)'
 export const isAdoption = (r: Pick<Association, 'methodology' | 'adopted_clingen'>): boolean =>

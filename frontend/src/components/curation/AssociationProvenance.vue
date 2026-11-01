@@ -6,6 +6,7 @@ import {
   differsFromClinGen,
   isAdoption,
   isHttpUrl,
+  isPublicUrl,
   MOI_TERMS,
   type Association
 } from '@/api/curation'
@@ -115,7 +116,7 @@ const points = computed(() => {
       <dt class="text-muted-foreground">Provenance</dt>
       <dd class="space-y-0.5">
         <a
-          v-if="isHttpUrl(record.external_url)"
+          v-if="isPublicUrl(record.external_url)"
           :href="record.external_url"
           target="_blank"
           rel="noopener noreferrer"
