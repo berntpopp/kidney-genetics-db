@@ -24,6 +24,7 @@ type GroupKey = Exclude<keyof ImportReport, 'rows'>
 const GROUPS: { key: GroupKey; title: string; detail: (_r: ImportRow) => string }[] = [
   { key: 'created', title: 'Created as drafts', detail: () => '' },
   { key: 'already_imported', title: 'Already imported (skipped)', detail: () => '' },
+  { key: 'replaced', title: 'Replaced an earlier import (re-curated)', detail: () => '' },
   {
     key: 'conflicts',
     title: 'Conflicts (skipped)',
@@ -43,6 +44,10 @@ const uploading = ref(false)
 const report = ref<ImportReport | null>(null)
 const failure = ref<{ title: string; lines: string[] } | null>(null)
 
+// A replaced earlier import is new content too
+const imported = computed(
+  () => (report.value?.created.length ?? 0) + (report.value?.replaced?.length ?? 0)
+)
 const groups = computed(() =>
   GROUPS.map(g => ({ ...g, rows: report.value?.[g.key] ?? [] })).filter(g => g.rows.length)
 )
@@ -68,8 +73,8 @@ async function upload() {
   try {
     report.value = (await importGeneCuratorExport(file.value)).data
     // Nothing new (all skipped or rejected) is not a success to celebrate
-    toast[report.value.created.length ? 'success' : 'info'](
-      `Imported ${report.value.created.length} of ${report.value.rows} curations`
+    toast[imported.value ? 'success' : 'info'](
+      `Imported ${imported.value} of ${report.value.rows} curations`
     )
   } catch (err) {
     const response = (err as { response?: { data?: { error?: { details?: SchemaErrors } } } })
@@ -153,7 +158,7 @@ async function upload() {
           </AlertDescription>
         </Alert>
         <h2 v-if="report" class="text-lg font-semibold">
-          {{ report.rows }} curations in the file, {{ report.created.length }} imported
+          {{ report.rows }} curations in the file, {{ imported }} imported
         </h2>
       </div>
 

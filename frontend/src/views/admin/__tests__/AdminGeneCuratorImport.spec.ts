@@ -60,9 +60,10 @@ describe('AdminGeneCuratorImport', () => {
   it('shows every report group with record links and reasons', async () => {
     upload.mockResolvedValue({
       data: {
-        rows: 6,
+        rows: 7,
         created: [{ ...ref('01', 'PKD1'), record_id: 7 }],
         already_imported: [{ ...ref('02', 'PKD2'), record_id: 3 }],
+        replaced: [{ ...ref('06', 'UMOD'), record_id: 4 }],
         conflicts: [
           {
             ...ref('03', 'NPHS1'),
@@ -83,6 +84,7 @@ describe('AdminGeneCuratorImport', () => {
     const group = (key: string) => w.find(`[data-testid="gc-${key}"]`).text()
     expect(group('created')).toContain('Record #7')
     expect(group('already_imported')).toContain('Record #3')
+    expect(group('replaced')).toContain('Record #4')
     expect(group('conflicts')).toContain('Record #9')
     expect(group('conflicts')).toContain('a KGDB record exists (kgdb, published)')
     expect(group('rejected')).toContain("unknown MOI 'HP:0000001'")
@@ -91,7 +93,7 @@ describe('AdminGeneCuratorImport', () => {
     // Record numbers are text: only the intro links to the workflow list
     expect(w.findAllComponents(RouterLinkStub)).toHaveLength(1)
     // Screen readers hear the summary, not every row
-    expect(w.find('[aria-live="polite"]').text()).toContain('6 curations in the file, 1 imported')
+    expect(w.find('[aria-live="polite"]').text()).toContain('7 curations in the file, 2 imported')
     expect(w.find('[aria-live="polite"] [data-testid="gc-created"]').exists()).toBe(false)
   })
 
