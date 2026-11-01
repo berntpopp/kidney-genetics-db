@@ -12,6 +12,7 @@ an AI approved in Gene Curator (#639) is published at once and marked pending a 
 """
 
 import json
+import re
 import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -210,6 +211,23 @@ def _tool(text: Any) -> dict[str, Any] | None:
 
 
 TRANSCRIPT = ".diagnostics.recommended_transcript"
+# An agent's working notes (tools, endpoints, fetch problems) are not public text
+_WORKING_NOTE = re.compile(
+    r"(?i:\b(?:webfetch|captcha|genefoundry|pubtator|e-?utilities|mcp|endpoint|"
+    r"not retrieved|could not (?:be )?(?:read|fetch(?:ed)?|access(?:ed)?|retrieved?))\b)"
+    r"|\b(?:REST|API)\b|\b[a-z]+_get_[a-z_]+\b"
+)
+
+
+def public_text(text: Any, path: str, dropped: list[str]) -> Any:
+    """Drop sentences that read as an agent's working notes; None when nothing is left."""
+    if not isinstance(text, str):
+        return text
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    kept = [s for s in sentences if not _WORKING_NOTE.search(s)]
+    if len(kept) < len(sentences):
+        dropped.append(f"{path} (working note)")
+    return " ".join(kept) or None
 
 
 def _shaped(value: Any, kind: type, path: str) -> Any:
@@ -223,13 +241,10 @@ def _diagnostics(evidence: dict[str, Any], dropped: list[str]) -> dict[str, Any]
     """Reshape evidence.diagnostics per Gene Curator's KGDB mapping (kidney-genetics/README)."""
     notes = _clean(_shaped(evidence.get("diagnostics_notes") or {}, dict, ".diagnostics_notes"))
     raw = _clean(_shaped(evidence.get("diagnostics") or {}, dict, ".diagnostics"))
-    if note := notes.pop("detectability_note", None):
+    note = public_text(notes.pop("detectability_note", None), "detectability_note", dropped)
+    if note:
         raw["detectability_note"] = note
-    if via := notes.pop("transcript_verified_via", None):
-        raw["recommended_transcript"] = {
-            **_shaped(raw.get("recommended_transcript", {}), dict, TRANSCRIPT),
-            "verified_via": via,
-        }
+    # transcript_verified_via is the agent's lookup trail, not reader content: reported as dropped
     dropped += [f"diagnostics_notes.{k}" for k in notes]
     if not raw:
         return None
@@ -239,6 +254,8 @@ def _diagnostics(evidence: dict[str, Any], dropped: list[str]) -> dict[str, Any]
         out["recommended_transcript"] = _known(
             RecommendedTranscript, transcript, TRANSCRIPT[1:], dropped
         )
+        if out["recommended_transcript"].pop("verified_via", None):
+            dropped.append("diagnostics.recommended_transcript.verified_via")
     else:
         out.pop("recommended_transcript", None)  # every key blank
     rows = []
@@ -300,8 +317,11 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
         scores["association"] = item.get("association_score")
         if scores["association"] is None:  # exports before GC #619 carry it in the trace only
             scores["association"] = (item.get("scores") or {}).get("association_total")
-    summary = evidence.get("evidence_summary") or None
-    computed, rationale = item.get("computed_verdict"), item.get("curator_classification_rationale")
+    summary = public_text(evidence.get("evidence_summary") or None, "evidence_summary", dropped)
+    computed = item.get("computed_verdict")
+    rationale = public_text(
+        item.get("curator_classification_rationale"), "classification_rationale", dropped
+    )
     final = _key(item["final_classification"])
     departs = []  # what the final class departs from; the reason is stored apart from the synopsis
     if not adopted and rationale and _key(computed) != final:

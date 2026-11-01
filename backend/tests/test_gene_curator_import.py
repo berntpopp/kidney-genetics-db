@@ -179,7 +179,7 @@ def test_diagnostics_map_to_kgdb(db_session, genes, admin) -> None:
     d = record.diagnostics
     transcript = d["recommended_transcript"]
     assert (transcript["refseq"], transcript["mane_status"]) == ("NM_006580.4", "not_checked")
-    assert transcript["verified_via"] == "MANE Select in Ensembl 115"
+    assert transcript.get("verified_via") is None  # the agent's lookup trail is not public text
     assert d["detectability_note"] == "standard short-read testing adequate"
     [row] = d["detectability"]
     assert row["tools"] == [
@@ -192,7 +192,23 @@ def test_diagnostics_map_to_kgdb(db_session, genes, admin) -> None:
     [resource] = d["resources"]
     assert resource["verified"] == {"method": "fetched", "date": "2026-10-30"}
     assert resource["country_or_scope"] == "EU"
-    assert report["dropped_fields"] == []
+    [entry] = report["dropped_fields"]
+    assert entry["fields"] == ["diagnostics_notes.transcript_verified_via"]
+
+
+def test_working_notes_never_reach_public_text() -> None:
+    dropped: list[str] = []
+    note = (
+        "Use sequencing plus CNV analysis. NBK1207 page itself showed a captcha to WebFetch; "
+        "content verified via GeneFoundry GeneReviews API."
+    )
+    assert (
+        gc.public_text(note, "detectability_note", dropped) == "Use sequencing plus CNV analysis."
+    )
+    assert gc.public_text("Checked with gnomad_get_gene_summary.", "x", dropped) is None
+    kept = "Kidney failure at rest is rare. Penetrance is high."
+    assert gc.public_text(kept, "evidence_summary", dropped) == kept
+    assert dropped == ["detectability_note (working note)", "x (working note)"]
 
 
 @pytest.mark.integration

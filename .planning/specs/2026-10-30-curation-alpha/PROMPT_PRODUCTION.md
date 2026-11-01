@@ -247,6 +247,8 @@ genotype per entity. Following the ClinGen risk-allele framework (PMID 38054408)
   lists or disclaimers; those have their own fields. Every statement, especially each frequency,
   must come from sources you read (GeneReviews, OMIM, case series, cohort studies); never
   generalise beyond them or invent percentages.
+- **Public text** (synopsis, rationale, `detectability_note`): readers see it. No tool, API or
+  database-query names and no access problems (captchas, unreadable pages); keep those in the notes.
 - **Classification rationale** (`curator_classification_rationale`): only when your call differs
   from the computed class or from ClinGen; at most 2–3 sentences naming the decisive evidence.
   KGDB shows it as "Why this class", never in the synopsis.
