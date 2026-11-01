@@ -129,6 +129,12 @@ export const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/curation/reports',
+    name: 'curation-reports',
+    component: () => import('../views/CurationReports.vue'),
+    meta: { requiresAuth: true, requiresCurator: true, title: 'Curation Reports', noindex: true }
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('../views/Login.vue'),
