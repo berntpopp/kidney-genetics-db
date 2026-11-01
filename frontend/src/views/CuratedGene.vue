@@ -51,6 +51,10 @@
               <FileSpreadsheet aria-hidden="true" />
               Export as CSV
             </DropdownMenuItem>
+            <DropdownMenuItem @click="printPdf(`${symbol}-curated-associations-${today()}`)">
+              <FileText aria-hidden="true" />
+              Export as PDF
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <VolunteerDialog :symbol="symbol" />
@@ -96,7 +100,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Check, Download, FileJson, FileSpreadsheet, Share2 } from 'lucide-vue-next'
+import { Check, Download, FileJson, FileSpreadsheet, FileText, Share2 } from 'lucide-vue-next'
 import { curationApi, type Association } from '@/api/curation'
 import { geneApi } from '@/api/genes'
 import ReportCurationDialog from '@/components/curation/ReportCurationDialog.vue'
@@ -124,7 +128,7 @@ import { getPublicBreadcrumbsWithParents } from '@/utils/publicBreadcrumbs'
 
 const props = defineProps<{ symbol: string }>()
 
-const { copied, copy, download } = useShareExport()
+const { copied, copy, download, printPdf } = useShareExport()
 const shareUrl = computed(() => `${window.location.origin}/curation/associations/${props.symbol}`)
 const exportAs = (kind: 'json' | 'csv') => {
   const name = `${props.symbol}-curated-associations-${today()}`

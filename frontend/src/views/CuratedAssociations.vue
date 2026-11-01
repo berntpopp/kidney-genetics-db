@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch, type ComponentPublicInstance } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Check, Download, FileJson, FileSpreadsheet, Plus, Share2, X } from 'lucide-vue-next'
+import {
+  Check,
+  Download,
+  FileJson,
+  FileSpreadsheet,
+  FileText,
+  Plus,
+  Share2,
+  X
+} from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useCurationStore } from '@/stores/curation'
 import {
@@ -58,11 +67,12 @@ const STACK = 'max-lg:block max-lg:min-w-0 max-lg:max-w-none max-lg:px-0 max-lg:
 const auth = useAuthStore()
 const store = useCurationStore()
 
-const { copied, copy, download } = useShareExport()
+const { copied, copy, download, printPdf } = useShareExport()
 // The address bar as-is, so any query-string filters travel with the link
 const shareUrl = () => window.location.href
+const exportName = () => `curated-associations-${geneFilter.value.trim() || 'all'}-${today()}`
 const exportAs = (kind: 'json' | 'csv') => {
-  const name = `curated-associations-${geneFilter.value.trim() || 'all'}-${today()}`
+  const name = exportName()
   if (kind === 'json')
     download(JSON.stringify(store.published, null, 2), 'application/json', `${name}.json`)
   else download(associationsCsv(store.published), 'text/csv', `${name}.csv`)
@@ -225,6 +235,10 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
                   <DropdownMenuItem @click="exportAs('csv')">
                     <FileSpreadsheet aria-hidden="true" />
                     Export as CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem @click="printPdf(exportName())">
+                    <FileText aria-hidden="true" />
+                    Export as PDF
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

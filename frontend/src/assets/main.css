@@ -348,3 +348,74 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
+
+/* ============================================================
+   Print layout ("Export as PDF"): light, full width, no chrome
+   ============================================================ */
+@media print {
+  /* print synopses in full, not clamped to two lines */
+  [class*='line-clamp-'] {
+    display: block !important;
+    -webkit-line-clamp: unset !important;
+    overflow: visible !important;
+  }
+
+  @page {
+    margin: 12mm;
+  }
+  /* Force the light palette even when the dark theme is active */
+  :root,
+  .dark {
+    color-scheme: light;
+    --background: #fff;
+    --foreground: #000;
+    --card: #fff;
+    --card-foreground: #000;
+    --muted: #f4f4f5;
+    --muted-foreground: #3f3f46;
+    --border: #a1a1aa;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  /* Site chrome only: views also use <header> for their page titles */
+  #app > div > header,
+  #app > div > footer,
+  main label,
+  [data-sonner-toaster],
+  [role='dialog'],
+  main button,
+  main [role='combobox'],
+  main nav[aria-label*='agination' i],
+  main input,
+  main select {
+    display: none !important;
+  }
+  /* Sortable column headers are buttons: keep their label */
+  main th button {
+    display: inline !important;
+  }
+  main {
+    padding-bottom: 0 !important;
+  }
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  main .container,
+  main [class*='max-w-'] {
+    max-width: none !important;
+  }
+  [class*='rounded-'][class*='border'],
+  article,
+  tr {
+    break-inside: avoid;
+  }
+  .print-citation {
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: #3f3f46;
+  }
+}

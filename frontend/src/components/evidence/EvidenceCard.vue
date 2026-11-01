@@ -1,5 +1,5 @@
 <template>
-  <Collapsible v-model:open="open" as-child>
+  <Collapsible :open="open || isPrinting" as-child @update:open="open = $event">
     <article
       class="rounded-xl border bg-card text-card-foreground"
       :aria-labelledby="headingId"
@@ -105,6 +105,7 @@ import { computed, ref, useId } from 'vue'
 import { ChevronDown, ExternalLink } from 'lucide-vue-next'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Button } from '@/components/ui/button'
+import { isPrinting } from '@/composables/usePrinting'
 import { Chip, SourceLabel } from '@/components/shared'
 import { sourceDisplayName } from '@/utils/sources'
 import { evidenceMeta } from './evidenceMeta'

@@ -81,5 +81,13 @@ export function useShareExport() {
     URL.revokeObjectURL(url)
   }
 
-  return { copied, copy, download }
+  /** Browser print dialog ("Save as PDF"); the title names the saved file */
+  const printPdf = (name: string) => {
+    const title = document.title
+    document.title = name
+    window.addEventListener('afterprint', () => (document.title = title), { once: true })
+    window.print()
+  }
+
+  return { copied, copy, download, printPdf }
 }

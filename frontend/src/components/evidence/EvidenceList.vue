@@ -5,6 +5,7 @@
  */
 import { computed, ref } from 'vue'
 import { Button } from '@/components/ui/button'
+import { isPrinting } from '@/composables/usePrinting'
 
 const props = withDefaults(
   defineProps<{
@@ -18,7 +19,9 @@ const props = withDefaults(
 )
 
 const expanded = ref(false)
-const visible = computed(() => (expanded.value ? props.items : props.items.slice(0, props.max)))
+const visible = computed(() =>
+  expanded.value || isPrinting.value ? props.items : props.items.slice(0, props.max)
+)
 const hidden = computed(() => props.items.length - visible.value.length)
 </script>
 
