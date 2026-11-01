@@ -109,6 +109,8 @@
             </DropdownMenuContent>
           </DropdownMenu>
 
+          <VolunteerDialog :symbol="symbol" />
+
           <Button variant="outline" size="sm" as-child>
             <RouterLink :to="`/genes/${symbol}/structure`">
               <Dna aria-hidden="true" />
@@ -232,6 +234,7 @@ import EvidenceCard from '../components/evidence/EvidenceCard.vue'
 import GeneInformationCard from '../components/gene/GeneInformationCard.vue'
 import MondoDiseases from '../components/gene/MondoDiseases.vue'
 import GeneCuratedAssociations from '../components/gene/GeneCuratedAssociations.vue'
+import VolunteerDialog from '@/components/curation/VolunteerDialog.vue'
 import { DataState, OntologyTerm, PageHeader, PAGE_CONTAINER } from '@/components/shared'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'

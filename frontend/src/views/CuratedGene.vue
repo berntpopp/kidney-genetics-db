@@ -53,6 +53,7 @@
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <VolunteerDialog :symbol="symbol" />
         <ReportCurationDialog :symbol="symbol" />
         <Button variant="outline" size="sm" as-child>
           <RouterLink :to="`/genes/${symbol}`">Evidence and gene page</RouterLink>
@@ -99,6 +100,7 @@ import { Check, Download, FileJson, FileSpreadsheet, Share2 } from 'lucide-vue-n
 import { curationApi, type Association } from '@/api/curation'
 import { geneApi } from '@/api/genes'
 import ReportCurationDialog from '@/components/curation/ReportCurationDialog.vue'
+import VolunteerDialog from '@/components/curation/VolunteerDialog.vue'
 import GeneCuratedAssociations from '@/components/gene/GeneCuratedAssociations.vue'
 import { Chip, DataState, PageHeader, PAGE_CONTAINER } from '@/components/shared'
 import {

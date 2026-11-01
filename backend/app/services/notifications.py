@@ -12,7 +12,10 @@ from app.models.user import User
 logger = get_logger(__name__)
 
 # event key -> label shown in the preferences UI; later features add their events here
-EVENTS = {"curation_report": "A report or suggestion on a curated gene"}
+EVENTS = {
+    "curation_report": "A report or suggestion on a curated gene",
+    "volunteer_application": "A new volunteer curation application",
+}
 
 
 def prefs_for(db: Session, user: User) -> dict[str, bool]:
@@ -40,7 +43,7 @@ def report_body(report: CurationReport, gene_symbol: str) -> tuple[str, str]:
     return subject, body
 
 
-async def _send(user_id: int, to: str, subject: str, body: str) -> None:
+async def _send(user_id: int | None, to: str, subject: str, body: str) -> None:
     try:
         await send_email(to, subject, body)
     except Exception as exc:  # a failed notification must never fail the request
@@ -60,3 +63,9 @@ def notify(
     for user in users:
         if user.is_active and prefs_for(db, user).get(event, False):
             background_tasks.add_task(_send, user.id, user.email, subject, body)
+
+
+def send_transactional(to: str, subject: str, body: str, background_tasks: BackgroundTasks) -> None:
+    """Mail to a non-user (e.g. an applicant): not switchable, sent only when SMTP is configured."""
+    if email_enabled():
+        background_tasks.add_task(_send, None, to, subject, body)

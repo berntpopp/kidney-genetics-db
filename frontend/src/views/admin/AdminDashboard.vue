@@ -145,6 +145,12 @@ const SECTIONS = [
     'Create, restore and download database backups',
     '/admin/backups'
   ],
+  [
+    'volunteers',
+    'Volunteer Applications',
+    'Review applications to curate a gene',
+    '/admin/volunteer-applications'
+  ],
   ['logs', 'System Logs', 'Search and filter application logs', '/admin/logs'],
   ['cache', 'Cache Management', 'Inspect, warm and clear cache namespaces', '/admin/cache'],
   ['users', 'User Management', 'Manage accounts, roles and access', '/admin/users'],

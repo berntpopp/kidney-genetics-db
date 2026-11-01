@@ -91,3 +91,4 @@ LIMIT_STATISTICS = "30/minute"
 LIMIT_PIPELINE = "5/hour"
 LIMIT_CLIENT_LOGS = "30/minute"
 LIMIT_CURATION_REPORT = "5/hour"  # public report form, per IP
+LIMIT_VOLUNTEER_APPLICATION = "3/hour"  # public volunteer form, per IP

@@ -241,6 +241,7 @@ def test_no_pipeline_code_writes_expert_records() -> None:
         "api/endpoints/auth.py",  # refuses to delete users who authored/reviewed records
         "api/endpoints/curation_reports.py",  # reads published records only
         "models/curation_report.py",  # FK from reports to associations
+        "api/endpoints/volunteer_applications.py",  # applications only, no association data
     }
     hits = {
         str(p.relative_to(app_dir))

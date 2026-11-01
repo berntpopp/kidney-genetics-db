@@ -40,6 +40,7 @@ from app.api.endpoints import (
     shadow_tests,
     statistics,
     version,
+    volunteer_applications,
 )
 from app.core.background_tasks import task_manager
 from app.core.config import settings
@@ -323,6 +324,11 @@ app.include_router(
     tags=["Core Resources - Curated Associations"],
 )
 app.include_router(notification_prefs.router, prefix="/api/users", tags=["Authentication"])
+app.include_router(
+    volunteer_applications.router,
+    prefix="/api/volunteer-applications",
+    tags=["Core Resources - Curated Associations"],
+)
 
 # 3. Data Pipeline - Ingestion and processing operations
 app.include_router(gene_staging.router, prefix="/api/staging", tags=["Pipeline - Staging"])
