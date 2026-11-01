@@ -20,6 +20,39 @@
         </Breadcrumb>
       </template>
       <template #actions>
+        <Button
+          variant="outline"
+          size="sm"
+          :aria-label="copied === 'link' ? 'Link copied' : 'Copy link to this page'"
+          @click="copy(shareUrl, 'link', 'Link copied')"
+        >
+          <Check v-if="copied === 'link'" aria-hidden="true" />
+          <Share2 v-else aria-hidden="true" />
+          <span class="hidden sm:inline">{{ copied === 'link' ? 'Copied' : 'Share' }}</span>
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="!records.length"
+              aria-label="Export curated associations"
+            >
+              <Download aria-hidden="true" />
+              <span class="hidden sm:inline">Export</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem @click="exportAs('json')">
+              <FileJson aria-hidden="true" />
+              Export as JSON
+            </DropdownMenuItem>
+            <DropdownMenuItem @click="exportAs('csv')">
+              <FileSpreadsheet aria-hidden="true" />
+              Export as CSV
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant="outline" size="sm" as-child>
           <RouterLink :to="`/genes/${symbol}`">Evidence and gene page</RouterLink>
         </Button>
@@ -61,6 +94,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+import { Check, Download, FileJson, FileSpreadsheet, Share2 } from 'lucide-vue-next'
 import { curationApi, type Association } from '@/api/curation'
 import { geneApi } from '@/api/genes'
 import GeneCuratedAssociations from '@/components/gene/GeneCuratedAssociations.vue'
@@ -74,10 +108,26 @@ import {
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+import { associationsCsv, today, useShareExport } from '@/composables/useShareExport'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { getPublicBreadcrumbsWithParents } from '@/utils/publicBreadcrumbs'
 
 const props = defineProps<{ symbol: string }>()
+
+const { copied, copy, download } = useShareExport()
+const shareUrl = computed(() => `${window.location.origin}/curation/associations/${props.symbol}`)
+const exportAs = (kind: 'json' | 'csv') => {
+  const name = `${props.symbol}-curated-associations-${today()}`
+  if (kind === 'json')
+    download(JSON.stringify(records.value, null, 2), 'application/json', `${name}.json`)
+  else download(associationsCsv(records.value), 'text/csv', `${name}.csv`)
+}
 
 const LINK = 'text-primary underline-offset-4 hover:underline'
 const records = ref<Association[]>([])

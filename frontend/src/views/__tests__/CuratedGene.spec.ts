@@ -83,6 +83,18 @@ describe('CuratedGene', () => {
     expect(w.find('a[href="/about#curation"]').exists()).toBe(true)
   })
 
+  it('offers Share and Export for the gene', async () => {
+    api.listPublished.mockResolvedValue({
+      data: [RECORD],
+      meta: { total: 1, limit: 100, offset: 0 }
+    })
+    const w = await mountFor('CLDN10')
+    expect(w.find('button[aria-label="Copy link to this page"]').exists()).toBe(true)
+    const exp = w.find('button[aria-label="Export curated associations"]')
+    expect(exp.exists()).toBe(true)
+    expect(exp.attributes('disabled')).toBeUndefined()
+  })
+
   it('says so when the gene has no published association', async () => {
     api.listPublished.mockResolvedValue({ data: [], meta: { total: 0, limit: 100, offset: 0 } })
     const w = await mountFor('PKD1')
