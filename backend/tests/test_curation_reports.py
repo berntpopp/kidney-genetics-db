@@ -109,17 +109,12 @@ async def test_curator_lists_and_handles_viewer_forbidden(async_client, db_sessi
 async def test_prefs_default_on_and_toggle(async_client, db_session) -> None:
     viewer = _auth(db_session, "prefs", "viewer")
     resp = await async_client.get("/api/users/me/notification-prefs", headers=viewer)
-    assert resp.json() == [
-        {
-            "event": "curation_report",
-            "label": notifications.EVENTS["curation_report"],
-            "enabled": True,
-        }
-    ]
+    assert {p["event"] for p in resp.json()} == set(notifications.EVENTS)
+    assert all(p["enabled"] for p in resp.json())
     resp = await async_client.put(
         "/api/users/me/notification-prefs", json={"curation_report": False}, headers=viewer
     )
-    assert resp.json()[0]["enabled"] is False
+    assert {p["event"]: p["enabled"] for p in resp.json()}["curation_report"] is False
     resp = await async_client.put(
         "/api/users/me/notification-prefs", json={"nope": True}, headers=viewer
     )

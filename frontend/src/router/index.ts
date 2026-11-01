@@ -209,6 +209,17 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresAdmin: true, title: 'Releases', noindex: true }
   },
   {
+    path: '/admin/volunteer-applications',
+    name: 'admin-volunteer-applications',
+    component: () => import('../views/admin/AdminVolunteerApplications.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Volunteer Applications',
+      noindex: true
+    }
+  },
+  {
     path: '/admin/backups',
     name: 'admin-backups',
     component: () => import('../views/admin/AdminBackups.vue'),

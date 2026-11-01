@@ -12,6 +12,7 @@ import type { Component } from 'vue'
 import {
   LayoutDashboard,
   Users,
+  HandHelping,
   MemoryStick,
   FileText,
   Settings,
@@ -40,6 +41,7 @@ export const ADMIN_ICONS: Record<string, Component> = {
 
   // User management
   users: Users,
+  volunteers: HandHelping,
 
   // System management
   cache: MemoryStick,

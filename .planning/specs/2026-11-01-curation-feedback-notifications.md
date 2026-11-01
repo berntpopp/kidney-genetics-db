@@ -35,3 +35,22 @@ these paths are not in its allowlist.
 ## Frontend
 `ReportCurationDialog` on the curated-gene header; `/curation/reports` inbox (curator
 route, user-menu entry); `NotificationPrefsCard` on the profile page.
+
+## Volunteer curation applications
+A visitor applies to curate a gene from the curated-gene and gene page headers
+(`VolunteerDialog`). The application is the registration path: registration stays admin-only.
+
+- Table `volunteer_application` (migration 0025): gene, name, email, affiliation, ORCID,
+  motivation, status `pending|approved|rejected`, decider, decision note, linked `user_id`.
+- `POST /api/volunteer-applications/` (public, 3/hour, honeypot, gene must exist; a pending
+  duplicate for the same email and gene is accepted without a new row; never echoes data).
+  `GET` (admin, status filter, paginated) and `POST /{id}/decision` (admin; only pending, else
+  409). Approval links an existing account (viewer raised to curator when role=curator) or
+  creates one with an unusable random password and a 7-day set-password link
+  (`{SITE_URL}/reset-password?token=...`). Rejection emails a polite note plus the decision note.
+- Emails: applicant confirmation, invite and rejection are transactional (not switchable,
+  sent only when SMTP is configured). Admins get the new event `volunteer_application`, which
+  is switchable in notification preferences.
+- Admin view `/admin/volunteer-applications` (dashboard card, confirm dialog with role and note).
+- Privacy: applicant data is visible to admins only; MCP allowlist unchanged.
+- Follow-up (not built): delete rejected applications after 12 months.

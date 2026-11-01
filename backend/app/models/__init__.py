@@ -21,6 +21,7 @@ from app.models.static_sources import StaticEvidenceUpload, StaticSource, Static
 from app.models.system_logs import SystemLog
 from app.models.system_setting import SettingAuditLog, SettingCategory, SettingType, SystemSetting
 from app.models.user import User
+from app.models.volunteer_application import VolunteerApplication
 
 __all__ = [
     "AnnotationHistory",
@@ -31,6 +32,7 @@ __all__ = [
     "Base",
     "CacheEntry",
     "CurationReport",
+    "VolunteerApplication",
     "DataRelease",
     "DataSourceProgress",
     "Gene",
