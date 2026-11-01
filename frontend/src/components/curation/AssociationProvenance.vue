@@ -157,8 +157,8 @@ const points = computed(() => {
       <dt class="text-muted-foreground">Curated by</dt>
       <dd>
         {{ record.external_curator }}
-        <span v-if="curatorIsAgent" class="text-muted-foreground">· AI agent</span>
-        <span v-if="ai" class="text-muted-foreground"
+        <span v-if="curatorIsAgent" class="ml-1 text-muted-foreground">· AI agent</span>
+        <span v-if="ai" :class="['text-muted-foreground', { 'ml-1': record.external_curator }]"
           >{{ record.external_curator ? '· ' : '' }}AI-assisted ({{ ai }})</span
         >
       </dd>
@@ -167,7 +167,7 @@ const points = computed(() => {
       <dt class="text-muted-foreground">Reviewed by</dt>
       <dd>
         {{ record.external_reviewer }}
-        <span v-if="reviewerIsAgent" class="text-muted-foreground">· AI agent</span>
+        <span v-if="reviewerIsAgent" class="ml-1 text-muted-foreground">· AI agent</span>
       </dd>
     </template>
     <!-- Extra dt/dd rows from the caller, aligned with the rows above -->
