@@ -40,6 +40,11 @@ Research use only. Never invent transcripts, tools, PMIDs or URLs.
    Max ~8 per entity. Include only URLs you fetched successfully and whose content matches.
    If a well-known resource is down or moved, list it under `rejected_urls` with the reason.
 
+**Public text.** `detectability_note`, the synopsis and the rationale are shown to readers: write
+only the clinical or laboratory statement. Never name tools, APIs, endpoints or databases you
+queried, and never report access problems (captchas, timeouts, unreadable pages); those go in the
+notes ledger. `verified_via` is not shown in KGDB; KGDB also drops such sentences at import.
+
 ## Output
 One JSON file per gene at
 `<WORK_DIR>/diag/<SYMBOL>.json`:
