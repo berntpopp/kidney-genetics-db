@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
-import type { Association } from '@/api/curation'
+import { clinicalGroupText, type Association } from '@/api/curation'
 
 const csvCell = (value: unknown): string => {
   const s = String(value ?? '')
@@ -23,6 +23,7 @@ export const associationsCsv = (records: Association[]): string =>
       'Mode of inheritance',
       'Relationship',
       'Classification',
+      'Clinical group',
       'Points',
       'Methodology',
       'Curator',
@@ -41,6 +42,7 @@ export const associationsCsv = (records: Association[]): string =>
       r.moi_label ?? r.moi,
       r.relationship_type,
       r.evidence_strength,
+      r.clinical_group && clinicalGroupText(r.clinical_group),
       r.scores?.total,
       [r.methodology, r.methodology_version].filter(Boolean).join(' '),
       r.external_curator,

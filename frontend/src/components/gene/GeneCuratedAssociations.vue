@@ -27,6 +27,12 @@
               />
               <ReviewChip :record="r" />
               <Chip
+                v-if="r.clinical_group"
+                kind="neutral"
+                :label="clinicalGroupLabel(r.clinical_group.primary)"
+                :tooltip="`Curated clinical group: ${clinicalGroupText(r.clinical_group)}`"
+              />
+              <Chip
                 v-if="hasShortReadLimit(r.diagnostics)"
                 status="warning"
                 label="Short-read limit"
@@ -88,6 +94,8 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   diseaseUrl,
+  clinicalGroupLabel,
+  clinicalGroupText,
   hasShortReadLimit,
   SHORT_READ_NOTE,
   RELATIONSHIP_LABELS,

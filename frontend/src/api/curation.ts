@@ -216,6 +216,8 @@ export interface Association extends AssociationDetails {
   adopted_clingen?: AdoptedClinGen | null
   // Software agents Gene Curator credits for the evidence (AI-assisted curation)
   ai_agents?: string[] | null
+  /** Curated kidney clinical group of the entity (same keys as the HPO groups); never scores */
+  clinical_group?: ClinicalGroup | null
   status: AssociationStatus
   curator_id: number
   /** A Gene Curator import no KGDB curator has edited: any curator may act on it (#448) */
@@ -321,3 +323,28 @@ export const differsFromClinGen = (
   !isAdoption(r) &&
   (r.relationship_type !== 'mendelian' ||
     r.adopted_clingen.classification.toLowerCase() !== r.evidence_strength.toLowerCase())
+
+/** KGDB kidney clinical groups, in the HPO tie-break order */
+export const CLINICAL_GROUP_LABELS: Record<string, string> = {
+  complement: 'Complement',
+  cakut: 'CAKUT',
+  glomerulopathy: 'Glomerulopathy',
+  cyst_cilio: 'Cystic/Ciliopathy',
+  tubulopathy: 'Tubulopathy',
+  nephrolithiasis: 'Nephrolithiasis',
+  neoplasia: 'Neoplasia'
+}
+export const clinicalGroupLabel = (key: string): string => CLINICAL_GROUP_LABELS[key] ?? key
+
+export interface ClinicalGroup {
+  primary: string
+  secondary?: string[]
+  rationale?: string | null
+}
+
+/** "CAKUT · also Cystic/Ciliopathy" */
+export const clinicalGroupText = (g: ClinicalGroup): string =>
+  [
+    clinicalGroupLabel(g.primary),
+    ...(g.secondary?.length ? [`also ${g.secondary.map(clinicalGroupLabel).join(', ')}`] : [])
+  ].join(' · ')

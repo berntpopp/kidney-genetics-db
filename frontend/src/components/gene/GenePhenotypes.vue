@@ -62,6 +62,7 @@
 </template>
 
 <script setup>
+import { clinicalGroupLabel } from '@/api/curation'
 import { computed } from 'vue'
 import { Chip } from '@/components/shared'
 
@@ -69,18 +70,9 @@ const props = defineProps({
   hpoData: { type: Object, default: null }
 })
 
-const GROUPS = {
-  complement: 'Complement',
-  cakut: 'CAKUT',
-  glomerulopathy: 'Glomerulopathy',
-  cyst_cilio: 'Cystic/Ciliopathy',
-  tubulopathy: 'Tubulopathy',
-  nephrolithiasis: 'Nephrolithiasis',
-  neoplasia: 'Neoplasia'
-}
 const ONSET = { adult: 'Adult', pediatric: 'Pediatric', congenital: 'Congenital' }
 
-const groupLabel = group => GROUPS[group] ?? group
+const groupLabel = clinicalGroupLabel
 const pct = value => (value == null ? 'n/a' : `${(value * 100).toFixed(0)}%`)
 
 const clinical = computed(() => props.hpoData?.classification?.clinical_group)

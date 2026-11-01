@@ -3,6 +3,7 @@
 import { computed } from 'vue'
 import { ExternalLink } from 'lucide-vue-next'
 import {
+  clinicalGroupText,
   differsFromClinGen,
   isAdoption,
   isHttpUrl,
@@ -65,6 +66,7 @@ const points = computed(() => {
       fromGeneCurator ||
       record.external_curator ||
       ai ||
+      record.clinical_group ||
       record.external_reviewer ||
       adopted ||
       record.classification_rationale ||
@@ -142,12 +144,21 @@ const points = computed(() => {
         }}</span>
       </dd>
     </template>
+    <template v-if="record.clinical_group">
+      <dt class="text-muted-foreground">Clinical group</dt>
+      <dd>
+        {{ clinicalGroupText(record.clinical_group) }}
+        <span v-if="record.clinical_group.rationale" class="block text-muted-foreground">{{
+          record.clinical_group.rationale
+        }}</span>
+      </dd>
+    </template>
     <template v-if="record.external_curator || ai">
       <dt class="text-muted-foreground">Curated by</dt>
       <dd>
         {{ record.external_curator }}
-        <span v-if="curatorIsAgent" class="text-muted-foreground">· AI agent</span>
-        <span v-if="ai" class="text-muted-foreground"
+        <span v-if="curatorIsAgent" class="ml-1 text-muted-foreground">· AI agent</span>
+        <span v-if="ai" :class="['text-muted-foreground', { 'ml-1': record.external_curator }]"
           >{{ record.external_curator ? '· ' : '' }}AI-assisted ({{ ai }})</span
         >
       </dd>
@@ -156,7 +167,7 @@ const points = computed(() => {
       <dt class="text-muted-foreground">Reviewed by</dt>
       <dd>
         {{ record.external_reviewer }}
-        <span v-if="reviewerIsAgent" class="text-muted-foreground">· AI agent</span>
+        <span v-if="reviewerIsAgent" class="ml-1 text-muted-foreground">· AI agent</span>
       </dd>
     </template>
     <!-- Extra dt/dd rows from the caller, aligned with the rows above -->

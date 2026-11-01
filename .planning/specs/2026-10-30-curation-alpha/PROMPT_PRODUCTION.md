@@ -249,6 +249,13 @@ genotype per entity. Following the ClinGen risk-allele framework (PMID 38054408)
   generalise beyond them or invent percentages.
 - **Public text** (synopsis, rationale, `detectability_note`): readers see it. No tool, API or
   database-query names and no access problems (captchas, unreadable pages); keep those in the notes.
+- **Clinical group** (`clinical_group`; descriptive, never scores): the kidney clinical group of
+  THIS entity's kidney phenotype, one `primary` from complement, cakut, glomerulopathy,
+  cyst_cilio (Cystic/Ciliopathy), tubulopathy, nephrolithiasis, neoplasia; add `secondary` groups
+  only for a second kidney phenotype that sources report in a substantial share of patients (e.g.
+  HNF1B: primary cakut, secondary cyst_cilio; PKD1: cyst_cilio). Judge it from the entity's
+  phenotype in GeneReviews/OMIM/case series and the gene's HPO kidney annotations, not from the
+  gene's other entities. `rationale`: one sourced sentence naming the phenotype (public text).
 - **Classification rationale** (`curator_classification_rationale`): only when your call differs
   from the computed class or from ClinGen; at most 2–3 sentences naming the decisive evidence.
   KGDB shows it as "Why this class", never in the synopsis.

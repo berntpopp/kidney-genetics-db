@@ -14,6 +14,7 @@ from pydantic import (
 )
 
 from app.models.gene_disease_association import (
+    CLINICAL_GROUPS,
     MENDELIAN_STRENGTHS,
     MOI_TERMS,
     SUSCEPTIBILITY_STRENGTHS,
@@ -136,6 +137,23 @@ class Diagnostics(_Strict):
     resources: Annotated[list[Resource], Field(max_length=50)] = []
 
 
+ClinicalGroupKey = Literal[CLINICAL_GROUPS]  # type: ignore[valid-type]
+
+
+class ClinicalGroup(_Strict):
+    """Curated kidney clinical group of the entity; descriptive, never scores."""
+
+    primary: ClinicalGroupKey
+    secondary: Annotated[list[ClinicalGroupKey], Field(max_length=6)] = []
+    rationale: _text(400) | None = None
+
+    @model_validator(mode="after")
+    def _distinct(self) -> "ClinicalGroup":
+        if self.primary in self.secondary or len(set(self.secondary)) != len(self.secondary):
+            raise ValueError("secondary groups must be distinct and differ from the primary")
+        return self
+
+
 def check_classification(relationship_type: str, strength: str) -> None:
     allowed = MENDELIAN_STRENGTHS if relationship_type == "mendelian" else SUSCEPTIBILITY_STRENGTHS
     if strength not in allowed:
@@ -205,6 +223,7 @@ class _Provenance(BaseModel):
     external_reviewer: _text(255, 1) | None = None
     scores: Scores | None = None
     diagnostics: Diagnostics | None = None
+    clinical_group: ClinicalGroup | None = None
 
 
 class AssociationCreate(_Provenance):
@@ -300,6 +319,7 @@ class AssociationResponse(BaseModel):
     external_reviewer: str | None = None
     scores: dict[str, Any] | None = None
     diagnostics: dict[str, Any] | None = None
+    clinical_group: dict[str, Any] | None = None
     adopted_clingen: dict[str, Any] | None = None
     ai_agents: list[str] | None = None
     status: AssociationStatus

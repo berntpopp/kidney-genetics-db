@@ -31,13 +31,14 @@ from app.core.exceptions import ValidationError as DomainValidationError
 from app.core.logging import get_logger
 from app.core.security import get_password_hash
 from app.models.gene import Gene
-from app.models.gene_disease_association import MOI_TERMS
+from app.models.gene_disease_association import CLINICAL_GROUPS, MOI_TERMS
 from app.models.gene_disease_association import GeneDiseaseAssociation as GDA
 from app.models.gene_disease_association import GeneDiseaseAssociationEvent as Event
 from app.models.user import User
 from app.schemas.gene_disease_association import (
     ADOPTED,
     AssociationCreate,
+    ClinicalGroup,
     Detectability,
     Diagnostics,
     RecommendedTranscript,
@@ -277,6 +278,26 @@ def _diagnostics(evidence: dict[str, Any], dropped: list[str]) -> dict[str, Any]
     return {**out, "detectability": rows, "resources": resources}
 
 
+def _clinical_group(evidence: dict[str, Any], dropped: list[str]) -> dict[str, Any] | None:
+    """evidence.clinical_group -> KGDB clinical_group; a malformed one is dropped, never fatal."""
+    raw = _clean(_shaped(evidence.get("clinical_group") or {}, dict, ".clinical_group"))
+    if not raw.get("primary"):
+        if raw:
+            dropped.append("clinical_group (no primary group)")
+        return None
+    raw["rationale"] = public_text(raw.get("rationale"), "clinical_group.rationale", dropped)
+    order = {g: i for i, g in enumerate(CLINICAL_GROUPS)}
+    raw["secondary"] = sorted(
+        {g for g in raw.get("secondary") or [] if g != raw["primary"]},
+        key=lambda g: (order.get(g, len(order)), str(g)),
+    )
+    try:
+        return ClinicalGroup(**raw).model_dump(exclude_none=True)
+    except PydanticValidationError as e:
+        dropped.append(f"clinical_group ({'; '.join(_reasons(e))})")
+        return None
+
+
 def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
     """Map an export row to KGDB fields; ValueError for anything KGDB cannot hold as is."""
     if item["scope_name"] != SCOPE:
@@ -357,6 +378,7 @@ def _values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
         "external_reviewer": item.get("reviewer_name") or None,
         "scores": scores if not adopted and any(v is not None for v in scores.values()) else None,
         "diagnostics": _diagnostics(evidence, dropped),
+        "clinical_group": _clinical_group(evidence, dropped),
         "citations": item.get("pmids") or [],
         "evidence_summary": summary,
         "classification_rationale": rationale if departs else None,
@@ -433,9 +455,9 @@ def _import_row(
         "hgnc_id": item["hgnc_id"],
         "entity_key": item["entity_key"],
     }
-    done = db.query(GDA.id).filter_by(source=SOURCE, external_id=ref["curation_id"]).scalar()
+    done = db.query(GDA).filter_by(source=SOURCE, external_id=ref["curation_id"]).first()
     if done:
-        report["already_imported"].append({**ref, "record_id": done})
+        _refresh(db, done, item, ref, admin, report)
         return
     # An older curation replaced by a newer import must not come back from an old file
     replaced = (
@@ -463,7 +485,12 @@ def _import_row(
     existing = same_entity(db.query(GDA), SimpleNamespace(gene_id=gene.id, **values)).first()
     approval = _approval(item)
     this_upload = {r["record_id"] for r in report["created"] + report["replaced"]}
-    if existing is not None and existing.source == SOURCE and existing.id not in this_upload:
+    if (
+        existing is not None
+        and existing.source == SOURCE
+        and existing.curator_id == author.id  # not taken over and edited by a KGDB curator
+        and existing.id not in this_upload
+    ):
         # A Gene Curator re-curation replaces its earlier import; the event trace keeps the old one.
         # Two curations of one entity in the same file stay a conflict.
         _replace(existing, values, approval, author)
@@ -516,6 +543,34 @@ def _replace(record: GDA, values: dict[str, Any], approval: dict[str, Any], auth
     record.curator_id = author.id
     record.reviewer_id = record.submitted_at = record.reviewed_at = None
     record.human_reviewed_at = record.human_reviewer_id = None
+
+
+def _refresh(
+    db: Session,
+    record: GDA,
+    item: dict[str, Any],
+    ref: dict[str, Any],
+    admin: User,
+    report: dict[str, Any],
+) -> None:
+    """An already imported curation: replace the record if Gene Curator changed it since."""
+    dropped: list[str] = []
+    try:
+        values = _values(item, dropped)
+    except (ValueError, TypeError, AttributeError):
+        values = None  # an unimportable re-export never overwrites what KGDB holds
+    author = import_account(db)
+    # a record a KGDB curator took over keeps their edits
+    if (
+        values is None
+        or record.curator_id != author.id
+        or all(getattr(record, k) == v for k, v in values.items())
+    ):
+        report["already_imported"].append({**ref, "record_id": record.id})
+        return
+    _replace(record, values, _approval(item), author)
+    _commit_unique(db, record, REPLACE, admin)
+    report["replaced"].append({**ref, "record_id": record.id})
 
 
 def import_export(db: Session, items: list[dict[str, Any]], admin: User) -> dict[str, Any]:

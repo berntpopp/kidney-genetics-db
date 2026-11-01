@@ -10,6 +10,8 @@ import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ChevronDown } from 'lucide-vue-next'
 import {
+  clinicalGroupLabel,
+  clinicalGroupText,
   differsFromClinGen,
   hasShortReadLimit,
   isAdoption,
@@ -121,6 +123,12 @@ const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
               :title="`Risk allele ${r.risk_allele}`"
               >{{ r.risk_allele }}</span
             >
+            <Chip
+              v-if="r.clinical_group"
+              kind="neutral"
+              :label="clinicalGroupLabel(r.clinical_group.primary)"
+              :tooltip="`Curated clinical group: ${clinicalGroupText(r.clinical_group)}`"
+            />
             <Chip
               v-if="hasShortReadLimit(r.diagnostics)"
               status="warning"
