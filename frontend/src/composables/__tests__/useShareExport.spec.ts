@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { toCsv } from '../useShareExport'
+import { describe, it, expect, vi } from 'vitest'
+import { toCsv, useShareExport } from '../useShareExport'
 
 describe('toCsv', () => {
   it('quotes commas, quotes and newlines and blanks nullish cells', () => {
@@ -15,5 +15,18 @@ describe('toCsv', () => {
         [1, 2]
       ])
     ).toBe('h1,h2\n1,2')
+  })
+})
+
+describe('printPdf', () => {
+  it('prints under the export name and restores the title afterwards', () => {
+    document.title = 'Page'
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {
+      expect(document.title).toBe('COL4A5-curated-associations-2026-11-01')
+    })
+    useShareExport().printPdf('COL4A5-curated-associations-2026-11-01')
+    expect(print).toHaveBeenCalledOnce()
+    window.dispatchEvent(new Event('afterprint'))
+    expect(document.title).toBe('Page')
   })
 })

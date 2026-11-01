@@ -111,6 +111,7 @@
 import { computed, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Button } from '@/components/ui/button'
+import { isPrinting } from '@/composables/usePrinting'
 import { StatusBadge } from '@/components/shared'
 import EvidenceList from './EvidenceList.vue'
 import { isRealProvider } from './evidenceMeta'
@@ -160,10 +161,13 @@ const labs = computed(() =>
 )
 
 const allLabs = ref(false)
-const visibleLabs = computed(() => (allLabs.value ? labs.value : labs.value.slice(0, MAX)))
+const visibleLabs = computed(() =>
+  allLabs.value || isPrinting.value ? labs.value : labs.value.slice(0, MAX)
+)
 const openLabs = reactive(new Set())
 const toggleLab = key => (openLabs.has(key) ? openLabs.delete(key) : openLabs.add(key))
-const shownPanels = lab => (openLabs.has(lab.key) ? lab.panels : lab.panels.slice(0, MAX))
+const shownPanels = lab =>
+  openLabs.has(lab.key) || isPrinting.value ? lab.panels : lab.panels.slice(0, MAX)
 
 // Legacy evidence lists labs per gene, not per panel, so name them beside the panels
 const legacyGroups = computed(() => {

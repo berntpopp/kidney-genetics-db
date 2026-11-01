@@ -106,6 +106,10 @@
                 <FileSpreadsheet aria-hidden="true" />
                 Export as CSV
               </DropdownMenuItem>
+              <DropdownMenuItem @click="printPdf(gene?.approved_symbol ?? symbol)">
+                <FileText aria-hidden="true" />
+                Export as PDF
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -217,6 +221,7 @@ import {
   Download,
   FileJson,
   FileSpreadsheet,
+  FileText,
   Home,
   Share2
 } from 'lucide-vue-next'
@@ -266,7 +271,7 @@ const notFound = ref(false)
 const loadError = ref(null)
 const evidenceError = ref(null)
 const annotationsError = ref(null)
-const { copied, copy, download } = useShareExport()
+const { copied, copy, download, printPdf } = useShareExport()
 const curated = ref([])
 
 const symbol = computed(() => gene.value?.approved_symbol ?? String(route.params.symbol ?? ''))

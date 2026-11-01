@@ -12,6 +12,19 @@ import { useAppTheme } from '@/composables/useAppTheme'
 import { useJsonLd, getOrganizationWebSiteSchema } from '@/composables/useJsonLd'
 
 const route = useRoute()
+const pageUrl = ref('')
+const printDate = ref('')
+// Print is always light: dark: variants hang off the .dark class, so drop it while printing
+let wasDark = false
+window.addEventListener('beforeprint', () => {
+  pageUrl.value = window.location.href
+  printDate.value = new Date().toISOString().slice(0, 10)
+  wasDark = document.documentElement.classList.contains('dark')
+  document.documentElement.classList.remove('dark')
+})
+window.addEventListener('afterprint', () => {
+  if (wasDark) document.documentElement.classList.add('dark')
+})
 const logStore = useLogStore()
 
 // Admin log viewer loads on first open only; it then stays mounted to keep its filters
@@ -68,6 +81,10 @@ onUnmounted(() => {
         >
           Skip to main content
         </a>
+        <!-- Citation line for the PDF export; only shown when printing -->
+        <p class="print-citation hidden print:block">
+          Kidney-Genetics Database · {{ pageUrl }} · printed {{ printDate }}
+        </p>
         <AppHeader />
         <!-- Bottom padding = the fixed footer (h-11 + border + safe area), so it never covers content -->
         <main
