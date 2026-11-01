@@ -220,11 +220,11 @@ import {
 } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { toast } from 'vue-sonner'
 import { geneApi } from '../api/genes'
 import { curationApi } from '@/api/curation'
 import { getGeneDetailBreadcrumbs } from '@/utils/publicBreadcrumbs'
 import { sourceDisplayName } from '@/utils/sources'
+import { useShareExport, toCsv } from '@/composables/useShareExport'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getGeneSchema, getBreadcrumbSchema } from '@/composables/useJsonLd'
 import ScoreBreakdown from '../components/ScoreBreakdown.vue'
@@ -263,7 +263,7 @@ const notFound = ref(false)
 const loadError = ref(null)
 const evidenceError = ref(null)
 const annotationsError = ref(null)
-const copied = ref(null)
+const { copied, copy, download } = useShareExport()
 const curated = ref([])
 
 const symbol = computed(() => gene.value?.approved_symbol ?? String(route.params.symbol ?? ''))
@@ -406,29 +406,6 @@ const shareUrl = computed(() =>
   typeof window === 'undefined' ? '' : `${window.location.origin}/genes/${symbol.value}`
 )
 
-let copiedTimer
-const copy = async (text, key, message) => {
-  try {
-    await navigator.clipboard.writeText(text)
-    copied.value = key
-    clearTimeout(copiedTimer)
-    copiedTimer = setTimeout(() => (copied.value = null), 2000)
-    toast.success(message)
-  } catch (error) {
-    window.logService.warn('Clipboard write failed:', error)
-    toast.error('Could not copy to the clipboard')
-  }
-}
-
-const download = (content, type, filename) => {
-  const url = URL.createObjectURL(new Blob([content], { type }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
 const exportJson = () => {
   if (!gene.value) return
   download(
@@ -436,11 +413,6 @@ const exportJson = () => {
     'application/json',
     `${gene.value.approved_symbol}.json`
   )
-}
-
-const csvCell = value => {
-  const s = String(value ?? '')
-  return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s
 }
 
 const exportCsv = () => {
@@ -463,11 +435,7 @@ const exportCsv = () => {
     g.evidence_tier,
     ...sources.map(([, v]) => v)
   ]
-  download(
-    [headers, row].map(r => r.map(csvCell).join(',')).join('\n'),
-    'text/csv',
-    `${g.approved_symbol}.csv`
-  )
+  download(toCsv([headers, row]), 'text/csv', `${g.approved_symbol}.csv`)
 }
 
 onMounted(fetchGeneDetails)

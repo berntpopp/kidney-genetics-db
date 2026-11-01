@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch, type ComponentPublicInstance } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Plus, X } from 'lucide-vue-next'
+import { Check, Download, FileJson, FileSpreadsheet, Plus, Share2, X } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useCurationStore } from '@/stores/curation'
 import {
@@ -22,6 +22,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+import { associationsCsv, today, useShareExport } from '@/composables/useShareExport'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Chip, DataState, PageHeader, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
 import { getPublicBreadcrumbs } from '@/utils/publicBreadcrumbs'
@@ -50,6 +57,16 @@ const STACK = 'max-lg:block max-lg:min-w-0 max-lg:max-w-none max-lg:px-0 max-lg:
 
 const auth = useAuthStore()
 const store = useCurationStore()
+
+const { copied, copy, download } = useShareExport()
+// The address bar as-is, so any query-string filters travel with the link
+const shareUrl = () => window.location.href
+const exportAs = (kind: 'json' | 'csv') => {
+  const name = `curated-associations-${geneFilter.value.trim() || 'all'}-${today()}`
+  if (kind === 'json')
+    download(JSON.stringify(store.published, null, 2), 'application/json', `${name}.json`)
+  else download(associationsCsv(store.published), 'text/csv', `${name}.csv`)
+}
 
 const geneFilter = ref('')
 const editing = ref<Association | null>(null)
@@ -177,6 +194,41 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
         <Card>
           <CardHeader class="flex flex-row flex-wrap items-end justify-between gap-3">
             <CardTitle tag="h2" class="text-xl">Published associations</CardTitle>
+            <div class="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                :aria-label="copied === 'link' ? 'Link copied' : 'Copy link to this page'"
+                @click="copy(shareUrl(), 'link', 'Link copied')"
+              >
+                <Check v-if="copied === 'link'" aria-hidden="true" />
+                <Share2 v-else aria-hidden="true" />
+                <span class="hidden sm:inline">{{ copied === 'link' ? 'Copied' : 'Share' }}</span>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="!store.published.length"
+                    aria-label="Export published associations"
+                  >
+                    <Download aria-hidden="true" />
+                    <span class="hidden sm:inline">Export</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem @click="exportAs('json')">
+                    <FileJson aria-hidden="true" />
+                    Export as JSON
+                  </DropdownMenuItem>
+                  <DropdownMenuItem @click="exportAs('csv')">
+                    <FileSpreadsheet aria-hidden="true" />
+                    Export as CSV
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             <form
               class="flex items-end gap-2"
               @submit.prevent="store.loadPublished(geneFilter.trim())"
