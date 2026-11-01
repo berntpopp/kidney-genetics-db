@@ -78,6 +78,13 @@ for unaffected carriers or non-segregation, and search once for counter-evidence
 ("<SYMBOL> not associated / reclassified / benign").
 </over_call_check>
 
+<clinical_group_check>
+Check `clinical_group` against the PROMPT_PRODUCTION rule: the primary group fits this entity's
+main kidney phenotype as sourced; each secondary group has a sourced, substantial second kidney
+phenotype; the rationale is one sourced sentence with no tool names. A wrong or missing primary
+group is a required fix (it does not change points or class).
+</clinical_group_check>
+
 <classify>
 Only now read the curator's classification and rationale. Give `judge_classification` from the
 corrected evidence and say in `summary` where and why you differ.

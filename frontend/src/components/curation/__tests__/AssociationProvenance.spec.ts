@@ -172,4 +172,23 @@ describe('AssociationProvenance', () => {
     expect(rows['Curated by']).toMatch(/^Claude \(curator agent\)\s+· AI agent$/)
     expect(rows['Reviewed by']).toMatch(/^Claude \(judge agent\)\s+· AI agent$/)
   })
+
+  it('shows the curated clinical group with its secondary groups and reason', () => {
+    const record = {
+      ...BASE,
+      clinical_group: {
+        primary: 'cakut',
+        secondary: ['cyst_cilio'],
+        rationale: 'Renal hypodysplasia and cysts'
+      }
+    } as Association
+    const w = mount(AssociationProvenance, { props: { record } })
+    const dd = w.findAll('dt').find(dt => dt.text() === 'Clinical group')
+      ?.element.nextElementSibling
+    expect(dd?.textContent).toContain('CAKUT · also Cystic/Ciliopathy')
+    expect(dd?.textContent).toContain('Renal hypodysplasia and cysts')
+    expect(mount(AssociationProvenance, { props: { record: BASE } }).text()).not.toContain(
+      'Clinical group'
+    )
+  })
 })

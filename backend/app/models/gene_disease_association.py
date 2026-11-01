@@ -41,6 +41,16 @@ SUSCEPTIBILITY_STRENGTHS = (
 )
 EVIDENCE_STRENGTHS = MENDELIAN_STRENGTHS + SUSCEPTIBILITY_STRENGTHS
 STATUSES = ("draft", "in_review", "published")
+# KGDB kidney clinical groups, in HPO tie-break order (pipeline/sources/annotations/hpo.py)
+CLINICAL_GROUPS = (
+    "complement",
+    "cakut",
+    "glomerulopathy",
+    "cyst_cilio",
+    "tubulopathy",
+    "nephrolithiasis",
+    "neoplasia",
+)
 SOURCES = ("kgdb", "gene_curator")
 # HPO mode-of-inheritance terms, labels from the pinned hp.json (HPO 2026-09-01)
 MOI_TERMS = {
@@ -122,6 +132,10 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
         CheckConstraint(r"moi IS NULL OR moi ~ '^HP:[0-9]{7}$'", name="ck_gda_moi"),
         CheckConstraint(_in("source", SOURCES), name="ck_gda_source"),
         CheckConstraint(
+            "clinical_group IS NULL OR " + _in("clinical_group->>'primary'", CLINICAL_GROUPS),
+            name="ck_gda_clinical_group",
+        ),
+        CheckConstraint(
             "external_url IS NULL OR external_url ~ '^https?://'", name="ck_gda_external_url"
         ),
         CheckConstraint(
@@ -187,6 +201,8 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
     # none_as_null: Python None must be SQL NULL, not JSON null (object checks)
     scores = Column(JSONB(none_as_null=True), nullable=True)
     diagnostics = Column(JSONB(none_as_null=True), nullable=True)  # non-scoring (#439)
+    # curated kidney clinical group: {primary, secondary[], rationale}; never scores
+    clinical_group = Column(JSONB(none_as_null=True), nullable=True)
     # A ClinGen classification adopted in Gene Curator instead of curated there
     adopted_clingen = Column(JSONB(none_as_null=True), nullable=True)
     # Software agents Gene Curator credits for writing evidence rows (AI-assisted curation)

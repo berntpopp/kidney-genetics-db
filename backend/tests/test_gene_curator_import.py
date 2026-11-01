@@ -645,3 +645,44 @@ def test_a_recuration_replaces_its_earlier_import(db_session, genes, admin, cura
     again = gc.import_export(db_session, [MENDELIAN, recurated], admin)
     assert len(again["already_imported"]) == 2 and again["replaced"] == []
     assert _records(db_session)[0].external_id == new_id
+
+
+def test_values_carry_the_curated_clinical_group() -> None:
+    def group(raw: object) -> tuple[object, list[str]]:
+        evidence = {**copy.deepcopy(MENDELIAN["evidence"]), "clinical_group": raw}
+        dropped: list[str] = []
+        value = gc._values(_row(MENDELIAN, evidence=evidence), dropped)["clinical_group"]
+        return value, [d for d in dropped if d.startswith("clinical_group")]
+
+    raw = {"primary": "cakut", "secondary": ["cyst_cilio", "complement", "cakut"], "rationale": ""}
+    both = {"primary": "cakut", "secondary": ["complement", "cyst_cilio"], "rationale": None}
+    assert group(raw) == (both, [])
+    note = "Renal hypoplasia; GeneFoundry HPO lookup."
+    value, dropped = group({"primary": "cyst_cilio", "rationale": note})
+    assert value == {"primary": "cyst_cilio", "secondary": [], "rationale": None}  # note dropped
+    assert dropped == ["clinical_group.rationale (working note)"]
+    value, dropped = group({"primary": "kidney", "secondary": []})
+    assert value is None and dropped[0].startswith("clinical_group (")  # dropped, not rejected
+    assert group({"secondary": ["cakut"]}) == (None, ["clinical_group (no primary group)"])
+    assert group(None) == (None, [])
+
+
+@pytest.mark.integration
+def test_a_changed_reexport_refreshes_an_untouched_import(
+    db_session, genes, admin, curator
+) -> None:
+    gc.import_export(db_session, [MENDELIAN], admin)
+    evidence = {**copy.deepcopy(MENDELIAN["evidence"]), "clinical_group": {"primary": "cakut"}}
+    changed = _row(MENDELIAN, evidence=evidence)
+    assert gc.import_export(db_session, [changed], admin)["replaced"]
+    [record] = _records(db_session)
+    assert record.clinical_group == {"primary": "cakut", "secondary": [], "rationale": None}
+    unchanged = gc.import_export(db_session, [changed], admin)
+    assert unchanged["replaced"] == [] and len(unchanged["already_imported"]) == 1
+    # once a KGDB curator edits the record, Gene Curator no longer overwrites it
+    workflow.update(db_session, record.id, AssociationUpdate(evidence_summary="edited"), curator)
+    evidence["clinical_group"] = {"primary": "tubulopathy"}
+    again = gc.import_export(db_session, [_row(MENDELIAN, evidence=evidence)], admin)
+    assert again["replaced"] == []
+    db_session.refresh(record)
+    assert (record.evidence_summary, record.clinical_group["primary"]) == ("edited", "cakut")

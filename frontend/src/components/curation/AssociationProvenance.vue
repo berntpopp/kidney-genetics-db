@@ -3,6 +3,7 @@
 import { computed } from 'vue'
 import { ExternalLink } from 'lucide-vue-next'
 import {
+  clinicalGroupText,
   differsFromClinGen,
   isAdoption,
   isHttpUrl,
@@ -65,6 +66,7 @@ const points = computed(() => {
       fromGeneCurator ||
       record.external_curator ||
       ai ||
+      record.clinical_group ||
       record.external_reviewer ||
       adopted ||
       record.classification_rationale ||
@@ -139,6 +141,15 @@ const points = computed(() => {
         <span v-else>Curated in Gene Curator</span>
         <span v-if="record.external_id" class="ml-1 font-mono text-muted-foreground">{{
           record.external_id
+        }}</span>
+      </dd>
+    </template>
+    <template v-if="record.clinical_group">
+      <dt class="text-muted-foreground">Clinical group</dt>
+      <dd>
+        {{ clinicalGroupText(record.clinical_group) }}
+        <span v-if="record.clinical_group.rationale" class="block text-muted-foreground">{{
+          record.clinical_group.rationale
         }}</span>
       </dd>
     </template>
