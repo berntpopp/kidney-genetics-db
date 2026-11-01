@@ -30,8 +30,17 @@ const adopted = computed(() => props.record.adopted_clingen ?? null)
 const adoption = computed(() => isAdoption(props.record))
 const differs = computed(() => differsFromClinGen(props.record))
 const fromGeneCurator = computed(() => props.record.source === 'gene_curator')
-// Software agents Gene Curator credits for the evidence
-const ai = computed(() => props.record.ai_agents?.join(', ') || null)
+// Software agents Gene Curator credits; the curator is one when it is an agent account
+const curatorIsAgent = computed(
+  () =>
+    !!props.record.external_curator &&
+    !!props.record.ai_agents?.includes(props.record.external_curator)
+)
+const ai = computed(
+  () => props.record.ai_agents?.filter(a => a !== props.record.external_curator).join(', ') || null
+)
+// An AI-approved import was reviewed in Gene Curator by an agent account
+const reviewerIsAgent = computed(() => props.record.approval_kind === 'ai')
 const points = computed(() => {
   const s = props.record.scores
   if (!s || s.total == null) return null
@@ -54,7 +63,8 @@ const points = computed(() => {
       (showMoi && record.moi) ||
       methodology ||
       fromGeneCurator ||
-      curator ||
+      record.external_curator ||
+      ai ||
       record.external_reviewer ||
       adopted ||
       record.classification_rationale ||
@@ -136,6 +146,7 @@ const points = computed(() => {
       <dt class="text-muted-foreground">Curated by</dt>
       <dd>
         {{ record.external_curator }}
+        <span v-if="curatorIsAgent" class="text-muted-foreground">· AI agent</span>
         <span v-if="ai" class="text-muted-foreground"
           >{{ record.external_curator ? '· ' : '' }}AI-assisted ({{ ai }})</span
         >
@@ -143,7 +154,10 @@ const points = computed(() => {
     </template>
     <template v-if="record.external_reviewer">
       <dt class="text-muted-foreground">Reviewed by</dt>
-      <dd>{{ record.external_reviewer }}</dd>
+      <dd>
+        {{ record.external_reviewer }}
+        <span v-if="reviewerIsAgent" class="text-muted-foreground">· AI agent</span>
+      </dd>
     </template>
     <!-- Extra dt/dd rows from the caller, aligned with the rows above -->
     <slot />

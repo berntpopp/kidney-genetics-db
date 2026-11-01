@@ -154,5 +154,22 @@ describe('AssociationProvenance', () => {
     expect(ai['Curated by']).toMatch(/^Alice Smith\s+· AI-assisted \(model-x\)$/)
     expect(ai['Reviewed by']).toBe('Bob Jones')
     expect(rows('Alice Smith')['Curated by']).toBe('Alice Smith')
+    expect(rows('Alice Smith')['Reviewed by']).toBe('Bob Jones')
+  })
+
+  it('marks agent accounts as AI agents, as curator and as AI reviewer', () => {
+    const record = {
+      ...BASE,
+      external_curator: 'Claude (curator agent)',
+      ai_agents: ['Claude (curator agent)'],
+      external_reviewer: 'Claude (judge agent)',
+      approval_kind: 'ai'
+    } as Association
+    const w = mount(AssociationProvenance, { props: { record } })
+    const rows = Object.fromEntries(
+      w.findAll('dt').map(dt => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()])
+    )
+    expect(rows['Curated by']).toMatch(/^Claude \(curator agent\)\s+· AI agent$/)
+    expect(rows['Reviewed by']).toMatch(/^Claude \(judge agent\)\s+· AI agent$/)
   })
 })

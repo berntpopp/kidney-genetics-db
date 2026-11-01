@@ -23,6 +23,7 @@ export interface ImportReport {
   rows: number
   created: ImportRow[]
   already_imported: ImportRow[]
+  replaced: ImportRow[]
   conflicts: ImportRow[]
   rejected: ImportRow[]
   genes_not_in_kgdb: ImportRow[]

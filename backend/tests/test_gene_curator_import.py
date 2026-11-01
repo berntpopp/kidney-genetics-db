@@ -515,6 +515,13 @@ def test_values_credit_software_agents_and_keep_the_override_reason() -> None:
     )
     values = gc._values(row, [])
     assert values["ai_agents"] == ["claude-opus"]
+    judge = {"contributor": {"name": "judge", "agentType": "software"}}
+    reviewed = row["contributions"] + [
+        {**judge, "activityType": {"name": "assessor"}},
+        {**judge, "activityType": {"name": "approver"}},
+    ]
+    # the approving agent is the reviewer, not a curation author
+    assert gc._values(_row(row, contributions=reviewed), [])["ai_agents"] == ["claude-opus"]
     assert values["external_curator"] == MENDELIAN["curator_name"]
     assert values["classification_rationale"] == "two large families"
     assert "two large families" not in values["evidence_summary"]
@@ -617,3 +624,24 @@ def test_human_publishing_an_ai_import_is_its_human_review(
     _publish(db_session, record, second)
     assert (record.human_reviewer_id, record.approval_kind) == (second.id, "ai")
     assert record.human_reviewed_at == record.published_at
+
+
+@pytest.mark.integration
+def test_a_recuration_replaces_its_earlier_import(db_session, genes, admin, curator) -> None:
+    gc.import_export(db_session, [MENDELIAN], admin)
+    [old] = _records(db_session)
+    workflow.submit(db_session, old.id, curator)
+    _publish(db_session, old, curator)
+    new_id = "11111111-0000-4000-8000-0000000000d1"
+    recurated = _row(MENDELIAN, **AI_ROW, curation_id=new_id, curator_name="Agent C")
+    report = gc.import_export(db_session, [recurated], admin)
+    assert [r["record_id"] for r in report["replaced"]] == [old.id]
+    [record] = _records(db_session)
+    assert (record.id, record.external_id, record.external_curator) == (old.id, new_id, "Agent C")
+    assert (record.status, record.approval_kind, record.reviewer_id) == ("published", "ai", None)
+    actions = [a for a, _ in _events(db_session, record)]
+    assert actions == ["gc_import", "submit", "publish", "gc_reimport"]
+    # the replaced curation in an old file does not come back
+    again = gc.import_export(db_session, [MENDELIAN, recurated], admin)
+    assert len(again["already_imported"]) == 2 and again["replaced"] == []
+    assert _records(db_session)[0].external_id == new_id
