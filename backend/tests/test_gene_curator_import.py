@@ -606,8 +606,19 @@ async def test_human_review_endpoint(async_client, db_session, genes, admin, cur
             db_session, record.id, ReviewDecision(**seen), gc.import_account(db_session)
         )
     db_session.rollback()
+
+    async def pending() -> set[int]:
+        resp = await async_client.get(
+            "/api/curation/associations/workflow",
+            params={"pending_human": True},
+            headers=_bearer(curator),
+        )
+        return {r["id"] for r in resp.json()["data"]}
+
+    assert record.id in await pending()
     response = await async_client.post(url, json=seen, headers=_bearer(curator))
     assert response.status_code == 200, response.text
+    assert record.id not in await pending()
     body = response.json()
     assert body["human_reviewed_at"] and body["human_reviewer_name"]
     assert body["approval_kind"] == "ai" and body["status"] == "published"
