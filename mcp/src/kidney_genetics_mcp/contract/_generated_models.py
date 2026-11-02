@@ -94,7 +94,7 @@ class OddsRatioCiLow(RootModel[float]):
 
 
 class RiskAllele(RootModel[str]):
-    root: Annotated[str, Field(max_length=100, min_length=1, title="Risk Allele")]
+    root: Annotated[str, Field(max_length=255, min_length=1, title="Risk Allele")]
 
 
 class AssociationResponse(BaseModel):

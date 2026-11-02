@@ -553,6 +553,16 @@ def test_each_named_risk_allele_is_its_own_entity(db_session, genes, admin) -> N
         gc._values(_row(MENDELIAN, risk_allele="rs1 A"), [])
 
 
+@pytest.mark.integration
+def test_a_long_risk_allele_imports(db_session, genes, admin) -> None:
+    long_allele = "a" * 110  # as long as the APOL1 allele the old 100-character limit rejected
+    with pytest.raises(ValueError, match="at most 255 characters"):
+        gc._values(_row(SUSCEPTIBILITY, risk_allele="x" * 256), [])
+    report = gc.import_export(db_session, [_row(SUSCEPTIBILITY, risk_allele=long_allele)], admin)
+    assert len(report["created"]) == 1 and not report["rejected"]
+    assert [r.risk_allele for r in _records(db_session)] == [long_allele]
+
+
 def test_values_keep_a_long_synopsis() -> None:
     evidence = {**copy.deepcopy(MENDELIAN["evidence"]), "evidence_summary": "x" * 3000}
     assert len(gc._values(_row(MENDELIAN, evidence=evidence), [])["evidence_summary"]) == 3000
