@@ -223,9 +223,10 @@ def _source(source: Any) -> Any:
 TRANSCRIPT = ".diagnostics.recommended_transcript"
 # An agent's working notes (tools, endpoints, fetch problems) are not public text
 _WORKING_NOTE = re.compile(
-    r"(?i:\b(?:webfetch|captcha|genefoundry|pubtator|e-?utilities|mcp|endpoint|"
+    r"(?i:\b(?:webfetch|captcha|genefoundry|pubtator|e-?utilities|endpoint|mcp (?:server|tool|call)s?|"
     r"not retrieved|could not (?:be )?(?:read|fetch(?:ed)?|access(?:ed)?|retrieved?))\b)"
-    r"|\b(?:REST|API)\b|\b[a-z]+_get_[a-z_]+\b"
+    # "MCP" alone is a gene product (CD46 = membrane cofactor protein): only lowercase mcp counts
+    r"|\bmcp\b|\b(?:REST|API)\b|\b[a-z]+_get_[a-z_]+\b"
 )
 
 
