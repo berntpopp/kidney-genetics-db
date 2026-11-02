@@ -185,7 +185,7 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
     evidence_strength = Column(String(40), nullable=False)
     relationship_type = Column(String(20), nullable=False, server_default="mendelian")
     moi = Column(String(10), nullable=True)
-    risk_allele = Column(String(100), nullable=True)  # susceptibility: the named allele
+    risk_allele = Column(String(255), nullable=True)  # susceptibility: the named allele
     # susceptibility: the curation's headline odds ratio and optional 95% CI (#482)
     odds_ratio = Column(Float, nullable=True)
     odds_ratio_ci_low = Column(Float, nullable=True)

@@ -209,7 +209,7 @@ class _Provenance(BaseModel):
     """Fields shared by create and update (#437)."""
 
     moi: Moi | None = None
-    risk_allele: _text(100, 1) | None = None  # e.g. "rs4664308 A"; susceptibility only
+    risk_allele: _text(255, 1) | None = None  # e.g. "rs4664308 A"; susceptibility only
     odds_ratio: OddsRatio | None = None  # headline OR of the risk allele, with optional 95% CI
     odds_ratio_ci_low: OddsRatio | None = None
     odds_ratio_ci_high: OddsRatio | None = None

@@ -305,7 +305,7 @@
           "risk_allele": {
             "anyOf": [
               {
-                "maxLength": 100,
+                "maxLength": 255,
                 "minLength": 1,
                 "type": "string"
               },
@@ -1034,7 +1034,7 @@
           "risk_allele": {
             "anyOf": [
               {
-                "maxLength": 100,
+                "maxLength": 255,
                 "minLength": 1,
                 "type": "string"
               },
