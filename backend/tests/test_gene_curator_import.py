@@ -196,6 +196,12 @@ def test_diagnostics_map_to_kgdb(db_session, genes, admin) -> None:
     assert entry["fields"] == ["diagnostics_notes.transcript_verified_via"]
 
 
+def test_detectability_source_objects_become_text() -> None:
+    assert gc._source({"kind": "pmid", "id": "40263280"}) == "PMID:40263280"
+    assert gc._source({"kind": "url", "id": "https://x.org"}) == "https://x.org"
+    assert gc._source("PMID:1") == "PMID:1"
+
+
 def test_working_notes_never_reach_public_text() -> None:
     dropped: list[str] = []
     note = (
