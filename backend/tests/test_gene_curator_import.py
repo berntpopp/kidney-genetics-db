@@ -212,7 +212,8 @@ def test_working_notes_never_reach_public_text() -> None:
         gc.public_text(note, "detectability_note", dropped) == "Use sequencing plus CNV analysis."
     )
     assert gc.public_text("Checked with gnomad_get_gene_summary.", "x", dropped) is None
-    kept = "Kidney failure at rest is rare. Penetrance is high."
+    assert gc.public_text("Fetched via the MCP server.", "x", []) is None
+    kept = "Kidney failure at rest is rare. CD46 encodes membrane cofactor protein (MCP)."
     assert gc.public_text(kept, "evidence_summary", dropped) == kept
     assert dropped == ["detectability_note (working note)", "x (working note)"]
 
