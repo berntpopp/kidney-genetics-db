@@ -213,6 +213,13 @@ def _tool(text: Any) -> dict[str, Any] | None:
     return {"name": name, "url": url or None, "pmid_or_doi": ref or None} if name else None
 
 
+def _source(source: Any) -> Any:
+    """GC stores a source as text or as {kind, id}; KGDB keeps text ("PMID:1", a URL)."""
+    if isinstance(source, dict) and source.get("id"):
+        return f"PMID:{source['id']}" if source.get("kind") == "pmid" else str(source["id"])
+    return source  # anything else fails the Diagnostics check as before
+
+
 TRANSCRIPT = ".diagnostics.recommended_transcript"
 # An agent's working notes (tools, endpoints, fetch problems) are not public text
 _WORKING_NOTE = re.compile(
@@ -267,6 +274,8 @@ def _diagnostics(evidence: dict[str, Any], dropped: list[str]) -> dict[str, Any]
         row = _known(Detectability, _shaped(row, dict, f".{path}"), path, dropped)
         tools = _shaped(row.get("tools", []), list, f".{path}.tools")
         row["tools"] = [t for t in map(_tool, tools) if t]
+        sources = _shaped(row.get("sources", []), list, f".{path}.sources")
+        row["sources"] = [_source(s) for s in sources]
         rows.append(row)
     resources = []
     for resource in _shaped(out.get("resources", []), list, ".diagnostics.resources"):
