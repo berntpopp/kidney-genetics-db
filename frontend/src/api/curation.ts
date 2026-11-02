@@ -251,19 +251,41 @@ export interface AssociationList {
 
 export interface ListParams {
   gene_symbol?: string
+  /** Gene symbol or disease ID prefix, or text in the disease name */
+  q?: string
   status?: AssociationStatus
+  /** Workflow only: AI-approved published records awaiting a human (#639) */
+  pending_human?: boolean
+  /** Only these classifications */
+  evidence_strength?: string[]
+  /** Sorted within each relationship type; classification "desc" is strongest first */
+  sort_by?: SortKey
+  sort_order?: 'asc' | 'desc'
   limit?: number
   offset?: number
 }
 
+export const SORT_KEYS = [
+  'gene',
+  'disease',
+  'classification',
+  'points',
+  'published',
+  'updated'
+] as const
+export type SortKey = (typeof SORT_KEYS)[number]
+
 const BASE = '/api/curation/associations'
+// FastAPI reads repeated keys (evidence_strength=a&evidence_strength=b), not axios' default a[]=
+const paramsSerializer = { indexes: null }
 
 export const curationApi = {
   async listPublished(params: ListParams = {}): Promise<AssociationList> {
-    return (await apiClient.get<AssociationList>(`${BASE}/`, { params })).data
+    return (await apiClient.get<AssociationList>(`${BASE}/`, { params, paramsSerializer })).data
   },
   async listWorkflow(params: ListParams = {}): Promise<AssociationList> {
-    return (await apiClient.get<AssociationList>(`${BASE}/workflow`, { params })).data
+    return (await apiClient.get<AssociationList>(`${BASE}/workflow`, { params, paramsSerializer }))
+      .data
   },
   async create(input: AssociationInput): Promise<Association> {
     return (await apiClient.post<Association>(`${BASE}/`, input)).data

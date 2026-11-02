@@ -15,15 +15,15 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import func, text
+from sqlalchemy import case, func, or_, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, contains_eager, selectinload
 
 from app.core.exceptions import PermissionDeniedError, ResourceConflictError
 from app.core.exceptions import ValidationError as DomainValidationError
 from app.crud.gene import gene_crud
 from app.models.gene import Gene
-from app.models.gene_disease_association import MOI_TERMS
+from app.models.gene_disease_association import EVIDENCE_STRENGTHS, MOI_TERMS
 from app.models.gene_disease_association import GeneDiseaseAssociation as GDA
 from app.models.user import User
 from app.schemas.gene_disease_association import (
@@ -48,6 +48,21 @@ def to_response(record: GDA) -> dict[str, Any]:
     return data
 
 
+# Higher is stronger, so "desc" lists the strongest classification first
+_STRENGTH_RANK = case(
+    {s: len(EVIDENCE_STRENGTHS) - i for i, s in enumerate(EVIDENCE_STRENGTHS)},
+    value=GDA.evidence_strength,
+)
+SORT_KEYS: dict[str, Any] = {
+    "gene": Gene.approved_symbol,
+    "disease": func.lower(GDA.disease_name),
+    "classification": _STRENGTH_RANK,
+    "points": GDA.scores["total"].as_float(),
+    "published": GDA.published_at,
+    "updated": GDA.updated_at,
+}
+
+
 def list_records(
     db: Session,
     *,
@@ -56,16 +71,47 @@ def list_records(
     status: str | None,
     limit: int,
     offset: int,
+    q: str | None = None,
+    pending_human: bool = False,
+    evidence_strength: list[str] | None = None,
+    sort_by: str = "gene",
+    sort_order: str = "asc",
 ) -> tuple[list[GDA], int]:
     query = db.query(GDA).join(Gene, GDA.gene_id == Gene.id)
     if published_only:
         query = query.filter(GDA.status == "published")
     elif status:
         query = query.filter(GDA.status == status)
+    if pending_human:  # published on an AI approval alone, awaiting a human (#639)
+        query = query.filter(
+            GDA.status == "published", GDA.approval_kind == "ai", GDA.human_reviewed_at.is_(None)
+        )
     if gene_symbol:
         query = query.filter(func.upper(Gene.approved_symbol) == gene_symbol.upper())
+    if q := (q or "").strip():
+        query = query.filter(
+            or_(
+                Gene.approved_symbol.istartswith(q, autoescape=True),
+                GDA.disease_id.istartswith(q, autoescape=True),
+                GDA.disease_name.icontains(q, autoescape=True),
+            )
+        )
+    if evidence_strength:
+        query = query.filter(GDA.evidence_strength.in_(evidence_strength))
     total = query.count()
-    rows = query.order_by(Gene.approved_symbol, GDA.disease_id).limit(limit).offset(offset).all()
+    key = SORT_KEYS[sort_by]
+    key = (key.desc() if sort_order == "desc" else key.asc()).nulls_last()
+    rows = (
+        query.options(
+            contains_eager(GDA.gene), selectinload(GDA.curator), selectinload(GDA.human_reviewer)
+        )
+        # Mendelian before susceptibility so a page splits into the view's two tables;
+        # id makes the order total, so offset pages never repeat or skip a record
+        .order_by(GDA.relationship_type, key, Gene.approved_symbol, GDA.disease_id, GDA.id)
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
     return rows, total
 
 

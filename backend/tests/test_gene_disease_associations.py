@@ -173,6 +173,63 @@ async def test_multiple_diseases_per_gene_but_no_duplicates(async_client, db_ses
 
 
 @pytest.mark.integration
+async def test_workflow_search_and_stable_pages(async_client, db_session, gene) -> None:
+    author = _auth(db_session, "author")
+    ids = [
+        (await _create(async_client, author, disease_id=f"OMIM:60000{n}", disease_name=name))["id"]
+        for n, name in enumerate(["Alport 100%_syndrome", "Nephronophthisis", "Alport late"])
+    ]
+
+    async def get(**params) -> dict:
+        resp = await async_client.get(f"{URL}/workflow", params=params, headers=author)
+        assert resp.status_code == 200, resp.text
+        return resp.json()
+
+    found = lambda body: [r["id"] for r in body["data"]]  # noqa: E731
+    assert found(await get(q="alport", gene_symbol="GDA26FAKE")) == [ids[0], ids[2]]
+    assert found(await get(q="omim:600001")) == [ids[1]]  # disease ID prefix
+    assert found(await get(q="gda26f")) == ids  # gene symbol prefix
+    assert found(await get(q="100%")) == [ids[0]]  # LIKE wildcards are literal
+    assert found(await get(q="0%_s")) == [ids[0]]
+    pages = [await get(gene_symbol="GDA26FAKE", limit=2, offset=o) for o in (0, 2)]
+    assert found(pages[0]) + found(pages[1]) == ids and pages[0]["meta"]["total"] == 3
+
+
+@pytest.mark.integration
+async def test_workflow_sort_and_classification_filter(async_client, db_session, gene) -> None:
+    author = _auth(db_session, "author")
+    strengths = ["Moderate", "Definitive", "Limited"]
+    ids = [
+        (
+            await _create(
+                async_client,
+                author,
+                disease_id=f"OMIM:60000{n}",
+                disease_name=name,
+                evidence_strength=strength,
+            )
+        )["id"]
+        for n, (name, strength) in enumerate(zip(["b", "C", "a"], strengths, strict=True))
+    ]
+
+    async def order(**params) -> list[int]:
+        params = {"gene_symbol": "GDA26FAKE", **params}
+        resp = await async_client.get(f"{URL}/workflow", params=params, headers=author)
+        assert resp.status_code == 200, resp.text
+        return [r["id"] for r in resp.json()["data"]]
+
+    strongest_first = await order(sort_by="classification", sort_order="desc")
+    assert strongest_first == [ids[1], ids[0], ids[2]]
+    assert await order(sort_by="disease") == [ids[2], ids[0], ids[1]]  # case-insensitive
+    assert await order(evidence_strength=["Definitive", "Limited"]) == [ids[1], ids[2]]
+    for bad in ({"sort_by": "password"}, {"evidence_strength": "Very strong"}):
+        resp = await async_client.get(f"{URL}/workflow", params=bad, headers=author)
+        assert resp.status_code == 400  # the app's validation envelope
+    for key in ("points", "published", "updated", "gene"):  # every key is valid SQL
+        assert sorted(await order(sort_by=key, sort_order="desc")) == sorted(ids)
+
+
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "overrides",
     [

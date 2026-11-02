@@ -18,9 +18,11 @@ interface Props {
     'getCanSort' | 'getIsSorted' | 'toggleSorting' | 'toggleVisibility'
   >
   title: string
+  /** False where the table cannot hide columns */
+  hideable?: boolean
 }
 
-defineProps<Props>()
+withDefaults(defineProps<Props>(), { hideable: true })
 </script>
 
 <template>
@@ -45,11 +47,13 @@ defineProps<Props>()
         <ArrowDown class="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
         Desc
       </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem @click="column.toggleVisibility(false)">
-        <EyeOff class="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-        Hide
-      </DropdownMenuItem>
+      <template v-if="hideable">
+        <DropdownMenuSeparator />
+        <DropdownMenuItem @click="column.toggleVisibility(false)">
+          <EyeOff class="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Hide
+        </DropdownMenuItem>
+      </template>
     </DropdownMenuContent>
   </DropdownMenu>
 </template>
