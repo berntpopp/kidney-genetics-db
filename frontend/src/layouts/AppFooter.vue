@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { getAllVersions, getFrontendVersion } from '@/utils/version'
 import { config } from '@/config'
 import { useLogStore } from '@/stores/logStore'
+import { useVideos } from '@/composables/useVideos'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +22,7 @@ import {
   BookOpen,
   Braces,
   CircleAlert,
+  CirclePlay,
   ExternalLink,
   Github,
   HelpCircle,
@@ -43,6 +45,7 @@ const GITHUB_URL = 'https://github.com/berntpopp/kidney-genetics-db'
 const apiDocsUrl = `${config.apiBaseUrl}/docs`
 
 const logStore = useLogStore()
+const { manifest: videoManifest } = useVideos()
 
 // Version state
 const frontendVersion = ref(getFrontendVersion())
@@ -236,6 +239,18 @@ function acknowledgeDisclaimer() {
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top"><p>MCP — connect an AI agent</p></TooltipContent>
+          </Tooltip>
+
+          <!-- Video tutorials, only when the deployment ships the video bundle -->
+          <Tooltip v-if="videoManifest">
+            <TooltipTrigger as-child>
+              <Button variant="ghost" size="icon" class="size-8" as-child>
+                <RouterLink to="/tutorials" aria-label="Video tutorials">
+                  <CirclePlay class="size-4" aria-hidden="true" />
+                </RouterLink>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p>Video tutorials</p></TooltipContent>
           </Tooltip>
 
           <!-- FAQ -->

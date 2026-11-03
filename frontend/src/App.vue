@@ -10,6 +10,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { useLogStore } from '@/stores/logStore'
 import { useAppTheme } from '@/composables/useAppTheme'
 import { useJsonLd, getOrganizationWebSiteSchema } from '@/composables/useJsonLd'
+import { loadVideos } from '@/composables/useVideos'
 
 const route = useRoute()
 const pageUrl = ref('')
@@ -63,6 +64,8 @@ const handleKeyPress = (event: KeyboardEvent) => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyPress)
+  // Optional video bundle: its entry points appear only when /videos/videos.json exists
+  loadVideos()
 })
 
 onUnmounted(() => {

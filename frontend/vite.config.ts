@@ -81,7 +81,12 @@ export default defineConfig({
       '^/(docs|redoc|openapi\\.json|version|health)$': {
         target: 'http://localhost:8000',
         changeOrigin: true
-      }
+      },
+      // Optional video bundle (never in the repo or dist/): point this at any server that
+      // serves it, e.g. the frontend image with the bundle mounted at /usr/share/nginx/html/videos
+      ...(process.env.VIDEOS_PROXY_TARGET
+        ? { '/videos/': { target: process.env.VIDEOS_PROXY_TARGET, changeOrigin: true } }
+        : {})
     }
   }
 })

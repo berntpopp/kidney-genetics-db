@@ -2,7 +2,10 @@
 /**
  * View header: breadcrumb, one h1, a one-line description and actions (DESIGN.md Layout).
  * Place it first inside the view's PAGE_CONTAINER; it adds no horizontal padding itself.
+ * Next to the breadcrumb it offers the intro video for this route, when the bundle has one.
  */
+import VideoIntro from '@/components/videos/VideoIntro.vue'
+
 defineProps<{
   title: string
   description?: string
@@ -11,7 +14,11 @@ defineProps<{
 
 <template>
   <header data-slot="page-header" class="mb-6 space-y-3">
-    <slot name="breadcrumb" />
+    <!-- min-h fits the intro chip, so the row keeps its height when the chip appears -->
+    <div v-if="$slots.breadcrumb" class="flex min-h-6 items-center justify-between gap-3">
+      <div class="min-w-0"><slot name="breadcrumb" /></div>
+      <VideoIntro />
+    </div>
     <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div class="min-w-0 space-y-1">
         <h1 class="text-3xl font-semibold tracking-tight text-balance text-foreground">

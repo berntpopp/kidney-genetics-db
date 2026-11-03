@@ -259,6 +259,17 @@ export const routes: RouteRecordRaw[] = [
     }
   },
   {
+    // Hidden (renders Not Found) when the deployment has no video bundle at /videos/
+    path: '/tutorials',
+    name: 'tutorials',
+    component: () => import('../views/Tutorials.vue'),
+    meta: {
+      title: 'Video tutorials',
+      description:
+        'Short, captioned video tutorials on the kidney gene evidence score and each part of the Kidney Genetics Database.'
+    }
+  },
+  {
     // SPA fallback document for non-prerendered routes (see AppShell.vue); no meta on purpose
     path: '/app-shell',
     name: 'app-shell',
