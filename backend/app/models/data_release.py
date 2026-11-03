@@ -34,6 +34,8 @@ class DataRelease(Base, TimestampMixin):
     # Statistics
     gene_count = Column(Integer, nullable=True)
     total_evidence_count = Column(Integer, nullable=True)
+    association_count = Column(Integer, nullable=True)  # published curated associations (#546)
+    no_association_count = Column(Integer, nullable=True)  # active no-association assessments
 
     # Export
     export_file_path = Column(String(500), nullable=True)

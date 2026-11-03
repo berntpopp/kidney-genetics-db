@@ -1028,6 +1028,7 @@ class RecommendedTranscript(BaseModel):
 
 
 class ReleaseResponse(BaseModel):
+    association_count: Annotated[int | None, Field(title="Association Count")] = None
     citation_text: Annotated[str | None, Field(title="Citation Text")] = None
     created_at: Annotated[AwareDatetime, Field(title="Created At")]
     doi: Annotated[str | None, Field(title="Doi")] = None
@@ -1035,6 +1036,9 @@ class ReleaseResponse(BaseModel):
     export_file_path: Annotated[str | None, Field(title="Export File Path")] = None
     gene_count: Annotated[int | None, Field(title="Gene Count")] = None
     id: Annotated[int, Field(title="Id")]
+    no_association_count: Annotated[int | None, Field(title="No Association Count")] = (
+        None
+    )
     published_at: Annotated[AwareDatetime | None, Field(title="Published At")] = None
     published_by_id: Annotated[int | None, Field(title="Published By Id")] = None
     release_date: Annotated[AwareDatetime | None, Field(title="Release Date")] = None

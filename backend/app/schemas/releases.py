@@ -57,6 +57,8 @@ class ReleaseResponse(ReleaseBase):
     published_by_id: int | None = None
     gene_count: int | None = None
     total_evidence_count: int | None = None
+    association_count: int | None = None
+    no_association_count: int | None = None
     export_file_path: str | None = None
     export_checksum: str | None = None
     doi: str | None = None

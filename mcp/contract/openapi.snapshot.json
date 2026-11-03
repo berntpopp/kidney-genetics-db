@@ -3343,6 +3343,17 @@
       "ReleaseResponse": {
         "description": "Schema for release response",
         "properties": {
+          "association_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Association Count"
+          },
           "citation_text": {
             "anyOf": [
               {
@@ -3406,6 +3417,17 @@
           "id": {
             "title": "Id",
             "type": "integer"
+          },
+          "no_association_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Association Count"
           },
           "published_at": {
             "anyOf": [

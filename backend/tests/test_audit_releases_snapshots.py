@@ -198,3 +198,87 @@ async def test_unreadable_sidecar_is_generic_500(
     assert str(service.export_dir) not in response.text
     assert "Release snapshot unavailable" in response.text
     assert not list(service.export_dir.glob("*.tmp"))
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_export_includes_curated_associations_and_no_association(
+    db_session, service, user_id
+):
+    """Published associations and no-association statements are frozen with the release (#546)."""
+    from datetime import UTC, datetime
+
+    from app.models.gene import Gene
+    from app.models.gene_disease_association import GeneDiseaseAssociation as GDA
+    from app.models.gene_disease_association import GeneNoAssociationAssessment as Assessment
+
+    for symbol in ("CUR", "NOA", "BOTH"):
+        _add_gene(db_session, f"{PREFIX}{symbol}")
+    ids = {
+        g.approved_symbol.removeprefix(PREFIX): g.id
+        for g in db_session.query(Gene).filter(Gene.approved_symbol.like(f"{PREFIX}%"))
+    }
+    now = datetime.now(UTC)
+    records = [("CUR", "published"), ("BOTH", "published"), ("CUR", "draft")]
+    for n, (gene, status) in enumerate(records):
+        db_session.add(
+            GDA(
+                gene_id=ids[gene],
+                disease_id=f"MONDO:000530{n}",
+                disease_name="chronic kidney disease",
+                evidence_strength="Definitive",
+                citations=["PMID:12345678"],
+                source="gene_curator",
+                external_id=f"gc-546-{n}",
+                external_url=f"https://gene-curator.example.org/curations/{n}",
+                methodology="ClinGen SOP",
+                methodology_version="11",
+                approval_kind="ai",
+                status=status,
+                published_at=now if status == "published" else None,
+                curator_id=user_id,
+            )
+        )
+    for gene in ("NOA", "BOTH"):
+        db_session.add(
+            Assessment(
+                gene_id=ids[gene],
+                rationale="No kidney phenotype reported.",
+                sources_checked=[{"source": "omim", "record_ids": ["600000"]}],
+                non_kidney_entities=[],
+                external_id=f"gc-546-noa-{gene}",
+                external_url=f"https://gene-curator.example.org/curations/noa-{gene}",
+            )
+        )
+    db_session.flush()
+
+    release = await _publish(service, user_id, "2999.9")
+    export = json.loads(Path(release.export_file_path).read_text())
+    genes = {g["approved_symbol"].removeprefix(PREFIX): g for g in export["genes"]}
+
+    (cur,) = genes["CUR"]["curated_associations"]  # the draft is not exported
+    assert cur["external_id"] == "gc-546-0" and cur["methodology_version"] == "11"
+    assert cur["approval_kind"] == "ai" and cur["status"] == "published"
+    assert genes["CUR"]["no_association"] is None
+    assert genes["NOA"]["curated_associations"] == []
+    assert genes["NOA"]["no_association"]["external_id"] == "gc-546-noa-NOA"
+    # A published association takes precedence, as on the public API
+    assert len(genes["BOTH"]["curated_associations"]) == 1
+    assert genes["BOTH"]["no_association"] is None
+
+    meta = export["metadata"]
+    assert meta["association_count"] == release.association_count
+    assert release.association_count == sum(len(g["curated_associations"]) for g in genes.values())
+    assert meta["no_association_count"] == release.no_association_count
+    assert release.no_association_count == sum(
+        g["no_association"] is not None for g in genes.values()
+    )
+    assert _sha(release.export_file_path) == release.export_checksum
+    # Same data and timestamp give the same bytes, so the checksum is reproducible
+    first = Path(release.export_file_path).read_bytes()
+    path, *_ = service._export_release_sync(
+        "2999.9", datetime.fromisoformat(export["release_date"])
+    )
+    assert path.read_bytes() == first
+    result = await service.get_release_genes("2999.9", limit=1, offset=0)
+    assert result["total"] == release.gene_count
