@@ -600,6 +600,151 @@
 "id": "http://purl.obolibrary.org/obo/HP_0100957",
 "lbl": "Abnormal renal medulla morphology",
 "meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0000707",
+"lbl": "Abnormality of the nervous system",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0000759",
+"lbl": "Abnormal peripheral nervous system morphology",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0000834",
+"lbl": "Abnormality of the adrenal glands",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0001626",
+"lbl": "Abnormality of the cardiovascular system",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0002597",
+"lbl": "Abnormality of the vasculature",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0002666",
+"lbl": "Pheochromocytoma",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0002668",
+"lbl": "Paraganglioma",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0002864",
+"lbl": "Paraganglioma of head and neck",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0002886",
+"lbl": "Vagal paraganglioma",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0003001",
+"lbl": "Glomus jugular tumor",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0004375",
+"lbl": "Neoplasm of the nervous system",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0005344",
+"lbl": "Abnormal carotid artery morphology",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0006715",
+"lbl": "Glomus tympanicum paraganglioma",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0006737",
+"lbl": "Extraadrenal pheochromocytoma",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0006748",
+"lbl": "Adrenal pheochromocytoma",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0011004",
+"lbl": "Abnormal systemic arterial morphology",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0011732",
+"lbl": "Abnormal adrenal morphology",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0012639",
+"lbl": "Abnormal nervous system morphology",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0025015",
+"lbl": "Abnormal vascular morphology",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0030074",
+"lbl": "Chemodectoma",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0030680",
+"lbl": "Abnormal cardiovascular system morphology",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0031071",
+"lbl": "Abnormal endocrine morphology",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0033353",
+"lbl": "Abnormal blood vessel morphology",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0100007",
+"lbl": "Neoplasm of the peripheral nervous system",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0100568",
+"lbl": "Neoplasm of the endocrine system",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0100631",
+"lbl": "Neoplasm of the adrenal gland",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0100634",
+"lbl": "Neuroendocrine neoplasm",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0100635",
+"lbl": "Carotid paraganglioma",
+"meta": {}
+},
+{
+"id": "http://purl.obolibrary.org/obo/HP_0100642",
+"lbl": "Neoplasm of the adrenal medulla",
+"meta": {}
 }
 ],
 "edges": [
@@ -1252,6 +1397,196 @@
 "sub": "http://purl.obolibrary.org/obo/HP_0100957",
 "pred": "is_a",
 "obj": "http://purl.obolibrary.org/obo/HP_0012210"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0000707",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0000118"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0000759",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0012639"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0000834",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0000818"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0001626",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0000118"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0002597",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0001626"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0002666",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0100634"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0002668",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0100634"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0002864",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0002668"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0002886",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0002864"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0003001",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0002864"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0004375",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0011793"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0004375",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0012639"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0005344",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0011004"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0006715",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0002864"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0006737",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0002666"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0006748",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0002666"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0006748",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0100642"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0011004",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0033353"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0011732",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0000834"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0011732",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0031071"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0012639",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0000707"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0025015",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0002597"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0025015",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0030680"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0030074",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0002668"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0030680",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0001626"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0031071",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0000818"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0033353",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0025015"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0100007",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0000759"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0100007",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0004375"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0100568",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0000818"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0100568",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0011793"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0100631",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0011732"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0100631",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0100568"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0100634",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0100007"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0100634",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0100568"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0100635",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0002864"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0100635",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0005344"
+},
+{
+"sub": "http://purl.obolibrary.org/obo/HP_0100642",
+"pred": "is_a",
+"obj": "http://purl.obolibrary.org/obo/HP_0100631"
 }
 ]
 }

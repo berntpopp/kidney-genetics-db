@@ -45,7 +45,7 @@ CLINICAL_GROUP_PRIORITY = (
     "nephrolithiasis",
     "neoplasia",
 )
-CLINICAL_GROUP_METHOD = "hpo-freq-ic-v2"  # 0.5 again: v2 payloads valid, v2.1 (0.4) recomputed
+CLINICAL_GROUP_METHOD = "hpo-freq-ic-v2.2"  # v2.2: disease exclusions (#551); v2/v2.1 recomputed
 # secondary: evidence >= this share of the primary's; no r beat 0.5 out of sample (spec, #338)
 SECONDARY_GROUP_RATIO = 0.5
 
@@ -137,15 +137,21 @@ class ClinicalGroupClassifier:
 
     E(gene, group) = sum over the gene's diseases of f(d, t) * IC(t) over the
     disease's terms t at or below a group root, counting only the most specific
-    (a term with an annotated descendant in the same group is skipped).
+    (a term with an annotated descendant in the same group is skipped). A disease
+    with a term at or below one of a group's ``exclusions`` adds nothing to it (#551).
     """
 
     def __init__(
-        self, parents: dict[str, set[str]], groups: dict[str, list[str]], release: str
+        self,
+        parents: dict[str, set[str]],
+        groups: dict[str, list[str]],
+        release: str,
+        exclusions: dict[str, list[str]] | None = None,
     ) -> None:
         self.parents = parents
         self.groups = groups
         self.release = release
+        self.exclusions = exclusions or {}
         self.ic: dict[str, float] = {}
         self._ancestors: dict[str, frozenset[str]] = {}
         self._descendants: dict[str, frozenset[str]] = {}
@@ -207,6 +213,11 @@ class ClinicalGroupClassifier:
                 for group in self._groups_of(term):
                     matched.setdefault(group, []).append(term)
             for group, terms in matched.items():
+                excluded = self.exclusions.get(group, ())
+                if excluded and any(
+                    not self.ancestors(t).isdisjoint(excluded) for t in term_weights
+                ):
+                    continue
                 for term in terms:
                     if any(other != term and term in self.ancestors(other) for other in terms):
                         continue
@@ -454,16 +465,19 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
             if key in self._loaded_classifiers:
                 self._clinical_classifier = self._loaded_classifiers[key]
                 return self._clinical_classifier
-            groups = {
-                group: config["root_terms"]
-                for group, config in get_source_parameter("HPO", "clinical_groups", {}).items()
-            }
+            group_config = get_source_parameter("HPO", "clinical_groups", {})
+            groups = {group: config["root_terms"] for group, config in group_config.items()}
             # hp.json parse and IC fit are CPU-bound: keep them off the event loop (#363)
             parents = await asyncio.to_thread(load_hpo_parents, await self._download_hp_json())
             classifier = ClinicalGroupClassifier(
                 parents,
                 groups,
                 str(get_source_parameter("HPO", "hpo_release")),
+                {
+                    g: c["exclude_diseases_with"]
+                    for g, c in group_config.items()
+                    if c.get("exclude_diseases_with")
+                },
             )
             corpus: dict[str, set[str]] = {}
             for gene_data in self._bulk_data.values():

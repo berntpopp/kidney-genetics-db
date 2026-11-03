@@ -49,7 +49,7 @@ HPO_CACHE_TTL = 3600  # 1 hour
 GENE_IDS_CACHE_NAMESPACE = "gene_ids"
 GENE_IDS_CACHE_TTL = 3600  # 1 hour
 
-# #447: a secondary neoplasia share this large still flags renal-tumour risk (SDHA: 0.254)
+# #447: a secondary neoplasia share this large still flags renal-tumour risk (PALB2: 0.33)
 RENAL_NEOPLASIA_MIN_SCORE = 0.25
 # Badge only; ClinGen/GenCC assertions of these genes still count toward the score (#447).
 RENAL_NEOPLASIA_SQL = f"""EXISTS (

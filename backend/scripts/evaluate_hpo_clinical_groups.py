@@ -211,6 +211,11 @@ def main() -> int:
 
     hpo = yaml.safe_load(args.datasources.read_text())["datasources"]["HPO"]
     roots = {k: v["root_terms"] for k, v in hpo["clinical_groups"].items()}
+    exclusions = {
+        k: v["exclude_diseases_with"]
+        for k, v in hpo["clinical_groups"].items()
+        if v.get("exclude_diseases_with")
+    }
     bulk = HPOAnnotationSource.parse_bulk_file(
         HPOAnnotationSource.__new__(HPOAnnotationSource),
         args.hpo_dir / "genes_to_phenotype.txt",
@@ -221,8 +226,10 @@ def main() -> int:
         for disease, terms in gene["disease_terms"].items():
             corpus.setdefault(disease, set()).update(terms)
 
-    def classifier(groups: dict[str, list[str]], use_ic: bool) -> ClinicalGroupClassifier:
-        c = ClinicalGroupClassifier(parents, groups, hpo["hpo_release"])
+    def classifier(
+        groups: dict[str, list[str]], use_ic: bool, excl: dict[str, list[str]] | None = None
+    ) -> ClinicalGroupClassifier:
+        c = ClinicalGroupClassifier(parents, groups, hpo["hpo_release"], excl)
         c.fit_information_content(corpus.values())
         if not use_ic:
             c.ic = dict.fromkeys(c.ic, 1.0)
@@ -235,8 +242,8 @@ def main() -> int:
     def gene_terms(symbol: str) -> set[str]:
         return set().union(*disease_terms(symbol, True).values())
 
-    v2 = classifier(roots, use_ic=True)
-    v2_flat = classifier(roots, use_ic=False)
+    v2 = classifier(roots, use_ic=True, excl=exclusions)
+    v2_flat = classifier(roots, use_ic=False, excl=exclusions)
     v1_roots = classifier({**V1_SIGNATURES, "neoplasia": [RENAL_NEOPLASM]}, use_ic=True)
 
     def v1(symbol: str, neoplasia: bool) -> str | None:

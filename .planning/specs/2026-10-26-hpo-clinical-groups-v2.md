@@ -277,3 +277,37 @@ gated on `HPO_RELEASE_DIR`).
 Rollout: stored values change only after a managed HPO annotation run
 (`/api/annotations/pipeline/update`, source hpo, strategy=full) and the view
 refresh. Release v0.9.0 (classification semantics change).
+
+## Pheochromocytoma/paraganglioma exclusion (v2.2, 2026-11-03, #551)
+
+Problem: every SDHx gene, TMEM127 and MAX had glomerulopathy as primary group (0.62–0.84), and
+SDHD, TMEM127 and MAX missed the renal-neoplasia flag (neoplasia share 0.148–0.193 < 0.25).
+Cause: three pheochromocytoma/paraganglioma entries in HPO 2026-09-01, ORPHA:29072 (hereditary
+pheochromocytoma-paraganglioma), ORPHA:276621 and OMIM:171300, annotate HP:0000093 Proteinuria
+(frequent) and HP:0000790 Hematuria (occasional), both glomerulopathy roots. Their only renal
+neoplasm is HP:0005584 Renal cell carcinoma (occasional, ORPHA:29072). These findings follow
+catecholamine hypertension or the tumour; they are not glomerular disease.
+
+Options measured with `scripts/evaluate_hpo_clinical_groups.py` (top-1 / macro-F1, v2 76.4 % / 0.79):
+
+| Change | Top-1 | Macro-F1 | Effect |
+|---|---|---|---|
+| drop Proteinuria and Hematuria roots | 75.3 % | 0.80 | COL4A5 (Alport) → cyst_cilio |
+| drop Hematuria root | 76.4 % | 0.79 | SDHD still glomerulopathy |
+| drop Proteinuria root | 76.4 % | 0.81 | 47 primaries move (MYH9 → none); SDHD still glomerulopathy |
+| **no glomerulopathy evidence from a disease with a term at or below HP:0002666 Pheochromocytoma or HP:0002668 Paraganglioma (chosen)** | **77.8 %** | **0.82** | 15 primaries move, all of them PPGL genes |
+
+HPO cannot separate these signs from glomerular ones (Hematuria and Proteinuria children are not
+glomerular-specific, and the entries annotate the parent terms), so root edits cannot fix it. The
+exclusion is ancestor-based on the disease's own HPO terms; no gene list. Config:
+`clinical_groups.glomerulopathy.exclude_diseases_with`; `method: hpo-freq-ic-v2.2`, so stored v2
+payloads are stale and recomputed by the next managed HPO run. This rule was chosen after the
+SDHx misclassification was known (not blind). The secondary cut-off stays 0.5: the one-SE rule
+re-run on v2.2 picks 0.70, but no r beats a fixed 0.5 out of sample (LOO 0.7695 at 0.45 vs
+0.7662 at 0.5), and re-tuning after each change is the selection the cut-off section rejects.
+
+Primary changes on all 3,209 classified dev genes: DLST, KIF1B, MDH2, NF1, SDHA, SDHAF2, SDHB,
+SDHC, SDHD, SLC25A11, TMEM127 → neoplasia; DNMT3A, MAX, RET → cakut; EPAS1 → none. VHL and FH
+lose glomerulopathy as secondary group (the v2 known miss). Renal-neoplasia flag newly set:
+KIF1B, MAX, NF1, SDHD, TMEM127; none lost. NF1 is flagged only through ORPHA:29072's occasional
+renal cell carcinoma.
