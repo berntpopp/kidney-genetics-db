@@ -173,6 +173,63 @@ async def test_multiple_diseases_per_gene_but_no_duplicates(async_client, db_ses
 
 
 @pytest.mark.integration
+async def test_workflow_search_and_stable_pages(async_client, db_session, gene) -> None:
+    author = _auth(db_session, "author")
+    ids = [
+        (await _create(async_client, author, disease_id=f"OMIM:60000{n}", disease_name=name))["id"]
+        for n, name in enumerate(["Alport 100%_syndrome", "Nephronophthisis", "Alport late"])
+    ]
+
+    async def get(**params) -> dict:
+        resp = await async_client.get(f"{URL}/workflow", params=params, headers=author)
+        assert resp.status_code == 200, resp.text
+        return resp.json()
+
+    found = lambda body: [r["id"] for r in body["data"]]  # noqa: E731
+    assert found(await get(q="alport", gene_symbol="GDA26FAKE")) == [ids[0], ids[2]]
+    assert found(await get(q="omim:600001")) == [ids[1]]  # disease ID prefix
+    assert found(await get(q="gda26f")) == ids  # gene symbol prefix
+    assert found(await get(q="100%")) == [ids[0]]  # LIKE wildcards are literal
+    assert found(await get(q="0%_s")) == [ids[0]]
+    pages = [await get(gene_symbol="GDA26FAKE", limit=2, offset=o) for o in (0, 2)]
+    assert found(pages[0]) + found(pages[1]) == ids and pages[0]["meta"]["total"] == 3
+
+
+@pytest.mark.integration
+async def test_workflow_sort_and_classification_filter(async_client, db_session, gene) -> None:
+    author = _auth(db_session, "author")
+    strengths = ["Moderate", "Definitive", "Limited"]
+    ids = [
+        (
+            await _create(
+                async_client,
+                author,
+                disease_id=f"OMIM:60000{n}",
+                disease_name=name,
+                evidence_strength=strength,
+            )
+        )["id"]
+        for n, (name, strength) in enumerate(zip(["b", "C", "a"], strengths, strict=True))
+    ]
+
+    async def order(**params) -> list[int]:
+        params = {"gene_symbol": "GDA26FAKE", **params}
+        resp = await async_client.get(f"{URL}/workflow", params=params, headers=author)
+        assert resp.status_code == 200, resp.text
+        return [r["id"] for r in resp.json()["data"]]
+
+    strongest_first = await order(sort_by="classification", sort_order="desc")
+    assert strongest_first == [ids[1], ids[0], ids[2]]
+    assert await order(sort_by="disease") == [ids[2], ids[0], ids[1]]  # case-insensitive
+    assert await order(evidence_strength=["Definitive", "Limited"]) == [ids[1], ids[2]]
+    for bad in ({"sort_by": "password"}, {"evidence_strength": "Very strong"}):
+        resp = await async_client.get(f"{URL}/workflow", params=bad, headers=author)
+        assert resp.status_code == 400  # the app's validation envelope
+    for key in ("points", "published", "updated", "gene"):  # every key is valid SQL
+        assert sorted(await order(sort_by=key, sort_order="desc")) == sorted(ids)
+
+
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "overrides",
     [
@@ -240,6 +297,7 @@ def test_no_pipeline_code_writes_expert_records() -> None:
         "main.py",
         "api/endpoints/auth.py",  # refuses to delete users who authored/reviewed records
         "api/endpoints/curation_reports.py",  # reads published records only
+        "services/release_service.py",  # exports published records only (#546)
         "models/curation_report.py",  # FK from reports to associations
         "api/endpoints/volunteer_applications.py",  # applications only, no association data
     }
@@ -575,6 +633,39 @@ async def test_unique_per_relationship_type(async_client, db_session, gene) -> N
     assert (await _post(async_client, author, moi="HP:0000006")).status_code == 201
     assert (await _post(async_client, author, moi="HP:0000006", **risk)).status_code == 201
     assert (await _post(async_client, author, moi="HP:0000006", **risk)).status_code == 409
+
+
+@pytest.mark.integration
+async def test_list_gives_gene_count_and_shared_risk_allele(async_client, db_session, gene) -> None:
+    """#539: a gene's published count, and other genes naming the same risk allele."""
+    other = Gene(approved_symbol="GDA26OTHER", hgnc_id="HGNC:99926027")
+    db_session.add(other)
+    db_session.commit()
+    author, reviewer = _auth(db_session, "author"), _auth(db_session, "reviewer", "admin")
+    risk = {"relationship_type": "susceptibility", "evidence_strength": "Likely association"}
+
+    async def publish(**overrides) -> None:
+        rec = await _create(async_client, author, **overrides)
+        rec = (await async_client.post(f"{URL}/{rec['id']}/submit", headers=author)).json()
+        resp = await async_client.post(
+            f"{URL}/{rec['id']}/publish", json=_seen(rec), headers=reviewer
+        )
+        assert resp.status_code == 200, resp.text
+
+    await publish(moi="HP:0000006")
+    await publish(moi="HP:0010982", risk_allele="Shared Deletion", **risk)
+    # Same allele on another gene, spelled with other case and spacing
+    await publish(gene_symbol="GDA26OTHER", risk_allele=" shared deletion", **risk)
+    await _create(async_client, author, moi="HP:0000007")  # a draft is not counted
+
+    rows = {r["moi"]: r for r in await _public(async_client)}
+    assert {r["gene_association_count"] for r in rows.values()} == {2}
+    assert rows["HP:0010982"]["shared_risk_allele_genes"] == ["GDA26OTHER"]
+    assert rows["HP:0000006"]["shared_risk_allele_genes"] == []
+    resp = await async_client.get(f"{URL}/", params={"gene_symbol": "GDA26OTHER"})
+    [mirror] = resp.json()["data"]
+    assert mirror["gene_association_count"] == 1
+    assert mirror["shared_risk_allele_genes"] == ["GDA26FAKE"]
 
 
 @pytest.mark.integration

@@ -1,28 +1,48 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch, type ComponentPublicInstance } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useDebounceFn } from '@vueuse/core'
 import {
   Check,
   Download,
   FileJson,
   FileSpreadsheet,
   FileText,
+  FilterX,
   Plus,
+  RefreshCw,
+  Search,
   Share2,
   X
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
-import { useCurationStore } from '@/stores/curation'
+import { defaultQuery, PAGE_SIZES, useCurationStore, type PageQuery } from '@/stores/curation'
 import {
+  MENDELIAN_STRENGTHS,
   RELATIONSHIP_LABELS,
   RELATIONSHIP_TYPES,
+  SORT_KEYS,
+  SUSCEPTIBILITY_STRENGTHS,
   type Association,
+  type SortKey,
   type AssociationInput,
   type WorkflowAction
 } from '@/api/curation'
 import AssociationForm from '@/components/curation/AssociationForm.vue'
 import AssociationRows from '@/components/curation/AssociationRows.vue'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { DataTableColumnHeader } from '@/components/ui/data-table'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -39,7 +59,14 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { associationsCsv, today, useShareExport } from '@/composables/useShareExport'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { Chip, DataState, PageHeader, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
+import {
+  Chip,
+  DataState,
+  PageHeader,
+  PAGE_CONTAINER,
+  PaginationBar,
+  StatusBadge
+} from '@/components/shared'
 import { getPublicBreadcrumbs } from '@/utils/publicBreadcrumbs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -66,19 +93,133 @@ const STACK = 'max-lg:block max-lg:min-w-0 max-lg:max-w-none max-lg:px-0 max-lg:
 
 const auth = useAuthStore()
 const store = useCurationStore()
+const route = useRoute()
+const router = useRouter()
 
 const { copied, copy, download, printPdf } = useShareExport()
-// The address bar as-is, so any query-string filters travel with the link
+// The address bar as-is, so the search and page travel with the link
 const shareUrl = () => window.location.href
-const exportName = () => `curated-associations-${geneFilter.value.trim() || 'all'}-${today()}`
-const exportAs = (kind: 'json' | 'csv') => {
+const exportName = () => `curated-associations-${store.publishedQuery.q.trim() || 'all'}-${today()}`
+/** Exports every record matching the search, not only the visible page */
+async function exportAs(kind: 'json' | 'csv') {
+  const rows = await store.fetchAllPublished()
+  if (!rows) return
   const name = exportName()
-  if (kind === 'json')
-    download(JSON.stringify(store.published, null, 2), 'application/json', `${name}.json`)
-  else download(associationsCsv(store.published), 'text/csv', `${name}.csv`)
+  if (kind === 'json') download(JSON.stringify(rows, null, 2), 'application/json', `${name}.json`)
+  else download(associationsCsv(rows), 'text/csv', `${name}.csv`)
 }
 
-const geneFilter = ref('')
+const STRENGTHS: readonly string[] = [...MENDELIAN_STRENGTHS, ...SUSCEPTIBILITY_STRENGTHS]
+const DEFAULT = defaultQuery()
+
+/** Published-list state from the URL (?q=&strength=&sort_by=&sort_order=&page=&size=) */
+function routeQuery(): PageQuery {
+  const { q, page, size, sort_by, sort_order, strength } = route.query
+  return {
+    q: typeof q === 'string' ? q : '',
+    page: Math.max(0, Math.floor(Number(page) || 1) - 1), // one-based in the URL
+    size: PAGE_SIZES.includes(Number(size)) ? Number(size) : DEFAULT.size,
+    strengths: [strength].flat().filter((v): v is string => STRENGTHS.includes(v as string)),
+    sortBy: SORT_KEYS.includes(sort_by as SortKey) ? (sort_by as SortKey) : DEFAULT.sortBy,
+    sortOrder: sort_order === 'desc' ? 'desc' : 'asc'
+  }
+}
+
+async function setPublished(query: Partial<PageQuery>) {
+  await store.loadPublished(query)
+  const { q, page, size, strengths, sortBy, sortOrder } = store.publishedQuery
+  const sorted = sortBy !== DEFAULT.sortBy || sortOrder !== DEFAULT.sortOrder
+  router.replace({
+    query: {
+      ...route.query,
+      q: q.trim() || undefined,
+      strength: strengths.length ? strengths : undefined,
+      sort_by: sorted ? sortBy : undefined,
+      sort_order: sorted ? sortOrder : undefined,
+      page: page ? String(page + 1) : undefined,
+      size: size === DEFAULT.size ? undefined : String(size)
+    }
+  })
+}
+
+/** The genes table's sort menu, as server sort key and order */
+const SORT_OPTIONS = [
+  { value: 'gene_asc', title: 'Gene (A–Z)' },
+  { value: 'gene_desc', title: 'Gene (Z–A)' },
+  { value: 'disease_asc', title: 'Disease (A–Z)' },
+  { value: 'classification_desc', title: 'Strongest classification' },
+  { value: 'classification_asc', title: 'Weakest classification' },
+  { value: 'points_desc', title: 'Most points' },
+  { value: 'published_desc', title: 'Newest published' },
+  { value: 'published_asc', title: 'Oldest published' }
+]
+const sortOption = computed(
+  () => `${store.publishedQuery.sortBy}_${store.publishedQuery.sortOrder}`
+)
+function applySort(value: unknown) {
+  const [sortBy, sortOrder] = String(value).split('_') as [SortKey, 'asc' | 'desc']
+  setPublished({ sortBy, sortOrder, page: 0 })
+}
+
+/** A column header the shared sort menu drives; the server sorts, so this only sets the key */
+function sortColumn(list: 'published' | 'workflow', key: SortKey) {
+  const query = () => (list === 'published' ? store.publishedQuery : store.workflowQuery)
+  return {
+    getCanSort: () => true,
+    getIsSorted: () => (query().sortBy === key ? query().sortOrder : false),
+    toggleSorting: (desc?: boolean) => {
+      const next = { sortBy: key, sortOrder: desc ? 'desc' : 'asc', page: 0 } as const
+      return list === 'published' ? setPublished(next) : store.loadWorkflow(next)
+    },
+    toggleVisibility: () => {}
+  }
+}
+
+function toggleStrength(strength: string) {
+  const current = store.publishedQuery.strengths
+  const strengths = current.includes(strength)
+    ? current.filter(s => s !== strength)
+    : [...current, strength]
+  setPublished({ strengths, page: 0 })
+}
+
+const hasActiveFilters = computed(() => {
+  const { q, strengths, sortBy, sortOrder } = store.publishedQuery
+  return !!(
+    q.trim() ||
+    strengths.length ||
+    sortBy !== DEFAULT.sortBy ||
+    sortOrder !== DEFAULT.sortOrder
+  )
+})
+function clearAllFilters() {
+  search.value = ''
+  setPublished({ ...DEFAULT, size: store.publishedQuery.size })
+}
+
+const search = ref(routeQuery().q)
+const searched = computed(() => store.publishedQuery.q.trim())
+const searchPublished = () =>
+  search.value.trim() !== searched.value && setPublished({ q: search.value, page: 0 })
+const searchPublishedSoon = useDebounceFn(searchPublished, 300)
+
+const wfSearch = ref('')
+const searchWorkflow = () =>
+  wfSearch.value.trim() !== store.workflowQuery.q.trim() &&
+  store.loadWorkflow({ q: wfSearch.value, page: 0 })
+const searchWorkflowSoon = useDebounceFn(searchWorkflow, 300)
+
+/** A new page starts at its list's heading, not at the pager below the old one */
+const toHeading = (id: string) => document.getElementById(id)?.scrollIntoView({ block: 'start' })
+async function publishedPage(query: Partial<PageQuery>) {
+  await setPublished(query)
+  toHeading('gda-published-heading')
+}
+async function workflowPage(query: Partial<PageQuery>) {
+  await store.loadWorkflow(query)
+  toHeading('gda-workflow-heading')
+}
+
 const editing = ref<Association | null>(null)
 const formKey = ref(0)
 const formOpen = ref(false)
@@ -86,22 +227,21 @@ const formCard = ref<ComponentPublicInstance | null>(null)
 
 const canCurate = computed(() => auth.isCurator)
 
-/** Susceptibility gets its own table so it is never read as a Mendelian class (#437) */
+/**
+ * Susceptibility gets its own table so it is never read as a Mendelian class (#437).
+ * The server sorts Mendelian first, so a page holds one or both tables; the Mendelian
+ * one stays for the loading and empty rows of an empty page.
+ */
 const publishedGroups = computed(() =>
   RELATIONSHIP_TYPES.map(type => ({
     type,
     records: store.published.filter(r => (r.relationship_type ?? 'mendelian') === type)
-  })).filter(g => g.type === 'mendelian' || g.records.length)
+  })).filter(g => g.records.length || (g.type === 'mendelian' && !store.published.length))
 )
 
 /** Published on import because only an AI approved it in Gene Curator (#639) */
 const pendingHuman = (r: Association) =>
   r.status === 'published' && r.approval_kind === 'ai' && !r.human_reviewed_at
-const pendingOnly = ref(false)
-const pendingCount = computed(() => store.workflow.filter(pendingHuman).length)
-const workflowRecords = computed(() =>
-  pendingOnly.value ? store.workflow.filter(pendingHuman) : store.workflow
-)
 
 type Action = { action: WorkflowAction | 'edit'; label: string; primary?: boolean }
 /** Which workflow buttons the server will accept for this user (author vs. reviewer) */
@@ -159,7 +299,7 @@ async function onSave(input: AssociationInput) {
 }
 
 const loadAll = () => {
-  store.loadPublished(geneFilter.value.trim())
+  setPublished(routeQuery())
   if (canCurate.value) store.loadWorkflow()
 }
 
@@ -201,9 +341,119 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
       <div class="space-y-6">
         <DataState :error="store.error" error-title="Request failed" @retry="loadAll" />
 
+        <!-- Search & filter bar, as on the genes table -->
+        <Card class="gap-0 py-0">
+          <CardContent class="px-4 py-3">
+            <div class="flex flex-col gap-2 sm:flex-row">
+              <form class="relative flex-1" role="search" @submit.prevent="searchPublished">
+                <Search
+                  :size="16"
+                  aria-hidden="true"
+                  class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                  id="gda-filter"
+                  v-model="search"
+                  type="search"
+                  aria-label="Search published associations by gene, disease or MONDO/OMIM ID"
+                  placeholder="Gene, disease or MONDO/OMIM ID, e.g. PKD1"
+                  class="h-9 pl-9"
+                  @input="searchPublishedSoon"
+                />
+              </form>
+              <div class="flex flex-wrap gap-2">
+                <Select :model-value="sortOption" @update:model-value="applySort">
+                  <SelectTrigger aria-label="Sort by" class="h-9 w-[200px]">
+                    <SelectValue placeholder="Sort by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="opt in SORT_OPTIONS" :key="opt.value" :value="opt.value">
+                      {{ opt.title }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Popover>
+                  <PopoverTrigger as-child>
+                    <Button variant="outline" size="sm" class="h-9">
+                      Classification
+                      <Badge
+                        v-if="store.publishedQuery.strengths.length"
+                        variant="secondary"
+                        class="ml-1 rounded-sm px-1 text-xs"
+                      >
+                        {{ store.publishedQuery.strengths.length }}
+                      </Badge>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent class="w-[280px] p-3" align="start">
+                    <div class="space-y-2">
+                      <template
+                        v-for="(group, gi) in [
+                          { type: 'mendelian', strengths: MENDELIAN_STRENGTHS },
+                          { type: 'susceptibility', strengths: SUSCEPTIBILITY_STRENGTHS }
+                        ] as const"
+                        :key="group.type"
+                      >
+                        <Separator v-if="gi" />
+                        <p class="text-sm font-medium">{{ RELATIONSHIP_LABELS[group.type] }}</p>
+                        <div
+                          v-for="strength in group.strengths"
+                          :key="strength"
+                          class="flex items-center gap-2"
+                        >
+                          <Checkbox
+                            :id="`strength-${strength}`"
+                            :model-value="store.publishedQuery.strengths.includes(strength)"
+                            @update:model-value="toggleStrength(strength)"
+                          />
+                          <Label :for="`strength-${strength}`" class="text-sm">
+                            {{ strength }}
+                          </Label>
+                        </div>
+                      </template>
+                      <Button
+                        v-if="store.publishedQuery.strengths.length"
+                        variant="ghost"
+                        size="sm"
+                        class="w-full"
+                        @click="setPublished({ strengths: [], page: 0 })"
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  class="h-9 w-9"
+                  :disabled="!hasActiveFilters"
+                  aria-label="Clear all filters"
+                  @click="clearAllFilters"
+                >
+                  <FilterX class="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  class="h-9 w-9"
+                  aria-label="Refresh data"
+                  @click="store.loadPublished()"
+                >
+                  <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': store.loading }" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
-          <CardHeader class="flex flex-row flex-wrap items-end justify-between gap-3">
-            <CardTitle tag="h2" class="text-xl">Published associations</CardTitle>
+          <CardHeader class="flex flex-row flex-wrap items-center justify-between gap-3">
+            <CardTitle id="gda-published-heading" tag="h2" class="scroll-mt-20 text-xl">
+              Published associations
+            </CardTitle>
             <div class="flex gap-2">
               <Button
                 variant="outline"
@@ -220,7 +470,7 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
                   <Button
                     variant="outline"
                     size="sm"
-                    :disabled="!store.published.length"
+                    :disabled="!store.publishedTotal || store.loading"
                     aria-label="Export published associations"
                   >
                     <Download aria-hidden="true" />
@@ -238,23 +488,24 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
                   </DropdownMenuItem>
                   <DropdownMenuItem @click="printPdf(exportName())">
                     <FileText aria-hidden="true" />
-                    Export as PDF
+                    Export this page as PDF
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <form
-              class="flex items-end gap-2"
-              @submit.prevent="store.loadPublished(geneFilter.trim())"
-            >
-              <div class="space-y-1">
-                <Label for="gda-filter">Gene symbol</Label>
-                <Input id="gda-filter" v-model="geneFilter" placeholder="e.g. PKD1" class="w-36" />
-              </div>
-              <Button type="submit" variant="outline">Filter</Button>
-            </form>
           </CardHeader>
           <CardContent class="space-y-6">
+            <!-- Kept in the DOM while loading so the table does not shift (as on the genes table) -->
+            <PaginationBar
+              :class="['px-0', { invisible: !store.publishedTotal }]"
+              :page="store.publishedQuery.page"
+              :page-size="store.publishedQuery.size"
+              :total="store.publishedTotal"
+              :page-size-options="PAGE_SIZES"
+              noun="association"
+              @update:page="page => publishedPage({ page })"
+              @update:page-size="size => publishedPage({ size, page: 0 })"
+            />
             <section
               v-for="group in publishedGroups"
               :key="group.type"
@@ -269,11 +520,21 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
                   <TableRow>
                     <TableHead class="w-16">MOI</TableHead>
                     <!-- Fixed widths keep the Mendelian and susceptibility columns aligned -->
-                    <TableHead class="w-56">{{
-                      group.type === 'mendelian' ? 'Classification' : 'Risk association'
-                    }}</TableHead>
+                    <TableHead class="w-56">
+                      <DataTableColumnHeader
+                        :column="sortColumn('published', 'classification')"
+                        :title="group.type === 'mendelian' ? 'Classification' : 'Risk association'"
+                        :hideable="false"
+                      />
+                    </TableHead>
                     <TableHead>Evidence</TableHead>
-                    <TableHead class="w-28 text-right">Published</TableHead>
+                    <TableHead class="w-32 text-right">
+                      <DataTableColumnHeader
+                        :column="sortColumn('published', 'published')"
+                        title="Published"
+                        :hideable="false"
+                      />
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody class="max-lg:block" :aria-busy="store.loading">
@@ -304,9 +565,11 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
                     <TableRow v-else-if="!group.records.length">
                       <TableCell colspan="4" class="py-8 text-center text-muted-foreground">
                         {{
-                          geneFilter.trim()
-                            ? `No published associations for ${geneFilter.trim()}.`
-                            : 'No published associations yet.'
+                          searched
+                            ? `No published associations match “${searched}”.`
+                            : hasActiveFilters
+                              ? 'No published associations match these filters.'
+                              : 'No published associations yet.'
                         }}
                       </TableCell>
                     </TableRow>
@@ -314,28 +577,47 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
                 </TableBody>
               </Table>
             </section>
-            <p
-              v-if="store.publishedTotal > store.published.length"
-              class="text-sm text-muted-foreground"
-            >
-              Showing {{ store.published.length }} of {{ store.publishedTotal }}
-            </p>
+            <PaginationBar
+              v-if="store.publishedTotal"
+              class="px-0"
+              :page="store.publishedQuery.page"
+              :page-size="store.publishedQuery.size"
+              :total="store.publishedTotal"
+              :page-size-options="PAGE_SIZES"
+              noun="association"
+              @update:page="page => publishedPage({ page })"
+              @update:page-size="size => publishedPage({ size, page: 0 })"
+            />
           </CardContent>
         </Card>
 
         <template v-if="canCurate">
           <Card>
             <CardHeader class="flex flex-row flex-wrap items-center justify-between gap-3">
-              <CardTitle tag="h2" class="text-xl">Curation workflow</CardTitle>
-              <div class="flex flex-wrap gap-2">
+              <CardTitle id="gda-workflow-heading" tag="h2" class="scroll-mt-20 text-xl">
+                Curation workflow
+              </CardTitle>
+              <div class="flex flex-wrap items-center gap-2">
+                <form role="search" @submit.prevent="searchWorkflow">
+                  <Input
+                    v-model="wfSearch"
+                    type="search"
+                    aria-label="Search the curation workflow"
+                    placeholder="Gene, disease or ID"
+                    class="h-8 w-56"
+                    @input="searchWorkflowSoon"
+                  />
+                </form>
                 <Button
                   size="sm"
                   variant="outline"
-                  :aria-pressed="pendingOnly"
+                  :aria-pressed="store.workflowQuery.pendingHuman"
                   data-testid="wf-pending-human"
-                  @click="pendingOnly = !pendingOnly"
+                  @click="
+                    store.loadWorkflow({ pendingHuman: !store.workflowQuery.pendingHuman, page: 0 })
+                  "
                 >
-                  Pending human review ({{ pendingCount }})
+                  Pending human review ({{ store.pendingHumanTotal }})
                 </Button>
                 <Button v-if="!formOpen" size="sm" @click="openForm(null)">
                   <Plus aria-hidden="true" />New draft
@@ -343,19 +625,41 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
               </div>
             </CardHeader>
             <CardContent>
+              <PaginationBar
+                :class="['px-0', { invisible: !store.workflowTotal }]"
+                :page="store.workflowQuery.page"
+                :page-size="store.workflowQuery.size"
+                :total="store.workflowTotal"
+                :page-size-options="PAGE_SIZES"
+                noun="record"
+                @update:page="page => workflowPage({ page })"
+                @update:page-size="size => workflowPage({ size, page: 0 })"
+              />
               <Table class="max-lg:block">
                 <TableHeader class="max-lg:sr-only">
                   <TableRow>
                     <TableHead class="w-16">MOI</TableHead>
-                    <TableHead class="w-56">Classification</TableHead>
+                    <TableHead class="w-56">
+                      <DataTableColumnHeader
+                        :column="sortColumn('workflow', 'classification')"
+                        title="Classification"
+                        :hideable="false"
+                      />
+                    </TableHead>
                     <TableHead>Evidence</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>
+                      <DataTableColumnHeader
+                        :column="sortColumn('workflow', 'updated')"
+                        title="Status · updated"
+                        :hideable="false"
+                      />
+                    </TableHead>
                     <TableHead class="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody class="max-lg:block">
                   <AssociationRows
-                    :records="workflowRecords"
+                    :records="store.workflow"
                     :trailing="2"
                     :row-test-id="r => `wf-${r.id}`"
                   >
@@ -413,23 +717,30 @@ const fmtDate = (d: string | null) => (d ? d.slice(0, 10) : '—')
                       </TableCell>
                     </template>
                   </AssociationRows>
-                  <TableRow v-if="!workflowRecords.length && !store.loading">
+                  <TableRow v-if="!store.workflow.length && !store.loading">
                     <TableCell colspan="5" class="py-8 text-center text-muted-foreground">
                       {{
-                        pendingOnly
+                        store.workflowQuery.pendingHuman
                           ? 'No records pending human review.'
-                          : 'No associations in the workflow.'
+                          : store.workflowQuery.q.trim()
+                            ? `No workflow records match “${store.workflowQuery.q.trim()}”.`
+                            : 'No associations in the workflow.'
                       }}
                     </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
-              <p
-                v-if="store.workflowTotal > store.workflow.length"
-                class="text-sm text-muted-foreground"
-              >
-                Showing {{ store.workflow.length }} of {{ store.workflowTotal }}
-              </p>
+              <PaginationBar
+                v-if="store.workflowTotal"
+                class="px-0"
+                :page="store.workflowQuery.page"
+                :page-size="store.workflowQuery.size"
+                :total="store.workflowTotal"
+                :page-size-options="PAGE_SIZES"
+                noun="record"
+                @update:page="page => workflowPage({ page })"
+                @update:page-size="size => workflowPage({ size, page: 0 })"
+              />
             </CardContent>
           </Card>
 

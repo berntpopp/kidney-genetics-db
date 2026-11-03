@@ -94,7 +94,7 @@ class OddsRatioCiLow(RootModel[float]):
 
 
 class RiskAllele(RootModel[str]):
-    root: Annotated[str, Field(max_length=100, min_length=1, title="Risk Allele")]
+    root: Annotated[str, Field(max_length=255, min_length=1, title="Risk Allele")]
 
 
 class AssociationResponse(BaseModel):
@@ -136,6 +136,9 @@ class AssociationResponse(BaseModel):
     external_id: Annotated[str | None, Field(title="External Id")] = None
     external_reviewer: Annotated[str | None, Field(title="External Reviewer")] = None
     external_url: Annotated[str | None, Field(title="External Url")] = None
+    gene_association_count: Annotated[
+        int | None, Field(title="Gene Association Count")
+    ] = None
     gene_id: Annotated[int, Field(title="Gene Id")]
     gene_symbol: Annotated[str, Field(title="Gene Symbol")]
     human_reviewed_at: Annotated[
@@ -167,6 +170,9 @@ class AssociationResponse(BaseModel):
     reviewer_id: Annotated[int | None, Field(title="Reviewer Id")] = None
     risk_allele: Annotated[str | None, Field(title="Risk Allele")] = None
     scores: Annotated[dict[str, Any] | None, Field(title="Scores")] = None
+    shared_risk_allele_genes: Annotated[
+        list[str] | None, Field(title="Shared Risk Allele Genes")
+    ] = []
     source: Annotated[Literal["kgdb", "gene_curator"], Field(title="Source")]
     status: Annotated[Literal["draft", "in_review", "published"], Field(title="Status")]
     submitted_at: Annotated[AwareDatetime | None, Field(title="Submitted At")] = None
@@ -910,6 +916,43 @@ class NetworkClusterResponse(BaseModel):
     ] = None
 
 
+class KidneyPhenotypeVia(RootModel[str]):
+    root: Annotated[
+        str, Field(max_length=500, min_length=0, title="Kidney Phenotype Via")
+    ]
+
+
+class ModeOfInheritance(RootModel[str]):
+    root: Annotated[
+        str, Field(max_length=100, min_length=0, title="Mode Of Inheritance")
+    ]
+
+
+class MondoId(RootModel[str]):
+    root: Annotated[str, Field(pattern="^MONDO:\\d{7}$", title="Mondo Id")]
+
+
+class Note(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, min_length=0, title="Note")]
+
+
+class NonKidneyEntity(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    disease_name: Annotated[
+        str, Field(max_length=255, min_length=1, title="Disease Name")
+    ]
+    kidney_phenotype_via: Annotated[
+        KidneyPhenotypeVia | None, Field(title="Kidney Phenotype Via")
+    ] = None
+    mode_of_inheritance: Annotated[
+        ModeOfInheritance | None, Field(title="Mode Of Inheritance")
+    ] = None
+    mondo_id: Annotated[MondoId | None, Field(title="Mondo Id")] = None
+    note: Annotated[Note | None, Field(title="Note")] = None
+
+
 class NormalizationStatsResponse(BaseModel):
     by_source: Annotated[dict[str, dict[str, Any]], Field(title="By Source")]
     success_rate: Annotated[float, Field(title="Success Rate")]
@@ -985,6 +1028,7 @@ class RecommendedTranscript(BaseModel):
 
 
 class ReleaseResponse(BaseModel):
+    association_count: Annotated[int | None, Field(title="Association Count")] = None
     citation_text: Annotated[str | None, Field(title="Citation Text")] = None
     created_at: Annotated[AwareDatetime, Field(title="Created At")]
     doi: Annotated[str | None, Field(title="Doi")] = None
@@ -992,6 +1036,9 @@ class ReleaseResponse(BaseModel):
     export_file_path: Annotated[str | None, Field(title="Export File Path")] = None
     gene_count: Annotated[int | None, Field(title="Gene Count")] = None
     id: Annotated[int, Field(title="Id")]
+    no_association_count: Annotated[int | None, Field(title="No Association Count")] = (
+        None
+    )
     published_at: Annotated[AwareDatetime | None, Field(title="Published At")] = None
     published_by_id: Annotated[int | None, Field(title="Published By Id")] = None
     release_date: Annotated[AwareDatetime | None, Field(title="Release Date")] = None
@@ -1111,6 +1158,39 @@ class SettingCategory(
             "features",
         ],
         Field(description="Setting category enum", title="SettingCategory"),
+    ]
+
+
+class EvidenceQuote(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, min_length=0, title="Evidence Quote")]
+
+
+class Finding(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, min_length=0, title="Finding")]
+
+
+class RecordId(RootModel[str]):
+    root: Annotated[str, Field(max_length=100, min_length=1)]
+
+
+class SourceChecked(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    evidence_quote: Annotated[EvidenceQuote | None, Field(title="Evidence Quote")] = (
+        None
+    )
+    finding: Annotated[Finding | None, Field(title="Finding")] = None
+    pmid: Annotated[str | None, Field(title="Pmid")] = None
+    record_ids: Annotated[
+        list[RecordId] | None,
+        Field(max_length=50, title="Record Ids", validate_default=True),
+    ] = []
+    source: Annotated[
+        Literal[
+            "clingen", "gencc", "omim", "hpo", "genereviews", "literature", "other"
+        ],
+        Field(title="Source"),
     ]
 
 
@@ -1265,11 +1345,6 @@ class Verified(BaseModel):
     ]
 
 
-class AssociationList(BaseModel):
-    data: Annotated[list[AssociationResponse], Field(title="Data")]
-    meta: Annotated[dict[str, int], Field(title="Meta")]
-
-
 class Detectability(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -1302,6 +1377,31 @@ class HTTPValidationError(BaseModel):
     detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
 
 
+class NoAssociationResponse(BaseModel):
+    ai_agents: Annotated[list[str] | None, Field(title="Ai Agents")] = None
+    approval_kind: Annotated[Literal["human", "ai"], Field(title="Approval Kind")]
+    approval_model: Annotated[str | None, Field(title="Approval Model")] = None
+    approved_at: Annotated[AwareDatetime | None, Field(title="Approved At")] = None
+    evidence_summary: Annotated[str | None, Field(title="Evidence Summary")] = None
+    external_curator: Annotated[str | None, Field(title="External Curator")] = None
+    external_id: Annotated[str, Field(title="External Id")]
+    external_reviewer: Annotated[str | None, Field(title="External Reviewer")] = None
+    external_url: Annotated[str, Field(title="External Url")]
+    gene_symbol: Annotated[str, Field(title="Gene Symbol")]
+    id: Annotated[int, Field(title="Id")]
+    methodology: Annotated[str | None, Field(title="Methodology")] = None
+    methodology_version: Annotated[str | None, Field(title="Methodology Version")] = (
+        None
+    )
+    non_kidney_entities: Annotated[
+        list[NonKidneyEntity], Field(title="Non Kidney Entities")
+    ]
+    rationale: Annotated[str, Field(title="Rationale")]
+    source: Annotated[Literal["gene_curator"], Field(title="Source")] = "gene_curator"
+    sources_checked: Annotated[list[SourceChecked], Field(title="Sources Checked")]
+    updated_at: Annotated[AwareDatetime, Field(title="Updated At")]
+
+
 class ReleaseList(BaseModel):
     data: Annotated[list[ReleaseResponse], Field(title="Data")]
     meta: Annotated[dict[str, int], Field(title="Meta")]
@@ -1332,6 +1432,12 @@ class Resource(BaseModel):
     ]
     url: Annotated[str, Field(max_length=2000, title="Url")]
     verified: Verified
+
+
+class AssociationList(BaseModel):
+    data: Annotated[list[AssociationResponse], Field(title="Data")]
+    meta: Annotated[dict[str, int], Field(title="Meta")]
+    no_association: NoAssociationResponse | None = None
 
 
 class Diagnostics(BaseModel):

@@ -282,6 +282,22 @@
             </div>
 
             <div
+              v-if="selectedRelease.association_count != null"
+              data-testid="release-curated-counts"
+              class="flex items-center gap-3 border-b pb-2"
+            >
+              <ClipboardCheck class="size-5 text-muted-foreground" aria-hidden="true" />
+              <div>
+                <div class="text-xs text-muted-foreground">Curated Data</div>
+                <span class="text-sm"
+                  >{{ selectedRelease.association_count.toLocaleString() }} associations,
+                  {{ (selectedRelease.no_association_count ?? 0).toLocaleString() }}
+                  no-association statements</span
+                >
+              </div>
+            </div>
+
+            <div
               v-if="selectedRelease.export_checksum"
               class="flex items-center gap-3 border-b pb-2"
             >
@@ -408,6 +424,7 @@ import {
   Calendar,
   CalendarCheck,
   CircleCheck,
+  ClipboardCheck,
   Copy,
   Dna,
   Download,

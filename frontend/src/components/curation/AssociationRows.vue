@@ -36,6 +36,8 @@ const props = defineProps<{
 
 defineSlots<{ trailing(_props: { record: Association }): unknown }>()
 
+const LINK =
+  'rounded-sm text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
 const STACK = 'max-lg:block max-lg:min-w-0 max-lg:max-w-none max-lg:px-0 max-lg:py-1'
 const colspan = 3 + props.trailing
 const open = ref(new Set<number>())
@@ -57,6 +59,7 @@ function pairs(records: Association[]) {
   return [...map.entries()].map(([key, pair]) => ({ key, ...pair }))
 }
 
+const geneCount = (pair: { rows: Association[] }) => pair.rows[0]?.gene_association_count ?? 0
 const hasDiagnostics = (r: Association) =>
   !!r.diagnostics &&
   (!!r.diagnostics.recommended_transcript ||
@@ -92,11 +95,20 @@ const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
           <span class="min-w-0 whitespace-normal [overflow-wrap:anywhere]">
             <OntologyTerm :id="pair.id" :name="pair.name" />
           </span>
+          <!-- The gene may have more entities than this pair, possibly in the other table (#539) -->
+          <RouterLink
+            v-if="geneCount(pair) > pair.rows.length"
+            data-testid="gda-gene-count"
+            :to="`/curation/associations/${pair.gene}`"
+            :class="['ml-auto text-xs tabular-nums', LINK]"
+          >
+            All {{ geneCount(pair) }} {{ pair.gene }} associations
+          </RouterLink>
           <span
-            v-if="pair.rows.length > 1"
+            v-else-if="pair.rows.length > 1"
             class="ml-auto text-xs text-muted-foreground tabular-nums"
           >
-            {{ pair.rows.length }} records
+            {{ pair.rows.length }} associations
           </span>
         </div>
       </th>
@@ -117,12 +129,20 @@ const citationTerms = (r: Association) => r.citations.map(id => ({ id }))
             />
             <Chip v-else :classification="r.evidence_strength" />
             <ReviewChip :record="r" />
-            <span
-              v-if="r.risk_allele"
-              class="font-mono text-xs text-muted-foreground"
-              :title="`Risk allele ${r.risk_allele}`"
-              >{{ r.risk_allele }}</span
-            >
+            <span v-if="r.risk_allele" class="text-xs text-muted-foreground">
+              <span class="font-mono" :title="`Risk allele ${r.risk_allele}`">{{
+                r.risk_allele
+              }}</span>
+              <template v-if="r.shared_risk_allele_genes?.length">
+                · shared with
+                <template v-for="(g, i) in r.shared_risk_allele_genes" :key="g"
+                  >{{ i ? ', ' : ''
+                  }}<RouterLink :to="`/curation/associations/${g}`" :class="LINK">{{
+                    g
+                  }}</RouterLink></template
+                >
+              </template>
+            </span>
             <Chip
               v-if="r.clinical_group"
               kind="neutral"

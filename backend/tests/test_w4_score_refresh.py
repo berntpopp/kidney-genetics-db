@@ -104,7 +104,7 @@ def test_release_export_uses_fresh_scores(db_session, tmp_path):
     )
     service = ReleaseService(db_session)
     service.export_dir = tmp_path
-    path, _ = service._export_release_sync("w4", datetime.now(timezone.utc))
+    path, *_ = service._export_release_sync("w4", datetime.now(timezone.utc))
     genes = {g["approved_symbol"]: g for g in json.loads(path.read_text())["genes"]}
     assert genes["W4REL"]["scores"]["source_scores"] == {"ClinGen": 1.0}
 
