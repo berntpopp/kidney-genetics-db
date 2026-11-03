@@ -168,7 +168,7 @@
             @retry="fetchAnnotations"
           />
 
-          <GeneCuratedAssociations :records="curated" />
+          <GeneCuratedAssociations :records="curated" :no-association="noAssociation" />
 
           <section aria-labelledby="evidence-heading" class="space-y-3">
             <h2 id="evidence-heading" class="text-xl font-semibold">Evidence by source</h2>
@@ -273,6 +273,7 @@ const evidenceError = ref(null)
 const annotationsError = ref(null)
 const { copied, copy, download, printPdf } = useShareExport()
 const curated = ref([])
+const noAssociation = ref(null) // Gene Curator: no primary kidney association (#535)
 
 const symbol = computed(() => gene.value?.approved_symbol ?? String(route.params.symbol ?? ''))
 const firstAnnotation = source => annotations.value?.annotations?.[source]?.[0]?.data ?? null
@@ -371,9 +372,9 @@ const fetchGeneDetails = async () => {
 // Published records only (the public endpoint); none or a failed request shows nothing (issue 379)
 const fetchCurated = async () => {
   try {
-    curated.value = (
-      await curationApi.listPublished({ gene_symbol: gene.value.approved_symbol })
-    ).data
+    const list = await curationApi.listPublished({ gene_symbol: gene.value.approved_symbol })
+    curated.value = list.data
+    noAssociation.value = list.no_association ?? null
   } catch (error) {
     window.logService.warn('Curated associations unavailable', error)
   }

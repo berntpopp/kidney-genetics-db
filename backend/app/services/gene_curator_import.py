@@ -34,6 +34,7 @@ from app.models.gene import Gene
 from app.models.gene_disease_association import CLINICAL_GROUPS, MOI_TERMS
 from app.models.gene_disease_association import GeneDiseaseAssociation as GDA
 from app.models.gene_disease_association import GeneDiseaseAssociationEvent as Event
+from app.models.gene_disease_association import GeneNoAssociationAssessment as Assessment
 from app.models.user import User
 from app.schemas.gene_disease_association import (
     ADOPTED,
@@ -41,8 +42,10 @@ from app.schemas.gene_disease_association import (
     ClinicalGroup,
     Detectability,
     Diagnostics,
+    NonKidneyEntity,
     RecommendedTranscript,
     Resource,
+    SourceChecked,
 )
 from app.services.gene_disease_association_service import (
     IMPORT_USERNAME,
@@ -78,6 +81,9 @@ CLASSES = {
         "refuted": "Refuted association",
     },
 }
+# A gene-level "no primary kidney association" assessment (#535): its own table, no disease
+NO_ASSOCIATION = "no_association"
+NO_ASSOCIATION_CLASS = "no_primary_kidney_association"
 SCOPE = "kidney-genetics"  # the only Gene Curator scope KGDB imports
 MOI_ROOT = "HP:0000005"  # HPO "Mode of inheritance": no particular mode
 UNDETERMINED_MOI = {
@@ -456,6 +462,154 @@ def _curation_id(item: dict[str, Any]) -> str:
     return str(UUID(item["curation_id"]))  # one spelling for storage and lookup
 
 
+def _entries(
+    evidence: dict[str, Any],
+    key: str,
+    model: type[BaseModel],
+    texts: tuple[str, ...],
+    dropped: list[str],
+) -> list[dict[str, Any]]:
+    """Each listed source or entity is checked on its own: a malformed one is dropped and
+    reported, never fatal to the assessment."""
+    out = []
+    for i, entry in enumerate(_shaped(evidence.get(key) or [], list, f".{key}")):
+        path = f"{key}[{i}]"
+        if not isinstance(entry, dict):
+            dropped.append(f"{path} (not an object)")
+            continue
+        entry = _known(model, _clean(entry), f"{key}[]", dropped)
+        if isinstance(entry.get("record_ids"), str):  # GC exports a "; "-separated string
+            entry["record_ids"] = [
+                r.strip() for r in re.split(r"[;,]", entry["record_ids"]) if r.strip()
+            ]
+        for field in texts:
+            entry[field] = public_text(entry.get(field), f"{path}.{field}", dropped)
+        if entry.get("mondo_id"):
+            entry["mondo_id"] = entry["mondo_id"].replace("_", ":", 1)  # GC keeps MONDO_ as typed
+        try:
+            out.append(model(**entry).model_dump(exclude_none=True))
+        except PydanticValidationError as e:
+            dropped.append(f"{path} ({'; '.join(_reasons(e))})")
+    return out
+
+
+def _assessment_values(item: dict[str, Any], dropped: list[str]) -> dict[str, Any]:
+    """Map a no_association export row to the assessment; ValueError when KGDB cannot hold it."""
+    if item["scope_name"] != SCOPE:
+        raise ValueError(f"scope {item['scope_name']!r} is not {SCOPE!r}")
+    if _key(item.get("final_classification")) != NO_ASSOCIATION_CLASS:
+        raise ValueError(
+            f"classification {item.get('final_classification')!r} is not {NO_ASSOCIATION_CLASS!r}"
+        )
+    if item.get("evidence") is None:
+        raise ValueError("evidence is null: export with a kidney-genetics member's token")
+    evidence = _shaped(item["evidence"], dict, "")
+    rationale = public_text(evidence.get("rationale") or None, "rationale", dropped)
+    if not rationale:
+        raise ValueError("no rationale: the assessment must say why there is no association")
+    methodology = item.get("methodology") or {}
+    approval = _approval(item)
+    return {
+        "rationale": rationale,
+        "evidence_summary": public_text(
+            evidence.get("evidence_summary") or None, "evidence_summary", dropped
+        ),
+        "sources_checked": _entries(
+            evidence, "sources_checked", SourceChecked, ("finding", "evidence_quote"), dropped
+        ),
+        "non_kidney_entities": _entries(
+            evidence,
+            "non_kidney_entities",
+            NonKidneyEntity,
+            ("note", "kidney_phenotype_via"),
+            dropped,
+        ),
+        "methodology": methodology.get("schema_name") or None,
+        "methodology_version": (
+            str(methodology["version"]) if methodology.get("version") is not None else None
+        ),
+        "external_url": item["url"],
+        "external_curator": item.get("curator_name") or None,
+        "external_reviewer": item.get("reviewer_name") or None,
+        "ai_agents": _ai_agents(item),
+        "approval_kind": approval["kind"],
+        "approval_model": approval["model"],
+        "approved_at": (
+            datetime.fromisoformat(item["approved_at"]) if item.get("approved_at") else None
+        ),
+    }
+
+
+def _import_assessment(db: Session, item: dict[str, Any], report: dict[str, Any]) -> None:
+    """Create, refresh or archive a gene's "no primary kidney association" assessment (#535)."""
+    ref = {
+        "curation_id": _curation_id(item),
+        "gene_symbol": item["approved_symbol"],
+        "hgnc_id": item["hgnc_id"],
+        "entity_key": item["entity_key"],
+    }
+    row = db.query(Assessment).filter_by(external_id=ref["curation_id"]).first()
+    # Gene Curator never reactivates an archived curation, so an archived row stays archived
+    if row is not None and row.status == "archived":
+        report["already_imported"].append(ref)
+        return
+    if item["status"] != "active":  # deleted, re-curated, or a real association won in GC
+        if row is None:
+            reason = f"curation is {item['status']} in Gene Curator ({item.get('archive_reason')})"
+            report["rejected"].append({**ref, "reason": reason})
+            return
+        row.status = "archived"
+        db.commit()
+        report["no_association_archived"].append(ref)
+        return
+    gene = db.query(Gene).filter(Gene.hgnc_id == item["hgnc_id"]).first()
+    if gene is None:
+        report["genes_not_in_kgdb"].append(ref)
+        return
+    dropped: list[str] = []
+    try:
+        values = _assessment_values(item, dropped)
+    except (ValueError, TypeError, AttributeError) as e:
+        report["rejected"].append({**ref, "reason": str(e)})
+        return
+    if dropped:
+        report["dropped_fields"].append({**ref, "fields": sorted(set(dropped))})
+    # A curated association of the gene takes precedence over the assessment
+    association = db.query(GDA).filter(GDA.gene_id == gene.id).order_by(GDA.id).first()
+    if association is not None:
+        report["conflicts"].append(
+            {
+                **ref,
+                "reason": "the gene has a curated association, which takes precedence over "
+                "a no-association assessment",
+                "existing_record_id": association.id,
+                "existing_source": association.source,
+                "existing_status": association.status,
+            }
+        )
+        return
+    if row is not None and all(getattr(row, k) == v for k, v in values.items()):
+        report["already_imported"].append(ref)
+        return
+    current = db.query(Assessment).filter_by(gene_id=gene.id, status="active").first()
+    replaced = row is not None or current is not None
+    if current is not None and current is not row:  # a newer Gene Curator assessment
+        current.status = "archived"
+        db.flush()  # one active assessment per gene (uq_gnaa_active_gene)
+    if row is None:
+        row = Assessment(gene_id=gene.id, external_id=ref["curation_id"], status="active")
+        db.add(row)
+    for key, value in values.items():
+        setattr(row, key, value)
+    try:
+        db.commit()
+    except (IntegrityError, DataError) as e:  # a concurrent upload, or a check the code lacks
+        db.rollback()
+        report["rejected"].append({**ref, "reason": str(e.orig)})
+        return
+    report["no_association_replaced" if replaced else "no_association_created"].append(ref)
+
+
 def _import_row(
     db: Session, item: dict[str, Any], author: User, admin: User, report: dict[str, Any]
 ) -> None:
@@ -595,10 +749,16 @@ def import_export(db: Session, items: list[dict[str, Any]], admin: User) -> dict
         "rejected": [],
         "genes_not_in_kgdb": [],
         "dropped_fields": [],
+        "no_association_created": [],
+        "no_association_replaced": [],
+        "no_association_archived": [],
     }
     author = import_account(db)
     for item in {_curation_id(i): i for i in items}.values():  # pages may overlap
-        _import_row(db, item, author, admin, report)
+        if item.get("relationship_type") == NO_ASSOCIATION:
+            _import_assessment(db, item, report)
+        else:
+            _import_row(db, item, author, admin, report)
     logger.sync_info(
         "Gene Curator import finished",
         rows=len(items),

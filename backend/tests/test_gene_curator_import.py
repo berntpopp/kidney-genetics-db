@@ -553,6 +553,16 @@ def test_each_named_risk_allele_is_its_own_entity(db_session, genes, admin) -> N
         gc._values(_row(MENDELIAN, risk_allele="rs1 A"), [])
 
 
+@pytest.mark.integration
+def test_a_long_risk_allele_imports(db_session, genes, admin) -> None:
+    long_allele = "a" * 110  # as long as the APOL1 allele the old 100-character limit rejected
+    with pytest.raises(ValueError, match="at most 255 characters"):
+        gc._values(_row(SUSCEPTIBILITY, risk_allele="x" * 256), [])
+    report = gc.import_export(db_session, [_row(SUSCEPTIBILITY, risk_allele=long_allele)], admin)
+    assert len(report["created"]) == 1 and not report["rejected"]
+    assert [r.risk_allele for r in _records(db_session)] == [long_allele]
+
+
 def test_values_keep_a_long_synopsis() -> None:
     evidence = {**copy.deepcopy(MENDELIAN["evidence"]), "evidence_summary": "x" * 3000}
     assert len(gc._values(_row(MENDELIAN, evidence=evidence), [])["evidence_summary"]) == 3000
@@ -606,8 +616,19 @@ async def test_human_review_endpoint(async_client, db_session, genes, admin, cur
             db_session, record.id, ReviewDecision(**seen), gc.import_account(db_session)
         )
     db_session.rollback()
+
+    async def pending() -> set[int]:
+        resp = await async_client.get(
+            "/api/curation/associations/workflow",
+            params={"pending_human": True},
+            headers=_bearer(curator),
+        )
+        return {r["id"] for r in resp.json()["data"]}
+
+    assert record.id in await pending()
     response = await async_client.post(url, json=seen, headers=_bearer(curator))
     assert response.status_code == 200, response.text
+    assert record.id not in await pending()
     body = response.json()
     assert body["human_reviewed_at"] and body["human_reviewer_name"]
     assert body["approval_kind"] == "ai" and body["status"] == "published"
@@ -693,3 +714,185 @@ def test_a_changed_reexport_refreshes_an_untouched_import(
     assert again["replaced"] == []
     db_session.refresh(record)
     assert (record.evidence_summary, record.clinical_group["primary"]) == ("edited", "cakut")
+
+
+# A gene-level "no primary kidney association" assessment (#535)
+NO_ASSOCIATION = _row(
+    MENDELIAN,
+    curation_id="11111111-0000-4000-8000-0000000000e1",
+    url="https://gene-curator.example.org/curations/11111111-0000-4000-8000-0000000000e1",
+    entity_key="",
+    relationship_type="no_association",
+    approved_symbol="GC448B",
+    hgnc_id="HGNC:99944802",
+    mondo_id=None,
+    disease_name=None,
+    mode_of_inheritance=None,
+    moi_hpo_id=None,
+    computed_verdict="no_primary_kidney_association",
+    final_classification="no_primary_kidney_association",
+    genetic_score=None,
+    experimental_score=None,
+    total_score=None,
+    pmids=["31000009"],
+    contributions=[
+        {"contributor": {"name": "agent-a", "agentType": "software"}, "activityType": {}}
+    ],
+    methodology={"schema_name": "KGDB No Kidney Association Curation", "version": 1},
+    evidence={
+        "rationale": "No curated disease of the gene has a primary kidney phenotype.",
+        "sources_checked": [
+            {"source": "clingen", "finding": "No curation.", "record_ids": [], "pmid": None},
+            {
+                "source": "literature",
+                "finding": "Kidney disease only in contiguous deletions.",
+                "pmid": "31000009",
+                "evidence_quote": "deleted together with COL4A5",
+            },
+            {"source": "pubmed", "finding": "unknown source"},
+            "not an object",
+        ],
+        "non_kidney_entities": [
+            {
+                "disease_name": "Hearing loss",
+                "mondo_id": "MONDO_0000001",
+                "mode_of_inheritance": "AD",
+                "note": "",
+                "kidney_phenotype_via": "contiguous deletion with COL4A5",
+            },
+            {"mondo_id": "MONDO:0000002"},
+        ],
+        "evidence_summary": "Looked up with GeneFoundry MCP tools. Not a kidney gene.",
+    },
+)
+ASSESSMENTS = "/api/curation/associations/"
+
+
+def _assessments(db_session) -> list:
+    return db_session.query(gc.Assessment).order_by(gc.Assessment.id).all()
+
+
+def test_no_association_rows_match_the_pinned_schema() -> None:
+    assert len(gc.parse_export(json.dumps(_page(NO_ASSOCIATION)).encode())) == 1
+
+
+@pytest.mark.integration
+def test_no_association_is_created_refreshed_and_archived(db_session, genes, admin) -> None:
+    report = gc.import_export(db_session, [NO_ASSOCIATION, MENDELIAN], admin)
+    assert len(report["no_association_created"]) == 1 and len(report["created"]) == 1
+    [row] = _assessments(db_session)
+    assert (row.gene_id, row.status, row.external_id) == (
+        genes[1].id,
+        "active",
+        NO_ASSOCIATION["curation_id"],
+    )
+    assert row.methodology == "KGDB No Kidney Association Curation"
+    assert (row.external_curator, row.external_reviewer) == ("Alice Curator", "Bob Reviewer")
+    assert (row.ai_agents, row.approval_kind) == (["agent-a"], "human")
+    assert row.evidence_summary == "Not a kidney gene."  # the working note is dropped
+    assert [s["source"] for s in row.sources_checked] == ["clingen", "literature"]
+    assert row.sources_checked[1]["pmid"] == "PMID:31000009"
+    assert row.non_kidney_entities == [
+        {
+            "disease_name": "Hearing loss",
+            "mondo_id": "MONDO:0000001",
+            "mode_of_inheritance": "AD",
+            "kidney_phenotype_via": "contiguous deletion with COL4A5",
+        }
+    ]
+    [entry] = [d for d in report["dropped_fields"] if d["gene_symbol"] == "GC448B"]
+    assert len(entry["fields"]) == 4 and "evidence_summary (working note)" in entry["fields"]
+
+    unchanged = gc.import_export(db_session, [NO_ASSOCIATION], admin)
+    assert len(unchanged["already_imported"]) == 1 and not unchanged["no_association_replaced"]
+    evidence = {**NO_ASSOCIATION["evidence"], "rationale": "Re-curated: still no kidney disease."}
+    changed = _row(NO_ASSOCIATION, evidence=evidence, **AI_ROW)
+    assert len(gc.import_export(db_session, [changed], admin)["no_association_replaced"]) == 1
+    db_session.refresh(row)
+    assert (row.rationale, row.approval_kind, row.approval_model) == (
+        "Re-curated: still no kidney disease.",
+        "ai",
+        "model-x",
+    )
+
+    archived = _row(NO_ASSOCIATION, status="archived", archive_reason="Curation deleted")
+    assert len(gc.import_export(db_session, [archived], admin)["no_association_archived"]) == 1
+    db_session.refresh(row)
+    assert row.status == "archived"
+    # an old file never brings an archived assessment back
+    assert gc.import_export(db_session, [NO_ASSOCIATION], admin)["already_imported"]
+    assert [r.status for r in _assessments(db_session)] == ["archived"]
+
+
+@pytest.mark.integration
+def test_a_newer_assessment_archives_the_older_one(db_session, genes, admin) -> None:
+    gc.import_export(db_session, [NO_ASSOCIATION], admin)
+    newer = _row(NO_ASSOCIATION, curation_id="11111111-0000-4000-8000-0000000000e2")
+    assert len(gc.import_export(db_session, [newer], admin)["no_association_replaced"]) == 1
+    assert [(r.external_id, r.status) for r in _assessments(db_session)] == [
+        (NO_ASSOCIATION["curation_id"], "archived"),
+        (newer["curation_id"], "active"),
+    ]
+
+
+@pytest.mark.integration
+async def test_a_curated_association_takes_precedence(
+    async_client, db_session, genes, admin
+) -> None:
+    # The assessment shows on the gene's list while the gene has no published association
+    gc.import_export(db_session, [NO_ASSOCIATION], admin)
+    body = (await async_client.get(ASSESSMENTS, params={"gene_symbol": "gc448b"})).json()
+    assert body["data"] == [] and body["no_association"]["rationale"].startswith("No curated")
+    assert body["no_association"]["sources_checked"][1]["pmid"] == "PMID:31000009"
+    assert (await async_client.get(ASSESSMENTS)).json()["no_association"] is None
+    # A published association of the gene hides it
+    published = _row(
+        MENDELIAN,
+        **AI_ROW,
+        curation_id="11111111-0000-4000-8000-0000000000e4",
+        approved_symbol="GC448B",
+        hgnc_id="HGNC:99944802",
+    )
+    gc.import_export(db_session, [published], admin)
+    body = (await async_client.get(ASSESSMENTS, params={"gene_symbol": "GC448B"})).json()
+    assert len(body["data"]) == 1 and body["no_association"] is None
+    # and an assessment for a gene with a curated association is not imported
+    other = _row(
+        NO_ASSOCIATION,
+        curation_id="11111111-0000-4000-8000-0000000000e3",
+        approved_symbol="GC448A",
+        hgnc_id="HGNC:99944801",
+    )
+    gc.import_export(db_session, [MENDELIAN], admin)
+    report = gc.import_export(db_session, [other], admin)
+    assert "takes precedence" in report["conflicts"][0]["reason"]
+    assert len(_assessments(db_session)) == 1
+
+
+@pytest.mark.integration
+def test_bad_no_association_rows_are_rejected_not_fatal(db_session, genes, admin) -> None:
+    def bad(n: int, **changes) -> dict:
+        return _row(
+            NO_ASSOCIATION, curation_id=f"11111111-0000-4000-8000-0000000000f{n}", **changes
+        )
+
+    rows = [
+        bad(1, final_classification="definitive"),
+        bad(2, evidence=None),
+        bad(3, evidence={**NO_ASSOCIATION["evidence"], "rationale": "Checked via the MCP tool."}),
+        bad(4, evidence={**NO_ASSOCIATION["evidence"], "sources_checked": "clingen"}),
+        bad(5, status="archived"),  # never imported, so nothing to archive
+        MENDELIAN,
+    ]
+    report = gc.import_export(db_session, rows, admin)
+    assert len(report["rejected"]) == 5 and len(report["created"]) == 1
+    assert _assessments(db_session) == []
+
+
+def test_no_association_record_ids_string_is_split(db_session, genes, admin) -> None:
+    # Gene Curator exports record_ids as one "; "-separated string; the row must survive
+    row = copy.deepcopy(NO_ASSOCIATION)
+    row["evidence"]["sources_checked"][0]["record_ids"] = "CGGV:assertion_1; HGNC:59, ORPHA:552"
+    report = gc.import_export(db_session, [row], admin)
+    assert len(report["no_association_created"]) == 1
+    assert not any("record_ids" in f for d in report["dropped_fields"] for f in d["fields"])

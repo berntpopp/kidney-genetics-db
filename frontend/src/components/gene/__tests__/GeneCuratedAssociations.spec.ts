@@ -5,7 +5,7 @@ import { h } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 vi.stubGlobal('logService', { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })
-import type { Association } from '@/api/curation'
+import type { Association, NoAssociationAssessment } from '@/api/curation'
 import GeneCuratedAssociations from '@/components/gene/GeneCuratedAssociations.vue'
 
 const RECORD = {
@@ -27,13 +27,15 @@ const RECORD = {
   published_at: '2026-10-02T00:00:00Z'
 } as Association
 
-async function mountFor(records: Association[]) {
+async function mountFor(records: Association[], noAssociation?: NoAssociationAssessment) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/:rest(.*)', component: { render: () => null } }]
   })
   const w = mount(
-    { render: () => h(TooltipProvider, () => h(GeneCuratedAssociations, { records })) },
+    {
+      render: () => h(TooltipProvider, () => h(GeneCuratedAssociations, { records, noAssociation }))
+    },
     { global: { plugins: [router] } }
   )
   await flushPromises()
@@ -113,8 +115,160 @@ describe('GeneCuratedAssociations', () => {
     expect(await notes({ ...RECORD, odds_ratio: 1.6 } as Association)).toEqual([])
   })
 
+  describe('several associations (#539)', () => {
+    const entity = (id: number, o: Partial<Association>) =>
+      ({ ...RECORD, id, gene_symbol: 'CASR', relationship_type: 'mendelian', ...o }) as Association
+    const ADH1 = entity(1, {
+      disease_id: 'MONDO:0011013',
+      disease_name: 'autosomal dominant hypocalcemia 1',
+      moi: 'HP:0000006'
+    })
+    const FHH1 = entity(2, {
+      disease_id: 'MONDO:0007791',
+      disease_name: 'familial hypocalciuric hypercalcemia 1',
+      moi: 'HP:0000006'
+    })
+    const NSHPT = entity(3, {
+      disease_id: 'MONDO:0009397',
+      disease_name: 'neonatal severe primary hyperparathyroidism',
+      moi: 'HP:0000007',
+      evidence_strength: 'Strong'
+    })
+    const overviewRows = (w: Awaited<ReturnType<typeof mountFor>>) =>
+      w.findAll('[data-testid="gda-overview-row"]').map(r => r.text())
+
+    it('keeps a single association without count or overview', async () => {
+      const w = await mountFor([RECORD])
+      expect(w.find('[data-testid="gda-count"]').exists()).toBe(false)
+      expect(w.find('[data-testid="gda-overview"]').exists()).toBe(false)
+      expect(w.find('h4').text()).toContain('polycystic kidney disease 1')
+    })
+
+    it('counts two associations and says different classes are not a conflict', async () => {
+      const w = await mountFor([NSHPT, FHH1])
+      expect(w.find('[data-testid="gda-count"]').text()).toBe('· 2')
+      expect(w.find('caption').text()).toContain('not a conflict')
+      // Strongest first, whatever order the API sent
+      expect(overviewRows(w)[0]).toContain('familial hypocalciuric hypercalcemia 1')
+      expect(overviewRows(w)[1]).toContain('Strong')
+    })
+
+    it('gives 3+ associations one overview row each, linked to a record headed by its disease', async () => {
+      const w = await mountFor([NSHPT, FHH1, ADH1])
+      expect(w.find('[data-testid="gda-count"]').text()).toBe('· 3')
+      expect(overviewRows(w)).toHaveLength(3)
+      // Same class: disease name decides the order, never the MONDO number
+      expect(overviewRows(w)[0]).toContain('autosomal dominant hypocalcemia 1')
+      for (const link of w.findAll('[data-testid="gda-overview-row"] a[href^="#gda-"]'))
+        expect(w.find(link.attributes('href')!).find('h4').text()).toContain(link.text())
+      expect(w.findAll('li h4').map(h => h.text().split('MONDO')[0])).toEqual([
+        'autosomal dominant hypocalcemia 1',
+        'familial hypocalciuric hypercalcemia 1',
+        'neonatal severe primary hyperparathyroidism'
+      ])
+    })
+
+    it('shows a Mendelian and a susceptibility association apart, with their type', async () => {
+      const risk = entity(4, {
+        gene_symbol: 'CFH',
+        disease_id: 'MONDO:0016244',
+        disease_name: 'atypical hemolytic-uremic syndrome',
+        relationship_type: 'susceptibility',
+        evidence_strength: 'Likely association',
+        risk_allele: 'CFH-H3 haplotype'
+      })
+      const w = await mountFor([
+        risk,
+        { ...ADH1, disease_name: 'atypical hemolytic-uremic syndrome' }
+      ])
+      const rows = overviewRows(w)
+      expect(rows[0]).toContain('Definitive')
+      expect(rows[0]).toContain('Mendelian')
+      expect(rows[1]).toContain('Likely association')
+      expect(rows[1]).toContain('Susceptibility')
+      expect(w.find('[data-testid="gda-mendelian"]').text()).not.toContain('Likely association')
+      expect(w.find('[data-testid="gda-susceptibility"]').text()).toContain('CFH-H3 haplotype')
+    })
+
+    it('says when a risk allele is shared with another gene, so it is counted once', async () => {
+      const cfhr3 = entity(5, {
+        gene_symbol: 'CFHR3',
+        relationship_type: 'susceptibility',
+        evidence_strength: 'Uncertain association',
+        risk_allele: 'CFHR3-CFHR1 deletion',
+        shared_risk_allele_genes: ['CFHR1']
+      })
+      const w = await mountFor([cfhr3])
+      const record = w.find('[data-testid="gda-susceptibility"]')
+      expect(record.text()).toContain('shared evidence, count it once')
+      expect(record.find('a[href="/curation/associations/CFHR1"]').text()).toBe('CFHR1')
+    })
+  })
+
   // A failed request is GeneDetail's concern now (it fetches the records): see GeneDetail.spec.ts
   it('renders nothing without records', async () => {
     expect((await mountFor([])).html()).not.toContain('Expert-reviewed')
+  })
+
+  describe('no primary kidney association (#535)', () => {
+    const ASSESSMENT: NoAssociationAssessment = {
+      id: 1,
+      gene_symbol: 'ARHGEF6',
+      rationale: 'No curated disease of the gene has a primary kidney phenotype.',
+      evidence_summary: null,
+      sources_checked: [
+        { source: 'clingen', finding: 'No curation.' },
+        {
+          source: 'literature',
+          finding: 'Kidney disease only in contiguous deletions.',
+          pmid: 'PMID:31000009',
+          evidence_quote: 'deleted together with COL4A5'
+        }
+      ],
+      non_kidney_entities: [
+        {
+          disease_name: 'X-linked intellectual disability',
+          mondo_id: 'MONDO:0000001',
+          kidney_phenotype_via: 'contiguous deletion with COL4A5'
+        }
+      ],
+      methodology: 'KGDB No Kidney Association Curation',
+      methodology_version: '1',
+      source: 'gene_curator',
+      external_id: 'abc',
+      external_url: 'https://gene-curator.org/curations/abc',
+      external_curator: 'agent-a',
+      external_reviewer: 'agent-b',
+      ai_agents: ['agent-a'],
+      approval_kind: 'ai',
+      approval_model: 'model-x',
+      approved_at: '2026-11-01T00:00:00Z',
+      updated_at: '2026-11-01T00:00:00Z'
+    }
+
+    it('states it calmly with rationale, sources, entities and provenance', async () => {
+      const w = await mountFor([], ASSESSMENT)
+      const s = w.find('[data-testid="gda-no-association"]')
+      expect(s.find('h3').text()).toBe('No primary kidney gene–disease association (curated)')
+      expect(s.text()).toContain(ASSESSMENT.rationale)
+      expect(s.text()).toContain('ClinGen · No curation.')
+      expect(s.text()).toContain('deleted together with COL4A5')
+      expect(s.find('a[href="https://pubmed.ncbi.nlm.nih.gov/31000009/"]').exists()).toBe(true)
+      expect(s.text()).toContain('X-linked intellectual disability')
+      expect(s.text()).toContain('Kidney phenotype via contiguous deletion with COL4A5')
+      expect(s.text()).toContain('AI-reviewed · pending human review')
+      const rows = Object.fromEntries(
+        s.findAll('dt').map(dt => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()])
+      )
+      expect(rows['Methodology']).toBe('KGDB No Kidney Association Curation, version 1')
+      expect(rows['Reviewed by']).toContain('agent-b')
+      expect(rows['Approved']).toBe('2026-11-01')
+    })
+
+    it('is not shown beside a curated association', async () => {
+      const w = await mountFor([RECORD], ASSESSMENT)
+      expect(w.find('[data-testid="gda-no-association"]').exists()).toBe(false)
+      expect(w.text()).toContain('Definitive')
+    })
   })
 })

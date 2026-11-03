@@ -75,7 +75,10 @@ describe('CuratedGene', () => {
     expect(w.text()).toContain('Biallelic loss of function')
     expect(w.find('a[href="/genes/CLDN10"]').exists()).toBe(true)
     expect(w.find('a[href="/curation/associations"]').text()).toBe('Curated Associations') // breadcrumb only
-    expect(w.findAll('h2')).toHaveLength(0)
+    // No visible card title under the page header, only a hidden h2 for the outline (#539)
+    const h2 = w.findAll('h2')
+    expect(h2).toHaveLength(1)
+    expect(h2[0]!.classes()).toContain('sr-only')
     const score = w.find('[data-testid="kgdb-score"]').text()
     expect(score).toContain('87.3')
     expect(score).toContain('not changed by these curations')
