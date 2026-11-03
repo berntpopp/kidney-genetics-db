@@ -1,5 +1,5 @@
 {
-  "$comment": "Gene Curator export v1, pinned from berntpopp/gene-curator 9d79f81488521847ba06b93f6dffcad9a34e3ed0 (v0.12.0+11; export schema unchanged since v0.12.0)",
+  "$comment": "Gene Curator export v1, pinned from berntpopp/gene-curator 9d79f81488521847ba06b93f6dffcad9a34e3ed0 (v0.12.0+11; export schema unchanged since v0.12.0), plus relationship_type no_association as agreed for GC #535",
   "schemas": {
     "CurationExportPage": {
       "properties": {
@@ -236,10 +236,11 @@
         },
         "relationship_type": {
           "default": "mendelian",
-          "description": "mendelian or susceptibility (#539)",
+          "description": "mendelian, susceptibility (#539) or no_association (#535)",
           "enum": [
             "mendelian",
-            "susceptibility"
+            "susceptibility",
+            "no_association"
           ],
           "title": "Relationship Type",
           "type": "string"

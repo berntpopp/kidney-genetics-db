@@ -25,6 +25,7 @@ from app.crud.gene import gene_crud
 from app.models.gene import Gene
 from app.models.gene_disease_association import EVIDENCE_STRENGTHS, MOI_TERMS
 from app.models.gene_disease_association import GeneDiseaseAssociation as GDA
+from app.models.gene_disease_association import GeneNoAssociationAssessment as Assessment
 from app.models.user import User
 from app.schemas.gene_disease_association import (
     AssociationCreate,
@@ -151,6 +152,26 @@ def published_context(db: Session, rows: list[GDA]) -> dict[int, dict[str, Any]]
         }
         for r in rows
     }
+
+
+def no_association(db: Session, gene_symbol: str) -> dict[str, Any] | None:
+    """The gene's active "no primary kidney association" assessment (#535), unless the gene has
+    a published association: a real association always takes precedence."""
+    gene = func.upper(Gene.approved_symbol) == gene_symbol.upper()
+    published = db.query(GDA.id).join(Gene, GDA.gene_id == Gene.id)
+    if published.filter(gene, GDA.status == "published").first():
+        return None
+    row = (
+        db.query(Assessment)
+        .join(Gene, Assessment.gene_id == Gene.id)
+        .options(contains_eager(Assessment.gene))
+        .filter(gene, Assessment.status == "active")
+        .first()
+    )
+    if row is None:
+        return None
+    data = {c.name: getattr(row, c.name) for c in Assessment.__table__.columns}
+    return data | {"gene_symbol": row.gene.approved_symbol}
 
 
 def _locked(db: Session, record_id: int) -> GDA:

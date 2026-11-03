@@ -154,6 +154,54 @@ class ClinicalGroup(_Strict):
         return self
 
 
+def _pmid(value: str) -> str:
+    return _citations([value])[0]
+
+
+class SourceChecked(_Strict):
+    """A source Gene Curator checked for a kidney gene-disease association (#535)."""
+
+    source: Literal["clingen", "gencc", "omim", "hpo", "genereviews", "literature", "other"]
+    finding: _text(2000) | None = None
+    record_ids: Annotated[list[_text(100, 1)], Field(max_length=50)] = []
+    pmid: Annotated[str, AfterValidator(_pmid)] | None = None
+    evidence_quote: _text(2000) | None = None
+
+
+class NonKidneyEntity(_Strict):
+    """A disease of the gene outside the kidney; kidney_phenotype_via says how a kidney
+    phenotype can still arise (e.g. a contiguous deletion with a kidney gene)."""
+
+    disease_name: DiseaseName
+    mondo_id: Annotated[str, Field(pattern=r"^MONDO:\d{7}$")] | None = None
+    mode_of_inheritance: _text(100) | None = None
+    note: _text(2000) | None = None
+    kidney_phenotype_via: _text(500) | None = None
+
+
+class NoAssociationResponse(BaseModel):
+    """Gene Curator found no primary kidney gene-disease association for the gene (#535)."""
+
+    id: int
+    gene_symbol: str
+    rationale: str
+    evidence_summary: str | None = None
+    sources_checked: list[SourceChecked]
+    non_kidney_entities: list[NonKidneyEntity]
+    methodology: str | None = None
+    methodology_version: str | None = None
+    source: Literal["gene_curator"] = "gene_curator"
+    external_id: str
+    external_url: str
+    external_curator: str | None = None
+    external_reviewer: str | None = None
+    ai_agents: list[str] | None = None
+    approval_kind: Literal["human", "ai"]
+    approval_model: str | None = None
+    approved_at: datetime | None = None
+    updated_at: datetime
+
+
 def check_classification(relationship_type: str, strength: str) -> None:
     allowed = MENDELIAN_STRENGTHS if relationship_type == "mendelian" else SUSCEPTIBILITY_STRENGTHS
     if strength not in allowed:
@@ -349,3 +397,6 @@ class AssociationResponse(BaseModel):
 class AssociationList(BaseModel):
     data: list[AssociationResponse]
     meta: dict[str, int]
+    # With gene_symbol on the public list: Gene Curator's "no primary kidney association"
+    # assessment, only while the gene has no published association (#535)
+    no_association: NoAssociationResponse | None = None

@@ -12,6 +12,7 @@ from app.models.gene_annotation import AnnotationHistory, AnnotationSource, Gene
 from app.models.gene_disease_association import (
     GeneDiseaseAssociation,
     GeneDiseaseAssociationEvent,
+    GeneNoAssociationAssessment,
 )
 from app.models.gene_staging import GeneNormalizationLog, GeneNormalizationStaging
 from app.models.progress import DataSourceProgress, SourceStatus
@@ -41,6 +42,7 @@ __all__ = [
     "GeneDiseaseAssociation",
     "GeneDiseaseAssociationEvent",
     "GeneEvidence",
+    "GeneNoAssociationAssessment",
     "GeneNormalizationLog",
     "GeneNormalizationStaging",
     "PipelineRun",

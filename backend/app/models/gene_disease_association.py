@@ -244,3 +244,53 @@ class GeneDiseaseAssociationEvent(Base):
     user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
     at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     snapshot = Column(JSONB, nullable=False)
+
+
+class GeneNoAssociationAssessment(Base, TimestampMixin):
+    """Gene Curator found no primary kidney gene-disease association for a gene (#535).
+
+    Gene-level, so kept apart from gene_disease_associations (which name a disease); written
+    only by the Gene Curator import. One active assessment per gene; replaced ones are archived.
+    """
+
+    __tablename__ = "gene_no_association_assessments"
+    __table_args__ = (
+        Index(
+            "uq_gnaa_active_gene",
+            "gene_id",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+        ),
+        CheckConstraint("status IN ('active', 'archived')", name="ck_gnaa_status"),
+        CheckConstraint("external_url ~ '^https?://'", name="ck_gnaa_external_url"),
+        CheckConstraint(
+            "approval_kind IN ('human', 'ai') AND (approval_model IS NULL OR approval_kind = 'ai')",
+            name="ck_gnaa_approval",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(sources_checked) = 'array' AND jsonb_typeof(non_kidney_entities) = "
+            "'array' AND (ai_agents IS NULL OR jsonb_typeof(ai_agents) = 'array')",
+            name="ck_gnaa_json_arrays",
+        ),
+    )
+
+    id = Column(BigInteger, primary_key=True)
+    gene_id = Column(BigInteger, ForeignKey("genes.id"), nullable=False, index=True)
+    status = Column(String(20), nullable=False, server_default="active")
+    rationale = Column(Text, nullable=False)
+    evidence_summary = Column(Text, nullable=True)
+    sources_checked = Column(JSONB, nullable=False)
+    non_kidney_entities = Column(JSONB, nullable=False)
+    methodology = Column(String(100), nullable=True)
+    methodology_version = Column(String(50), nullable=True)
+    # The Gene Curator curation_id and its link back
+    external_id = Column(String(100), nullable=False, unique=True)
+    external_url = Column(Text, nullable=False)
+    external_curator = Column(String(255), nullable=True)
+    external_reviewer = Column(String(255), nullable=True)
+    ai_agents = Column(JSONB(none_as_null=True), nullable=True)
+    approval_kind = Column(String(10), nullable=False, server_default="human")
+    approval_model = Column(String(100), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+
+    gene = relationship("Gene")

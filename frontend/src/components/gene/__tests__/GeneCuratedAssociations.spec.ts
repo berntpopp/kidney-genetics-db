@@ -5,7 +5,7 @@ import { h } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 vi.stubGlobal('logService', { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })
-import type { Association } from '@/api/curation'
+import type { Association, NoAssociationAssessment } from '@/api/curation'
 import GeneCuratedAssociations from '@/components/gene/GeneCuratedAssociations.vue'
 
 const RECORD = {
@@ -27,13 +27,15 @@ const RECORD = {
   published_at: '2026-10-02T00:00:00Z'
 } as Association
 
-async function mountFor(records: Association[]) {
+async function mountFor(records: Association[], noAssociation?: NoAssociationAssessment) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/:rest(.*)', component: { render: () => null } }]
   })
   const w = mount(
-    { render: () => h(TooltipProvider, () => h(GeneCuratedAssociations, { records })) },
+    {
+      render: () => h(TooltipProvider, () => h(GeneCuratedAssociations, { records, noAssociation }))
+    },
     { global: { plugins: [router] } }
   )
   await flushPromises()
@@ -206,5 +208,67 @@ describe('GeneCuratedAssociations', () => {
   // A failed request is GeneDetail's concern now (it fetches the records): see GeneDetail.spec.ts
   it('renders nothing without records', async () => {
     expect((await mountFor([])).html()).not.toContain('Expert-reviewed')
+  })
+
+  describe('no primary kidney association (#535)', () => {
+    const ASSESSMENT: NoAssociationAssessment = {
+      id: 1,
+      gene_symbol: 'ARHGEF6',
+      rationale: 'No curated disease of the gene has a primary kidney phenotype.',
+      evidence_summary: null,
+      sources_checked: [
+        { source: 'clingen', finding: 'No curation.' },
+        {
+          source: 'literature',
+          finding: 'Kidney disease only in contiguous deletions.',
+          pmid: 'PMID:31000009',
+          evidence_quote: 'deleted together with COL4A5'
+        }
+      ],
+      non_kidney_entities: [
+        {
+          disease_name: 'X-linked intellectual disability',
+          mondo_id: 'MONDO:0000001',
+          kidney_phenotype_via: 'contiguous deletion with COL4A5'
+        }
+      ],
+      methodology: 'KGDB No Kidney Association Curation',
+      methodology_version: '1',
+      source: 'gene_curator',
+      external_id: 'abc',
+      external_url: 'https://gene-curator.org/curations/abc',
+      external_curator: 'agent-a',
+      external_reviewer: 'agent-b',
+      ai_agents: ['agent-a'],
+      approval_kind: 'ai',
+      approval_model: 'model-x',
+      approved_at: '2026-11-01T00:00:00Z',
+      updated_at: '2026-11-01T00:00:00Z'
+    }
+
+    it('states it calmly with rationale, sources, entities and provenance', async () => {
+      const w = await mountFor([], ASSESSMENT)
+      const s = w.find('[data-testid="gda-no-association"]')
+      expect(s.find('h3').text()).toBe('No primary kidney gene–disease association (curated)')
+      expect(s.text()).toContain(ASSESSMENT.rationale)
+      expect(s.text()).toContain('ClinGen · No curation.')
+      expect(s.text()).toContain('deleted together with COL4A5')
+      expect(s.find('a[href="https://pubmed.ncbi.nlm.nih.gov/31000009/"]').exists()).toBe(true)
+      expect(s.text()).toContain('X-linked intellectual disability')
+      expect(s.text()).toContain('Kidney phenotype via contiguous deletion with COL4A5')
+      expect(s.text()).toContain('AI-reviewed · pending human review')
+      const rows = Object.fromEntries(
+        s.findAll('dt').map(dt => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()])
+      )
+      expect(rows['Methodology']).toBe('KGDB No Kidney Association Curation, version 1')
+      expect(rows['Reviewed by']).toContain('agent-b')
+      expect(rows['Approved']).toBe('2026-11-01')
+    })
+
+    it('is not shown beside a curated association', async () => {
+      const w = await mountFor([RECORD], ASSESSMENT)
+      expect(w.find('[data-testid="gda-no-association"]').exists()).toBe(false)
+      expect(w.text()).toContain('Definitive')
+    })
   })
 })
