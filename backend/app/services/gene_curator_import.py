@@ -478,6 +478,10 @@ def _entries(
             dropped.append(f"{path} (not an object)")
             continue
         entry = _known(model, _clean(entry), f"{key}[]", dropped)
+        if isinstance(entry.get("record_ids"), str):  # GC exports a "; "-separated string
+            entry["record_ids"] = [
+                r.strip() for r in re.split(r"[;,]", entry["record_ids"]) if r.strip()
+            ]
         for field in texts:
             entry[field] = public_text(entry.get(field), f"{path}.{field}", dropped)
         if entry.get("mondo_id"):
