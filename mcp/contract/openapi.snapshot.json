@@ -305,7 +305,7 @@
           "risk_allele": {
             "anyOf": [
               {
-                "maxLength": 100,
+                "maxLength": 255,
                 "minLength": 1,
                 "type": "string"
               },
@@ -360,6 +360,16 @@
             },
             "title": "Meta",
             "type": "object"
+          },
+          "no_association": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NoAssociationResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -541,6 +551,17 @@
               }
             ],
             "title": "External Url"
+          },
+          "gene_association_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gene Association Count"
           },
           "gene_id": {
             "title": "Gene Id",
@@ -724,6 +745,14 @@
               }
             ],
             "title": "Scores"
+          },
+          "shared_risk_allele_genes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Shared Risk Allele Genes",
+            "type": "array"
           },
           "source": {
             "enum": [
@@ -1034,7 +1063,7 @@
           "risk_allele": {
             "anyOf": [
               {
-                "maxLength": 100,
+                "maxLength": 255,
                 "minLength": 1,
                 "type": "string"
               },
@@ -2834,6 +2863,237 @@
         "title": "NetworkClusterResponse",
         "type": "object"
       },
+      "NoAssociationResponse": {
+        "description": "Gene Curator found no primary kidney gene-disease association for the gene (#535).",
+        "properties": {
+          "ai_agents": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Agents"
+          },
+          "approval_kind": {
+            "enum": [
+              "human",
+              "ai"
+            ],
+            "title": "Approval Kind",
+            "type": "string"
+          },
+          "approval_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Model"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "evidence_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Summary"
+          },
+          "external_curator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Curator"
+          },
+          "external_id": {
+            "title": "External Id",
+            "type": "string"
+          },
+          "external_reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reviewer"
+          },
+          "external_url": {
+            "title": "External Url",
+            "type": "string"
+          },
+          "gene_symbol": {
+            "title": "Gene Symbol",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "methodology": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Methodology"
+          },
+          "methodology_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Methodology Version"
+          },
+          "non_kidney_entities": {
+            "items": {
+              "$ref": "#/components/schemas/NonKidneyEntity"
+            },
+            "title": "Non Kidney Entities",
+            "type": "array"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "source": {
+            "const": "gene_curator",
+            "default": "gene_curator",
+            "title": "Source",
+            "type": "string"
+          },
+          "sources_checked": {
+            "items": {
+              "$ref": "#/components/schemas/SourceChecked"
+            },
+            "title": "Sources Checked",
+            "type": "array"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "gene_symbol",
+          "rationale",
+          "sources_checked",
+          "non_kidney_entities",
+          "external_id",
+          "external_url",
+          "approval_kind",
+          "updated_at"
+        ],
+        "title": "NoAssociationResponse",
+        "type": "object"
+      },
+      "NonKidneyEntity": {
+        "additionalProperties": false,
+        "description": "A disease of the gene outside the kidney; kidney_phenotype_via says how a kidney\nphenotype can still arise (e.g. a contiguous deletion with a kidney gene).",
+        "properties": {
+          "disease_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Disease Name",
+            "type": "string"
+          },
+          "kidney_phenotype_via": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kidney Phenotype Via"
+          },
+          "mode_of_inheritance": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode Of Inheritance"
+          },
+          "mondo_id": {
+            "anyOf": [
+              {
+                "pattern": "^MONDO:\\d{7}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mondo Id"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "disease_name"
+        ],
+        "title": "NonKidneyEntity",
+        "type": "object"
+      },
       "NormalizationStatsResponse": {
         "description": "Response schema for normalization statistics",
         "properties": {
@@ -3083,6 +3343,17 @@
       "ReleaseResponse": {
         "description": "Schema for release response",
         "properties": {
+          "association_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Association Count"
+          },
           "citation_text": {
             "anyOf": [
               {
@@ -3146,6 +3417,17 @@
           "id": {
             "title": "Id",
             "type": "integer"
+          },
+          "no_association_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Association Count"
           },
           "published_at": {
             "anyOf": [
@@ -3475,6 +3757,78 @@
         ],
         "title": "SettingCategory",
         "type": "string"
+      },
+      "SourceChecked": {
+        "additionalProperties": false,
+        "description": "A source Gene Curator checked for a kidney gene-disease association (#535).",
+        "properties": {
+          "evidence_quote": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Quote"
+          },
+          "finding": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 0,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding"
+          },
+          "pmid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pmid"
+          },
+          "record_ids": {
+            "default": [],
+            "items": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Record Ids",
+            "type": "array"
+          },
+          "source": {
+            "enum": [
+              "clingen",
+              "gencc",
+              "omim",
+              "hpo",
+              "genereviews",
+              "literature",
+              "other"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "SourceChecked",
+        "type": "object"
       },
       "StagingApprovalRequest": {
         "description": "Request schema for approving staging records",

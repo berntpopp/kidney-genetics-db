@@ -26,6 +26,21 @@ const GROUPS: { key: GroupKey; title: string; detail: (_r: ImportRow) => string 
   { key: 'already_imported', title: 'Already imported (skipped)', detail: () => '' },
   { key: 'replaced', title: 'Replaced an earlier import (re-curated)', detail: () => '' },
   {
+    key: 'no_association_created',
+    title: 'No primary kidney association: recorded',
+    detail: () => ''
+  },
+  {
+    key: 'no_association_replaced',
+    title: 'No primary kidney association: updated',
+    detail: () => ''
+  },
+  {
+    key: 'no_association_archived',
+    title: 'No primary kidney association: archived',
+    detail: () => ''
+  },
+  {
     key: 'conflicts',
     title: 'Conflicts (skipped)',
     detail: r => `${r.reason} (${r.existing_source}, ${r.existing_status})`
@@ -45,8 +60,11 @@ const report = ref<ImportReport | null>(null)
 const failure = ref<{ title: string; lines: string[] } | null>(null)
 
 // A replaced earlier import is new content too
-const imported = computed(
-  () => (report.value?.created.length ?? 0) + (report.value?.replaced?.length ?? 0)
+const imported = computed(() =>
+  (['created', 'replaced', 'no_association_created', 'no_association_replaced'] as const).reduce(
+    (n, key) => n + (report.value?.[key]?.length ?? 0),
+    0
+  )
 )
 const groups = computed(() =>
   GROUPS.map(g => ({ ...g, rows: report.value?.[g.key] ?? [] })).filter(g => g.rows.length)

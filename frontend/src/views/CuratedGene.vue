@@ -87,12 +87,12 @@
       :loading="loading"
       :error="error"
       error-title="Could not load the associations"
-      :empty="!records.length"
+      :empty="!records.length && !noAssociation"
       :empty-message="`No published expert-reviewed associations for ${symbol}.`"
       min-height="16rem"
       @retry="load"
     >
-      <GeneCuratedAssociations :records="records" standalone />
+      <GeneCuratedAssociations :records="records" :no-association="noAssociation" standalone />
     </DataState>
   </div>
 </template>
@@ -101,7 +101,7 @@
 import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Check, Download, FileJson, FileSpreadsheet, FileText, Share2 } from 'lucide-vue-next'
-import { curationApi, type Association } from '@/api/curation'
+import { curationApi, type Association, type NoAssociationAssessment } from '@/api/curation'
 import { geneApi } from '@/api/genes'
 import ReportCurationDialog from '@/components/curation/ReportCurationDialog.vue'
 import VolunteerDialog from '@/components/curation/VolunteerDialog.vue'
@@ -139,6 +139,7 @@ const exportAs = (kind: 'json' | 'csv') => {
 
 const LINK = 'text-primary underline-offset-4 hover:underline'
 const records = ref<Association[]>([])
+const noAssociation = ref<NoAssociationAssessment | null>(null)
 // For the score line only; a failed gene lookup just hides it
 const gene = ref<{ evidence_score?: number | null; evidence_tier?: string | null } | null>(null)
 const loading = ref(true)
@@ -169,6 +170,7 @@ const load = async () => {
       geneApi.getGene(props.symbol).catch(() => null)
     ])
     records.value = list.data
+    noAssociation.value = list.no_association ?? null
     gene.value = g
   } catch (e) {
     error.value = e instanceof Error ? e : new Error(String(e))
