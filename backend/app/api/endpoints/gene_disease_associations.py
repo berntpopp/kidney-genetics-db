@@ -75,7 +75,10 @@ def list_published(
         offset=offset,
         **query.params,
     )
-    return _page(db, rows, total, limit, offset)
+    page = _page(db, rows, total, limit, offset)
+    if gene_symbol:
+        page["no_association"] = service.no_association(db, gene_symbol)
+    return page
 
 
 @router.get("/workflow", response_model=AssociationList)

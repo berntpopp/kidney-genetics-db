@@ -1,5 +1,5 @@
 <template>
-  <Card v-if="records.length" class="gap-4">
+  <Card v-if="records.length || noAssociation" class="gap-4">
     <CardHeader v-if="!standalone" class="pb-2">
       <CardTitle tag="h2" class="text-base">
         Expert-reviewed associations
@@ -67,6 +67,80 @@
           </TableRow>
         </TableBody>
       </Table>
+
+      <!-- Gene Curator found no primary kidney association (#535); a real association wins -->
+      <section
+        v-if="!records.length && noAssociation"
+        data-testid="gda-no-association"
+        class="space-y-2"
+      >
+        <h3 class="font-semibold">No primary kidney gene–disease association (curated)</h3>
+        <ReviewChip :record="noAssociation" />
+        <div class="grid gap-4 lg:grid-cols-2">
+          <div class="space-y-2">
+            <p class="max-w-prose whitespace-pre-line [overflow-wrap:anywhere]">
+              {{ noAssociation.rationale }}
+            </p>
+            <p
+              v-if="noAssociation.evidence_summary"
+              class="max-w-prose whitespace-pre-line text-muted-foreground [overflow-wrap:anywhere]"
+            >
+              {{ noAssociation.evidence_summary }}
+            </p>
+            <!-- Provenance fields share Association's names; the fields it lacks render nothing -->
+            <AssociationProvenance :record="noAssociation as unknown as Association">
+              <template v-if="noAssociation.approved_at">
+                <dt class="text-muted-foreground">Approved</dt>
+                <dd class="tabular-nums">{{ noAssociation.approved_at.slice(0, 10) }}</dd>
+              </template>
+            </AssociationProvenance>
+          </div>
+          <div class="space-y-3 text-xs">
+            <div v-if="noAssociation.non_kidney_entities.length" class="space-y-1">
+              <h4 class="font-medium text-muted-foreground">Diseases outside the kidney</h4>
+              <ul class="space-y-1.5">
+                <li
+                  v-for="(e, i) in noAssociation.non_kidney_entities"
+                  :key="i"
+                  class="[overflow-wrap:anywhere]"
+                >
+                  <OntologyTerm v-if="e.mondo_id" :id="e.mondo_id" :name="e.disease_name" />
+                  <span v-else>{{ e.disease_name }}</span>
+                  <span v-if="e.mode_of_inheritance" class="text-muted-foreground">
+                    · {{ e.mode_of_inheritance }}</span
+                  >
+                  <span v-if="e.note" class="block text-muted-foreground">{{ e.note }}</span>
+                  <span v-if="e.kidney_phenotype_via" class="block"
+                    >Kidney phenotype via {{ e.kidney_phenotype_via }}</span
+                  >
+                </li>
+              </ul>
+            </div>
+            <div v-if="noAssociation.sources_checked.length" class="space-y-1">
+              <h4 class="font-medium text-muted-foreground">Sources checked</h4>
+              <ul class="space-y-1.5">
+                <li
+                  v-for="(s, i) in noAssociation.sources_checked"
+                  :key="i"
+                  class="[overflow-wrap:anywhere]"
+                >
+                  <span class="font-medium">{{ SOURCE_LABELS[s.source] ?? s.source }}</span>
+                  <template v-if="s.finding"> · {{ s.finding }}</template>
+                  <span v-if="s.record_ids?.length" class="ml-1 font-mono text-muted-foreground">{{
+                    s.record_ids.join(', ')
+                  }}</span>
+                  <template v-if="s.pmid">
+                    · <OntologyTerm :id="s.pmid" source="PubMed" />
+                  </template>
+                  <q v-if="s.evidence_quote" class="block text-muted-foreground italic">{{
+                    s.evidence_quote
+                  }}</q>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- Susceptibility is listed apart and never with Mendelian strength colours (#437) -->
       <section
@@ -177,7 +251,8 @@ import {
   RELATIONSHIP_LABELS,
   RELATIONSHIP_TYPES,
   strengthsFor,
-  type Association
+  type Association,
+  type NoAssociationAssessment
 } from '@/api/curation'
 import AssociationDiagnostics from '@/components/curation/AssociationDiagnostics.vue'
 import AssociationProvenance from '@/components/curation/AssociationProvenance.vue'
@@ -198,7 +273,22 @@ import {
 
 // The gene's published records; GeneDetail fetches them before first paint so the card never pops in
 // standalone: the page header and breadcrumb already name the list and link back
-const props = defineProps<{ records: Association[]; standalone?: boolean }>()
+// noAssociation: Gene Curator's "no primary kidney association" assessment, shown without records
+const props = defineProps<{
+  records: Association[]
+  standalone?: boolean
+  noAssociation?: NoAssociationAssessment | null
+}>()
+
+const SOURCE_LABELS: Record<string, string> = {
+  clingen: 'ClinGen',
+  gencc: 'GenCC',
+  omim: 'OMIM',
+  hpo: 'HPO',
+  genereviews: 'GeneReviews',
+  literature: 'Literature',
+  other: 'Other'
+}
 
 const LINK =
   'rounded-sm text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'

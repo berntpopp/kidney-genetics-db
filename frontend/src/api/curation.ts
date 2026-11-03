@@ -249,9 +249,54 @@ export interface AssociationInput extends Partial<AssociationDetails> {
   evidence_summary?: string | null
 }
 
+export interface SourceChecked {
+  source: 'clingen' | 'gencc' | 'omim' | 'hpo' | 'genereviews' | 'literature' | 'other'
+  finding?: string | null
+  record_ids?: string[]
+  /** "PMID:123" */
+  pmid?: string | null
+  evidence_quote?: string | null
+}
+
+export interface NonKidneyEntity {
+  disease_name: string
+  mondo_id?: string | null
+  mode_of_inheritance?: string | null
+  note?: string | null
+  /** How a kidney phenotype can still arise, e.g. "contiguous deletion with COL4A5" */
+  kidney_phenotype_via?: string | null
+}
+
+/** Gene Curator found no primary kidney gene–disease association for the gene (#535).
+ * Provenance fields carry the names Association uses, so the same provenance list shows them */
+export interface NoAssociationAssessment extends Pick<
+  Association,
+  | 'methodology'
+  | 'methodology_version'
+  | 'source'
+  | 'external_id'
+  | 'external_url'
+  | 'external_curator'
+  | 'external_reviewer'
+  | 'ai_agents'
+  | 'approval_kind'
+  | 'approval_model'
+> {
+  id: number
+  gene_symbol: string
+  rationale: string
+  evidence_summary: string | null
+  sources_checked: SourceChecked[]
+  non_kidney_entities: NonKidneyEntity[]
+  approved_at: string | null
+  updated_at: string
+}
+
 export interface AssociationList {
   data: Association[]
   meta: { total: number; limit: number; offset: number }
+  /** Public list with gene_symbol only: shown while the gene has no published association */
+  no_association?: NoAssociationAssessment | null
 }
 
 export interface ListParams {
