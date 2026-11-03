@@ -1,0 +1,223 @@
+{
+  "schema": "kgdb-curation-calibration-figures",
+  "version": 1,
+  "spec": ".planning/specs/2026-10-30-curation-alpha/RESULTS.md",
+  "source": "iteration-8 score files of the 2026-10-31 calibration run; scorer = score_draft.py class on judge-corrected evidence, scorer_before_judge = on the curator's evidence, own_call = the curator agent's own class",
+  "class_order": [
+    "no_known",
+    "limited",
+    "moderate",
+    "strong",
+    "definitive"
+  ],
+  "sets": {
+    "untouched": {
+      "n": 55,
+      "scorer_exact": 43,
+      "scorer_exact_rate": 0.782,
+      "scorer_exact_95ci_wilson": [
+        0.656,
+        0.871
+      ],
+      "scorer_exact_before_judge": 44,
+      "own_call_exact": 37,
+      "scorer_equals_own_call": 39,
+      "scorer_equals_own_call_and_exact": 33,
+      "misses": 12,
+      "miss_breakdown": {
+        "over-call": 7,
+        "under-call": 3,
+        "disputed/refuted": 2
+      }
+    },
+    "untouched_held_out": {
+      "n": 15,
+      "scorer_exact": 12,
+      "scorer_exact_rate": 0.8,
+      "scorer_exact_95ci_wilson": [
+        0.548,
+        0.93
+      ],
+      "scorer_exact_before_judge": 12,
+      "own_call_exact": 9,
+      "scorer_equals_own_call": 7,
+      "scorer_equals_own_call_and_exact": 7,
+      "misses": 3,
+      "miss_breakdown": {
+        "over-call": 2,
+        "under-call": 1
+      }
+    },
+    "untouched_validation": {
+      "n": 40,
+      "scorer_exact": 31,
+      "scorer_exact_rate": 0.775,
+      "scorer_exact_95ci_wilson": [
+        0.625,
+        0.877
+      ],
+      "scorer_exact_before_judge": 32,
+      "own_call_exact": 28,
+      "scorer_equals_own_call": 32,
+      "scorer_equals_own_call_and_exact": 26,
+      "misses": 9,
+      "miss_breakdown": {
+        "over-call": 5,
+        "under-call": 2,
+        "disputed/refuted": 2
+      }
+    },
+    "untouched_without_blind_incidents": {
+      "n": 50,
+      "scorer_exact": 39,
+      "scorer_exact_rate": 0.78,
+      "scorer_exact_95ci_wilson": [
+        0.648,
+        0.872
+      ],
+      "scorer_exact_before_judge": 40,
+      "own_call_exact": 33,
+      "scorer_equals_own_call": 36,
+      "scorer_equals_own_call_and_exact": 30,
+      "misses": 11,
+      "miss_breakdown": {
+        "over-call": 6,
+        "under-call": 3,
+        "disputed/refuted": 2
+      }
+    },
+    "fresh_clingen": {
+      "n": 19,
+      "scorer_exact": 9,
+      "scorer_exact_rate": 0.474,
+      "scorer_exact_95ci_wilson": [
+        0.273,
+        0.683
+      ],
+      "scorer_exact_before_judge": 9,
+      "own_call_exact": 12,
+      "scorer_equals_own_call": 11,
+      "scorer_equals_own_call_and_exact": 9,
+      "misses": 10,
+      "miss_breakdown": {
+        "over-call": 8,
+        "disputed/refuted": 2
+      },
+      "selected": 20,
+      "not_evaluable": [
+        {
+          "gene": "NADSYN1",
+          "clingen": "definitive",
+          "reason": "curator run ended without a scored result"
+        }
+      ],
+      "miss_list": [
+        {
+          "gene": "C4A",
+          "clingen": "moderate",
+          "scorer": "definitive",
+          "own_call": "moderate",
+          "kind": "over-call"
+        },
+        {
+          "gene": "C4B",
+          "clingen": "limited",
+          "scorer": "moderate",
+          "own_call": "limited",
+          "kind": "over-call"
+        },
+        {
+          "gene": "FOXI1",
+          "clingen": "disputed",
+          "scorer": "moderate",
+          "own_call": "limited",
+          "kind": "disputed/refuted"
+        },
+        {
+          "gene": "IFT43",
+          "clingen": "moderate",
+          "scorer": "definitive",
+          "own_call": "moderate",
+          "kind": "over-call"
+        },
+        {
+          "gene": "KRAS",
+          "clingen": "strong",
+          "scorer": "definitive",
+          "own_call": "definitive",
+          "kind": "over-call"
+        },
+        {
+          "gene": "LRP2",
+          "clingen": "no_known",
+          "scorer": "moderate",
+          "own_call": "limited",
+          "kind": "over-call"
+        },
+        {
+          "gene": "PAX4",
+          "clingen": "refuted",
+          "scorer": "disputed",
+          "own_call": "disputed",
+          "kind": "disputed/refuted"
+        },
+        {
+          "gene": "PRPS1",
+          "clingen": "limited",
+          "scorer": "moderate",
+          "own_call": "strong",
+          "kind": "over-call"
+        },
+        {
+          "gene": "SEC61A1",
+          "clingen": "moderate",
+          "scorer": "definitive",
+          "own_call": "strong",
+          "kind": "over-call"
+        },
+        {
+          "gene": "SMARCAL1",
+          "clingen": "strong",
+          "scorer": "definitive",
+          "own_call": "moderate",
+          "kind": "over-call"
+        }
+      ]
+    },
+    "pooled_blind": {
+      "n": 74,
+      "scorer_exact": 52,
+      "scorer_exact_rate": 0.703,
+      "scorer_exact_95ci_wilson": [
+        0.591,
+        0.795
+      ],
+      "scorer_exact_before_judge": 53,
+      "own_call_exact": 49,
+      "scorer_equals_own_call": 50,
+      "scorer_equals_own_call_and_exact": 42,
+      "misses": 22,
+      "miss_breakdown": {
+        "over-call": 15,
+        "under-call": 3,
+        "disputed/refuted": 4
+      },
+      "components": {
+        "untouched": 55,
+        "fresh_clingen": 19
+      },
+      "non_definitive": {
+        "n": 40,
+        "scorer_exact": 21,
+        "scorer_exact_95ci_wilson": [
+          0.375,
+          0.671
+        ]
+      },
+      "definitive": {
+        "n": 34,
+        "scorer_exact": 31
+      }
+    }
+  }
+}
