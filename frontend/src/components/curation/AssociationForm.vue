@@ -90,7 +90,7 @@ const schema = toTypedSchema(
         .refine(v => /^(MONDO:\d{7}|OMIM:\d{6})$/.test(v), 'Use MONDO:NNNNNNN or OMIM:NNNNNN'),
       disease_name: z.string().trim().min(1, 'Disease name is required').max(255),
       relationship_type: z.enum(RELATIONSHIP_TYPES),
-      risk_allele: z.string().max(100).optional(),
+      risk_allele: z.string().max(255).optional(),
       odds_ratio: ratio,
       odds_ratio_ci_low: ratio,
       odds_ratio_ci_high: ratio,

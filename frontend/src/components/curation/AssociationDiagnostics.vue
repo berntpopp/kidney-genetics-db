@@ -15,7 +15,8 @@ import {
   type Diagnostics
 } from '@/api/curation'
 
-const props = defineProps<{ diagnostics: Diagnostics | null | undefined }>()
+// heading: h5 where the block sits under a record's own h4 (the gene card)
+const props = defineProps<{ diagnostics: Diagnostics | null | undefined; heading?: 'h4' | 'h5' }>()
 
 const transcript = computed(() => props.diagnostics?.recommended_transcript ?? null)
 const detectability = computed(() => props.diagnostics?.detectability ?? [])
@@ -39,7 +40,9 @@ const linkClass =
     class="whitespace-normal [overflow-wrap:anywhere] space-y-2 text-xs"
     aria-label="Diagnostics and resources"
   >
-    <h4 class="text-sm font-medium">Diagnostics &amp; resources</h4>
+    <component :is="heading ?? 'h4'" class="text-sm font-medium"
+      >Diagnostics &amp; resources</component
+    >
 
     <Alert v-if="warn" class="py-2">
       <AlertTriangle aria-hidden="true" />

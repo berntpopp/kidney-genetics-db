@@ -18,13 +18,16 @@ from pathlib import Path
 from typing import Any, cast
 
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
 from app.core.database import get_thread_pool_executor
 from app.core.logging import get_logger
 from app.db.safe_sql import refresh_score_views
 from app.models.data_release import DataRelease
+from app.models.gene_disease_association import GeneNoAssociationAssessment as Assessment
+from app.schemas.gene_disease_association import AssociationResponse, NoAssociationResponse
+from app.services import gene_disease_association_service as gda_service
 from app.services.zenodo_service import ZenodoService
 
 logger = get_logger(__name__)
@@ -242,7 +245,12 @@ class ReleaseService:
                 publish_time=publish_time.isoformat(),
             )
 
-            export_path, gene_count = await loop.run_in_executor(
+            (
+                export_path,
+                gene_count,
+                association_count,
+                no_association_count,
+            ) = await loop.run_in_executor(
                 self._executor, self._export_release_sync, release.version, publish_time
             )
 
@@ -295,6 +303,8 @@ class ReleaseService:
             release.export_file_path = str(export_path)
             release.export_checksum = checksum
             release.gene_count = gene_count
+            release.association_count = association_count
+            release.no_association_count = no_association_count
 
             # CRITICAL: Single atomic commit for all operations
             self.db.commit()
@@ -320,7 +330,35 @@ class ReleaseService:
             )
             raise
 
-    def _export_release_sync(self, version: str, timestamp: datetime) -> tuple[Path, int]:
+    def _curated_by_gene(self) -> tuple[dict[int, list[dict[str, Any]]], dict[int, dict[str, Any]]]:
+        """Published associations and active no-association assessments by gene id, in the
+        public /api/curation/associations shapes; an assessment only for a gene without a
+        published association, as the public API shows it (#546)."""
+        rows, _ = gda_service.list_records(
+            self.db, published_only=True, gene_symbol=None, status=None, limit=None, offset=0
+        )
+        context = gda_service.published_context(self.db, rows) if rows else {}
+        associations: dict[int, list[dict[str, Any]]] = {}
+        for r in rows:
+            response = AssociationResponse.model_validate(
+                gda_service.to_response(r) | context[r.id]
+            )
+            associations.setdefault(r.gene_id, []).append(response.model_dump(mode="json"))
+        assessments = (
+            self.db.query(Assessment)
+            .options(selectinload(Assessment.gene))
+            .filter(Assessment.status == "active")
+        )
+        no_association = {
+            a.gene_id: NoAssociationResponse.model_validate(
+                gda_service.assessment_to_response(a)
+            ).model_dump(mode="json")
+            for a in assessments
+            if a.gene_id not in associations
+        }
+        return associations, no_association
+
+    def _export_release_sync(self, version: str, timestamp: datetime) -> tuple[Path, int, int, int]:
         """
         Export genes to JSON file (sync version for thread pool).
 
@@ -332,7 +370,8 @@ class ReleaseService:
             timestamp: Timestamp for export metadata
 
         Returns:
-            tuple: Path to exported JSON file and number of exported genes
+            tuple: Path to exported JSON file and the numbers of exported genes,
+            curated associations and no-association assessments
         """
         # Scores are exported next to live evidence and checksummed: they must match (#367)
         if not refresh_score_views(self.db):
@@ -394,6 +433,10 @@ class ReleaseService:
             """)
         )
         genes = result.fetchall()
+        associations, no_association = self._curated_by_gene()
+        exported = [g.id for g in genes]
+        association_count = sum(len(associations.get(i, [])) for i in exported)
+        no_association_count = sum(i in no_association for i in exported)
 
         # Build comprehensive export structure
         export_data = {
@@ -402,8 +445,10 @@ class ReleaseService:
             "gene_count": len(genes),
             "metadata": {
                 "format": "CalVer",
-                "schema_version": "2.0",
+                "schema_version": "2.1",
                 "description": "Kidney Genetics Database - Point-in-time snapshot with comprehensive evidence",
+                "association_count": association_count,
+                "no_association_count": no_association_count,
             },
             "genes": [
                 {
@@ -423,6 +468,8 @@ class ReleaseService:
                     else None,
                     "evidence": row.evidence,
                     "annotations": row.annotations,
+                    "curated_associations": associations.get(row.id, []),
+                    "no_association": no_association.get(row.id),
                     "temporal": {
                         "valid_from": row.valid_from.isoformat() if row.valid_from else None,
                         "valid_to": row.valid_to.isoformat()
@@ -446,7 +493,7 @@ class ReleaseService:
             file_size_bytes=export_file.stat().st_size,
         )
 
-        return export_file, len(genes)
+        return export_file, len(genes), association_count, no_association_count
 
     @staticmethod
     def _calculate_checksum(file_path: str | Path) -> str:
