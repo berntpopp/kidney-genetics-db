@@ -37,6 +37,13 @@ Exact class agreement with ClinGen (scorer on judge-corrected evidence unless no
 | Off-domain (8) | 4 (50%) | 75% | 39% | 6 (75%) |
 | Excluding 5 blind-incident genes (50) | 40 (80%) | 86% | 53% | – |
 
+The scorer column of this table uses the curator's evidence: after judging, ALG9 drops from
+Definitive (correct) to Moderate, so the judge-corrected figure is 43/55 (78%; held-out
+unchanged), which is the one the pooled n=74 below uses.
+
+Machine-readable figures: `calibration_figures.v1.json` (fresh and pooled sets, untouched splits;
+generated from the iteration-8 score files of the calibration run, #552).
+
 Anchors: 6/6 Definitive. Effort: median ~20 tool calls and ~3–4 min per gene (curator), ~2.5 min (judge).
 
 ## What drove the gains
@@ -83,11 +90,14 @@ explained by an AHDC1 variant).
   enters the computed points), until a native rule exists.
 
 ## Extended checks before v1 (2026-10-31)
-- **Fresh ClinGen set** (20 kidney-adjacent entities, none used before, mostly non-Definitive):
-  scorer 47% exact, the agent's own call 63%; all 8 scorer misses were over-calls.
+- **Fresh ClinGen set** (20 kidney-adjacent entities selected, none used before, mostly
+  non-Definitive; 19 evaluable: the NADSYN1 curator run ended without a scored result): scorer 9/19
+  (47%) exact, the agent's own call 12/19 (63%). 10 scorer misses: 8 over-calls (C4A, C4B, IFT43,
+  KRAS, LRP2, PRPS1, SEC61A1, SMARCAL1), no under-calls, and 2 on the Disputed/Refuted end
+  (FOXI1 Moderate vs ClinGen Disputed; PAX4 Disputed vs Refuted, a vocabulary near-miss).
 - **Repeatability**: 8 entities curated twice, independently: same class 7/8. Errors are systematic,
   not noise.
-- **Pooled untouched genes** (n=74): scorer 70% exact (95% CI 59–79%), non-Definitive 52% (37–67%),
+- **Pooled blind sets** (untouched 55 + fresh 19, n=74): scorer 52/74 = 70% exact (95% CI 59–79%), non-Definitive 52% (37–67%),
   Definitive about 90%. When the scorer class and the agent's own call agree (50/74) they match
   ClinGen in 84%; this is the main reviewer triage signal.
 - **Band tuning** (80 variants, leave-one-set-out): no threshold change generalised; bands unchanged.
