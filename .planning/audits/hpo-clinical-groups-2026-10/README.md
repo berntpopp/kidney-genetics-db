@@ -165,3 +165,9 @@ gain the same two labels from that one disease. At 0.5: PALB2 cakut only
 PKD1 without secondary; FANCA cakut without neoplasia (no FANCA annotation in
 HPO 2026-09-01 is at or below Renal neoplasm, HP:0009726). The
 stored-v1-vs-v2 primary counts above do not depend on r.
+
+## v2.2 (2026-11-03, #551)
+
+The same command now evaluates v2.2 (pheochromocytoma/paraganglioma disease exclusion for
+glomerulopathy): v2 roots, frequency x IC 77.8 % top-1, macro-F1 0.82. Results and data impact:
+spec section "Pheochromocytoma/paraganglioma exclusion".

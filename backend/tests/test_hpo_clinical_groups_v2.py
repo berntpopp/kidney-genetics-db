@@ -17,6 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.api.endpoints.genes import RENAL_NEOPLASIA_MIN_SCORE
 from app.core.datasource_config import get_source_parameter
 from app.pipeline.sources.annotations.hpo import (
     CLINICAL_GROUP_METHOD,
@@ -106,7 +107,15 @@ def test_secondary_at_calibrated_share_of_primary_evidence():
     assert (below["primary"], below["secondary"]) == ("cakut", [])
     # 0.5 kept by the one-SE rule: no r beat it out of sample (spec: secondary cut-off)
     assert SECONDARY_GROUP_RATIO == 0.5
-    assert CLINICAL_GROUP_METHOD == "hpo-freq-ic-v2"  # same output as v0.9.0's v2
+    assert CLINICAL_GROUP_METHOD == "hpo-freq-ic-v2.2"  # v2 + disease exclusions (#551)
+
+
+def test_disease_with_exclusion_term_adds_nothing_to_that_group():
+    classifier = _tiny()
+    classifier.exclusions = {"cakut": ["HP:X"]}
+    result = classifier.classify({"d1": {"HP:A11": 1.0, "HP:X": 1.0}, "d2": {"HP:B1": 0.5}})
+    assert result["evidence"]["cakut"] == 0.0  # d1 has HP:X: no cakut evidence from it
+    assert result["primary"] == "neoplasia"
 
 
 def test_multilabel_macro_f1_hand_computed():
@@ -178,8 +187,13 @@ def test_no_matching_term_has_no_primary():
 
 def _golden() -> tuple[ClinicalGroupClassifier, dict]:
     groups = {k: v["root_terms"] for k, v in get_source_parameter("HPO", "clinical_groups").items()}
+    exclusions = {
+        k: v["exclude_diseases_with"]
+        for k, v in get_source_parameter("HPO", "clinical_groups").items()
+        if v.get("exclude_diseases_with")
+    }
     classifier = ClinicalGroupClassifier(
-        load_hpo_parents(FIXTURES / "hp_golden_subset.json"), groups, "2026-09-01"
+        load_hpo_parents(FIXTURES / "hp_golden_subset.json"), groups, "2026-09-01", exclusions
     )
     counts = json.loads((FIXTURES / "information_content_golden.json").read_text())
     classifier.ic = {t: -math.log(n / counts["N"]) for t, n in counts["n"].items()}
@@ -191,8 +205,9 @@ def _golden() -> tuple[ClinicalGroupClassifier, dict]:
     ("symbol", "primary", "secondary"),
     [
         ("HNF1B", "cakut", ["cyst_cilio"]),
-        ("VHL", "neoplasia", ["glomerulopathy"]),  # known miss: glomerulopathy at 0.84
-        ("FH", "neoplasia", ["glomerulopathy"]),
+        # v2 known miss (glomerulopathy 0.84) came from pheochromocytoma diseases (#551)
+        ("VHL", "neoplasia", []),
+        ("FH", "neoplasia", []),
         # neoplasia evidence is 0.493 of cakut, below the 0.5 cut-off: a consequence of the
         # calibration result, not a data defect
         ("PALB2", "cakut", []),
@@ -206,6 +221,23 @@ def test_golden_genes(symbol, primary, secondary):
     classifier, bulk = _golden()
     result = classifier.classify(bulk[symbol]["disease_terms"])
     assert (result["primary"], result["secondary"]) == (primary, secondary)
+
+
+# #551: their glomerular evidence was proteinuria/hematuria of pheochromocytoma/paraganglioma
+# diseases; renal-neoplasia flag rule as in RENAL_NEOPLASIA_SQL
+@pytest.mark.parametrize(
+    "symbol",
+    ["SDHA", "SDHB", "SDHC", "SDHD", "SDHAF2", "TMEM127", "MAX"]
+    + ["VHL", "FH", "BAP1", "MET", "FLCN"],
+)
+def test_tumour_predisposition_genes_are_renal_neoplasia_not_glomerulopathy(symbol):
+    classifier, bulk = _golden()
+    result = classifier.classify(bulk[symbol]["disease_terms"])
+    assert result["primary"] != "glomerulopathy"
+    assert (
+        result["primary"] == "neoplasia"
+        or result["scores"]["neoplasia"] >= RENAL_NEOPLASIA_MIN_SCORE
+    )
 
 
 def test_palb2_neoplasia_share_of_cakut_evidence():
@@ -224,7 +256,9 @@ def test_yaml_root_terms_match_pinned_hp_json_labels():
     block = text[text.index("    clinical_groups:\n") : text.index("    onset_groups:\n")]
     commented = dict(re.findall(r"- (HP:\d{7})  # (.+)", block))
     groups = get_source_parameter("HPO", "clinical_groups")
-    roots = [t for g in groups.values() for t in g["root_terms"]]
+    roots = [
+        t for g in groups.values() for t in g["root_terms"] + g.get("exclude_diseases_with", [])
+    ]
     assert sorted(commented) == sorted(roots)
     for term, comment in commented.items():
         assert not nodes[term].get("meta", {}).get("deprecated"), term

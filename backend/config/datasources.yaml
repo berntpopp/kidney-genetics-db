@@ -177,6 +177,11 @@ datasources:
           - HP:0000100  # Nephrotic syndrome
           - HP:0000093  # Proteinuria
           - HP:0000790  # Hematuria
+        # Their proteinuria/hematuria follow catecholamine hypertension or the tumour, not
+        # glomerular disease: such a disease adds no glomerulopathy evidence (#551)
+        exclude_diseases_with:
+          - HP:0002666  # Pheochromocytoma
+          - HP:0002668  # Paraganglioma
         name: Glomerular diseases
       cyst_cilio:
         root_terms:
