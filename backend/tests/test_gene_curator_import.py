@@ -887,3 +887,12 @@ def test_bad_no_association_rows_are_rejected_not_fatal(db_session, genes, admin
     report = gc.import_export(db_session, rows, admin)
     assert len(report["rejected"]) == 5 and len(report["created"]) == 1
     assert _assessments(db_session) == []
+
+
+def test_no_association_record_ids_string_is_split(db_session, genes, admin) -> None:
+    # Gene Curator exports record_ids as one "; "-separated string; the row must survive
+    row = copy.deepcopy(NO_ASSOCIATION)
+    row["evidence"]["sources_checked"][0]["record_ids"] = "CGGV:assertion_1; HGNC:59, ORPHA:552"
+    report = gc.import_export(db_session, [row], admin)
+    assert len(report["no_association_created"]) == 1
+    assert not any("record_ids" in f for d in report["dropped_fields"] for f in d["fields"])
