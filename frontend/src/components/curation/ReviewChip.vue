@@ -4,7 +4,12 @@ import { computed } from 'vue'
 import type { Association } from '@/api/curation'
 import { Chip } from '@/components/shared'
 
-const props = defineProps<{ record: Association }>()
+const props = defineProps<{
+  record: Pick<
+    Association,
+    'approval_kind' | 'approval_model' | 'human_reviewed_at' | 'human_reviewer_name'
+  >
+}>()
 
 const chip = computed(() => {
   const r = props.record

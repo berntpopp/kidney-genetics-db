@@ -20,6 +20,7 @@ import { useAuthStore } from '@/stores/auth'
 import CuratedAssociations from '@/views/CuratedAssociations.vue'
 
 const api = vi.mocked(curationApi)
+const has = (o: object) => expect.objectContaining(o)
 const base = {
   gene_id: 1,
   gene_symbol: 'PKD1',
@@ -45,7 +46,7 @@ const page = (data: Association[]) => ({
   meta: { total: data.length, limit: 100, offset: 0 }
 })
 
-async function mountAs(role: 'curator' | 'public' | null) {
+async function mountAs(role: 'curator' | 'public' | null, url = '/curation/associations') {
   const pinia = createPinia()
   setActivePinia(pinia)
   if (role) {
@@ -57,9 +58,10 @@ async function mountAs(role: 'curator' | 'public' | null) {
     history: createMemoryHistory(),
     routes: [{ path: '/:rest(.*)', component: { render: () => null } }]
   })
+  await router.push(url)
   const wrapper = mount(CuratedAssociations, { global: { plugins: [router, pinia] } })
   await flushPromises()
-  return wrapper
+  return Object.assign(wrapper, { router })
 }
 
 const labels = (w: Awaited<ReturnType<typeof mountAs>>, id: number) =>
@@ -98,7 +100,7 @@ describe('CuratedAssociations', () => {
     auth.accessToken = 'token'
     await flushPromises()
     expect(api.listPublished).toHaveBeenCalledTimes(1)
-    expect(api.listWorkflow).toHaveBeenCalledTimes(1)
+    expect(api.listWorkflow).toHaveBeenCalledTimes(2) // the page and the pending-review count
     expect(w.text()).toContain('Curation workflow')
   })
 
@@ -147,15 +149,16 @@ describe('CuratedAssociations', () => {
     expect(w2.find('[data-testid="wf-6"]').text()).not.toContain('unclaimed')
   })
 
-  it('says a gene filter matched nothing rather than that nothing is published', async () => {
+  it('says a search matched nothing rather than that nothing is published', async () => {
     api.listPublished.mockResolvedValue(page([]))
     const w = await mountAs(null)
     expect(w.text()).toContain('No published associations yet.')
     await w.find('#gda-filter').setValue('PKD1')
     await w.find('#gda-filter').element.form!.dispatchEvent(new Event('submit'))
     await flushPromises()
-    expect(api.listPublished).toHaveBeenLastCalledWith({ gene_symbol: 'PKD1', limit: 1000 })
-    expect(w.text()).toContain('No published associations for PKD1.')
+    expect(api.listPublished).toHaveBeenLastCalledWith(has({ q: 'PKD1', limit: 25, offset: 0 }))
+    expect(w.text()).toContain('No published associations match “PKD1”.')
+    expect(w.router.currentRoute.value.query).toEqual({ q: 'PKD1' })
   })
 
   it('renders a record without citations without an empty citation list', async () => {
@@ -328,16 +331,102 @@ describe('CuratedAssociations', () => {
       'AD',
       'AR'
     ])
-    expect(headers[0]!.text()).toContain('2 records')
+    expect(headers[0]!.text()).toContain('2 associations')
   })
 
-  it('says when a list is truncated at the server maximum', async () => {
+  it("links a pair to all of its gene's associations when the gene has more (#539)", async () => {
+    const casr = (id: number, disease_id: string, gene_association_count: number) =>
+      ({
+        ...RECORDS[3]!,
+        id,
+        gene_symbol: 'CASR',
+        disease_id,
+        gene_association_count
+      }) as Association
+    api.listPublished.mockResolvedValue(
+      page([casr(21, 'MONDO:0011013', 3), casr(22, 'MONDO:0007791', 3)])
+    )
+    const links = (await mountAs(null)).findAll('[data-testid="gda-gene-count"]')
+    expect(links.map(l => l.text())).toEqual(['All 3 CASR associations', 'All 3 CASR associations'])
+    expect(links[0]!.attributes('href')).toBe('/curation/associations/CASR')
+    // A gene whose only association is this pair gets no link
+    api.listPublished.mockResolvedValue(page([casr(23, 'MONDO:0011013', 1)]))
+    expect((await mountAs(null)).find('[data-testid="gda-gene-count"]').exists()).toBe(false)
+  })
+
+  it('links a risk allele shared with another gene (#539)', async () => {
+    const shared = {
+      ...RECORDS[3]!,
+      id: 31,
+      gene_symbol: 'CFHR3',
+      relationship_type: 'susceptibility',
+      evidence_strength: 'Uncertain association',
+      risk_allele: 'CFHR3-CFHR1 deletion',
+      shared_risk_allele_genes: ['CFHR1']
+    } as Association
+    api.listPublished.mockResolvedValue(page([shared]))
+    const row = (await mountAs(null)).find('[data-testid="gda-row"]')
+    expect(row.text()).toContain('shared with CFHR1')
+    expect(row.find('a[href="/curation/associations/CFHR1"]').exists()).toBe(true)
+  })
+
+  it('pages on the server and keeps search, page and size in the URL', async () => {
     api.listPublished.mockResolvedValue({
       data: [RECORDS[3]!],
-      meta: { total: 1500, limit: 1000, offset: 0 }
+      meta: { total: 120, limit: 50, offset: 50 }
     })
+    const w = await mountAs(null, '/curation/associations?q=pkd&page=2&size=50')
+    expect(api.listPublished).toHaveBeenCalledWith(has({ q: 'pkd', limit: 50, offset: 50 }))
+    expect((w.find('#gda-filter').element as { value: string }).value).toBe('pkd')
+    expect(w.text()).toContain('120 associations')
+    expect(w.text()).toContain('Page 2 of 3')
+    await w.find('[aria-label="Go to next page"]').trigger('click')
+    await flushPromises()
+    expect(api.listPublished).toHaveBeenLastCalledWith(has({ q: 'pkd', limit: 50, offset: 100 }))
+    expect(w.router.currentRoute.value.query).toEqual({ q: 'pkd', page: '3', size: '50' })
+  })
+
+  it('restores sort and classification filters from the URL and clears them', async () => {
+    const w = await mountAs(
+      null,
+      '/curation/associations?q=col4&sort_by=classification&sort_order=desc&strength=Definitive&strength=Strong&strength=Bogus'
+    )
+    expect(api.listPublished).toHaveBeenCalledWith({
+      q: 'col4',
+      evidence_strength: ['Definitive', 'Strong'],
+      sort_by: 'classification',
+      sort_order: 'desc',
+      limit: 25,
+      offset: 0
+    })
+    expect(w.find('[aria-label="Sort by"]').text()).toContain('Strongest classification')
+    const clear = w.find('[aria-label="Clear all filters"]')
+    expect(clear.attributes('disabled')).toBeUndefined()
+    await clear.trigger('click')
+    await flushPromises()
+    expect(api.listPublished).toHaveBeenLastCalledWith(
+      has({ q: undefined, evidence_strength: undefined, sort_by: 'gene', sort_order: 'asc' })
+    )
+    expect(w.router.currentRoute.value.query).toEqual({})
+    expect(w.find('[aria-label="Clear all filters"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('ignores an unknown sort key in the URL', async () => {
+    await mountAs(null, '/curation/associations?sort_by=password&sort_order=desc')
+    expect(api.listPublished).toHaveBeenCalledWith(has({ sort_by: 'gene', sort_order: 'desc' }))
+  })
+
+  it('puts the pager above the table and makes classification and date sortable', async () => {
     const w = await mountAs(null)
-    expect(w.text()).toContain('Showing 1 of 1500')
+    const card = w.find('[data-testid="published-mendelian"]').element.parentElement!
+    expect(card.firstElementChild!.textContent).toContain('Rows per page')
+    const headers = w.find('[data-testid="published-mendelian"] thead').findAll('button')
+    expect(headers.map(b => b.text())).toEqual(['Classification', 'Published'])
+  })
+
+  it('falls back to the first page for a malformed page or size in the URL', async () => {
+    await mountAs(null, '/curation/associations?page=-4&size=7')
+    expect(api.listPublished).toHaveBeenCalledWith(has({ q: undefined, limit: 25, offset: 0 }))
   })
 
   it('marks AI-approved imports and lets a curator mark them human-reviewed (#639)', async () => {
@@ -351,7 +440,7 @@ describe('CuratedAssociations', () => {
     } as Association
     const reviewed = { ...ai, id: 6, disease_id: 'MONDO:0000006', human_reviewed_at: '2026-10-31' }
     api.listPublished.mockResolvedValue(page([ai, reviewed, RECORDS[3]!]))
-    api.listWorkflow.mockResolvedValue(page([...RECORDS, ai]))
+    api.listWorkflow.mockImplementation(async p => page(p?.pending_human ? [ai] : [...RECORDS, ai]))
     api.transition.mockResolvedValue(ai)
     const w = await mountAs('curator')
     const rows = w.findAll('[data-testid="gda-row"]').map(r => r.text())
@@ -363,6 +452,10 @@ describe('CuratedAssociations', () => {
     const filter = w.find('[data-testid="wf-pending-human"]')
     expect(filter.text()).toBe('Pending human review (1)')
     await filter.trigger('click')
+    await flushPromises()
+    expect(api.listWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ pending_human: true, offset: 0 })
+    )
     expect(filter.attributes('aria-pressed')).toBe('true')
     expect(w.find('[data-testid="wf-4"]').exists()).toBe(false)
     await w.find('[data-testid="wf-5"] [data-testid="wf-actions"] button').trigger('click')
