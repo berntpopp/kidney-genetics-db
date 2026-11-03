@@ -70,7 +70,7 @@ def list_records(
     published_only: bool,
     gene_symbol: str | None,
     status: str | None,
-    limit: int,
+    limit: int | None,
     offset: int,
     q: str | None = None,
     pending_human: bool = False,
@@ -168,8 +168,10 @@ def no_association(db: Session, gene_symbol: str) -> dict[str, Any] | None:
         .filter(gene, Assessment.status == "active")
         .first()
     )
-    if row is None:
-        return None
+    return None if row is None else assessment_to_response(row)
+
+
+def assessment_to_response(row: Assessment) -> dict[str, Any]:
     data = {c.name: getattr(row, c.name) for c in Assessment.__table__.columns}
     return data | {"gene_symbol": row.gene.approved_symbol}
 
