@@ -101,6 +101,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.image.name }}
           cache-to: type=gha,scope=${{ matrix.image.name }},mode=max
+          # A cached `apk/apt-get upgrade` layer never picks up newly published OS fixes.
+          no-cache-filters: production
 
   scan:
     name: Security Scan (${{ matrix.image }})

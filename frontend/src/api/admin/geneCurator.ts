@@ -28,6 +28,10 @@ export interface ImportReport {
   rejected: ImportRow[]
   genes_not_in_kgdb: ImportRow[]
   dropped_fields: ImportRow[]
+  /** Gene-level "no primary kidney association" assessments (#535) */
+  no_association_created: ImportRow[]
+  no_association_replaced: ImportRow[]
+  no_association_archived: ImportRow[]
 }
 
 /** Upload an export page (or a JSON list of pages); every new curation becomes a draft */

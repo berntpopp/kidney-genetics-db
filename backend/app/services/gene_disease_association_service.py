@@ -15,16 +15,17 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import func, text
+from sqlalchemy import case, func, or_, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, contains_eager, selectinload
 
 from app.core.exceptions import PermissionDeniedError, ResourceConflictError
 from app.core.exceptions import ValidationError as DomainValidationError
 from app.crud.gene import gene_crud
 from app.models.gene import Gene
-from app.models.gene_disease_association import MOI_TERMS
+from app.models.gene_disease_association import EVIDENCE_STRENGTHS, MOI_TERMS
 from app.models.gene_disease_association import GeneDiseaseAssociation as GDA
+from app.models.gene_disease_association import GeneNoAssociationAssessment as Assessment
 from app.models.user import User
 from app.schemas.gene_disease_association import (
     AssociationCreate,
@@ -48,25 +49,131 @@ def to_response(record: GDA) -> dict[str, Any]:
     return data
 
 
+# Higher is stronger, so "desc" lists the strongest classification first
+_STRENGTH_RANK = case(
+    {s: len(EVIDENCE_STRENGTHS) - i for i, s in enumerate(EVIDENCE_STRENGTHS)},
+    value=GDA.evidence_strength,
+)
+SORT_KEYS: dict[str, Any] = {
+    "gene": Gene.approved_symbol,
+    "disease": func.lower(GDA.disease_name),
+    "classification": _STRENGTH_RANK,
+    "points": GDA.scores["total"].as_float(),
+    "published": GDA.published_at,
+    "updated": GDA.updated_at,
+}
+
+
 def list_records(
     db: Session,
     *,
     published_only: bool,
     gene_symbol: str | None,
     status: str | None,
-    limit: int,
+    limit: int | None,
     offset: int,
+    q: str | None = None,
+    pending_human: bool = False,
+    evidence_strength: list[str] | None = None,
+    sort_by: str = "gene",
+    sort_order: str = "asc",
 ) -> tuple[list[GDA], int]:
     query = db.query(GDA).join(Gene, GDA.gene_id == Gene.id)
     if published_only:
         query = query.filter(GDA.status == "published")
     elif status:
         query = query.filter(GDA.status == status)
+    if pending_human:  # published on an AI approval alone, awaiting a human (#639)
+        query = query.filter(
+            GDA.status == "published", GDA.approval_kind == "ai", GDA.human_reviewed_at.is_(None)
+        )
     if gene_symbol:
         query = query.filter(func.upper(Gene.approved_symbol) == gene_symbol.upper())
+    if q := (q or "").strip():
+        query = query.filter(
+            or_(
+                Gene.approved_symbol.istartswith(q, autoescape=True),
+                GDA.disease_id.istartswith(q, autoescape=True),
+                GDA.disease_name.icontains(q, autoescape=True),
+            )
+        )
+    if evidence_strength:
+        query = query.filter(GDA.evidence_strength.in_(evidence_strength))
     total = query.count()
-    rows = query.order_by(Gene.approved_symbol, GDA.disease_id).limit(limit).offset(offset).all()
+    key = SORT_KEYS[sort_by]
+    key = (key.desc() if sort_order == "desc" else key.asc()).nulls_last()
+    rows = (
+        query.options(
+            contains_eager(GDA.gene), selectinload(GDA.curator), selectinload(GDA.human_reviewer)
+        )
+        # Mendelian before susceptibility so a page splits into the view's two tables;
+        # id makes the order total, so offset pages never repeat or skip a record
+        .order_by(GDA.relationship_type, key, Gene.approved_symbol, GDA.disease_id, GDA.id)
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
     return rows, total
+
+
+def published_context(db: Session, rows: list[GDA]) -> dict[int, dict[str, Any]]:
+    """Per record: the gene's published association count, and the other genes whose published
+    susceptibility records name the same risk allele, so shared evidence is counted once (#539)."""
+    published = GDA.status == "published"
+    counts = dict(
+        db.query(GDA.gene_id, func.count())
+        .filter(published, GDA.gene_id.in_({r.gene_id for r in rows}))
+        .group_by(GDA.gene_id)
+        .all()
+    )
+    allele = func.lower(func.trim(GDA.risk_allele))
+    keys = {
+        r.risk_allele.strip().lower()
+        for r in rows
+        if r.relationship_type == "susceptibility" and r.risk_allele
+    }
+    genes: dict[str, set[str]] = {}
+    if keys:
+        for key, symbol in (
+            db.query(allele, Gene.approved_symbol)
+            .join(Gene, GDA.gene_id == Gene.id)
+            .filter(published, GDA.relationship_type == "susceptibility", allele.in_(keys))
+            .distinct()
+        ):
+            genes.setdefault(key, set()).add(symbol)
+    return {
+        r.id: {
+            "gene_association_count": counts.get(r.gene_id, 0),
+            "shared_risk_allele_genes": sorted(
+                genes.get((r.risk_allele or "").strip().lower(), set()) - {r.gene.approved_symbol}
+            )
+            if r.relationship_type == "susceptibility"
+            else [],
+        }
+        for r in rows
+    }
+
+
+def no_association(db: Session, gene_symbol: str) -> dict[str, Any] | None:
+    """The gene's active "no primary kidney association" assessment (#535), unless the gene has
+    a published association: a real association always takes precedence."""
+    gene = func.upper(Gene.approved_symbol) == gene_symbol.upper()
+    published = db.query(GDA.id).join(Gene, GDA.gene_id == Gene.id)
+    if published.filter(gene, GDA.status == "published").first():
+        return None
+    row = (
+        db.query(Assessment)
+        .join(Gene, Assessment.gene_id == Gene.id)
+        .options(contains_eager(Assessment.gene))
+        .filter(gene, Assessment.status == "active")
+        .first()
+    )
+    return None if row is None else assessment_to_response(row)
+
+
+def assessment_to_response(row: Assessment) -> dict[str, Any]:
+    data = {c.name: getattr(row, c.name) for c in Assessment.__table__.columns}
+    return data | {"gene_symbol": row.gene.approved_symbol}
 
 
 def _locked(db: Session, record_id: int) -> GDA:
