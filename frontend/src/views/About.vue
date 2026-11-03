@@ -31,12 +31,17 @@
             every score can be traced back to the sources behind it.
           </p>
           <p>
-            It is the successor of the published
+            It is the successor of the
             <a :href="R_PIPELINE_URL" target="_blank" rel="noopener noreferrer" :class="LINK"
               >kidney-genetics R pipeline</a
-            >. Browse the results in the
+            >, which was presented as a conference abstract. Browse the results in the
             <RouterLink to="/genes" :class="LINK">gene browser</RouterLink>, or see the overall
             picture on the <RouterLink to="/dashboard" :class="LINK">dashboard</RouterLink>.
+          </p>
+          <p v-if="videoManifest">
+            New here? The
+            <RouterLink to="/tutorials" :class="LINK">video tutorials</RouterLink>
+            walk through each part of the site in a few minutes.
           </p>
         </section>
 
@@ -281,6 +286,7 @@ import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
 import type { TierName } from '@/utils/evidenceTiers'
 import { SOURCE_NAMES, getSourceConfig, sourceDisplayName } from '@/utils/sources'
 import { useSeoMeta } from '@/composables/useSeoMeta'
+import { useVideos } from '@/composables/useVideos'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
 import { Chip, PageHeader, PAGE_CONTAINER } from '@/components/shared'
 
@@ -386,6 +392,7 @@ useSeoMeta({
   canonicalPath: '/about'
 })
 
+const { manifest: videoManifest } = useVideos()
 const LINK = 'text-primary underline underline-offset-4 hover:text-primary/80'
 const GITHUB_URL = 'https://github.com/berntpopp/kidney-genetics-db'
 const R_PIPELINE_URL = 'https://github.com/halbritter-lab/kidney-genetics'

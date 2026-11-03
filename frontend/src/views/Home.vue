@@ -75,6 +75,15 @@
               </span>
             </p>
           </DataState>
+          <p v-if="videoManifest" class="mt-4 text-sm">
+            <RouterLink
+              to="/tutorials"
+              class="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
+            >
+              <CirclePlay class="size-4" aria-hidden="true" />
+              New here? Watch the video tutorials
+            </RouterLink>
+          </p>
         </div>
       </div>
     </section>
@@ -224,10 +233,11 @@
 
 <script setup lang="ts">
 import { formatDate } from '@/utils/formatDate'
-import { ArrowRight, Search, Copy, Check, Github } from 'lucide-vue-next'
+import { ArrowRight, Search, Copy, Check, Github, CirclePlay } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useWindowSize } from '@vueuse/core'
 import { RouterLink, useRouter } from 'vue-router'
+import { useVideos } from '@/composables/useVideos'
 import { datasourceApi } from '../api/datasources'
 import { KGDBLogo } from '@/components/branding'
 import { Button } from '@/components/ui/button'
@@ -240,6 +250,7 @@ import { TIER_CONFIG, type TierName } from '@/utils/evidenceTiers'
 import { SOURCE_NAMES } from '@/utils/sources'
 
 const router = useRouter()
+const { manifest: videoManifest } = useVideos()
 
 const { width } = useWindowSize()
 
