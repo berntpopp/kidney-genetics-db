@@ -115,6 +115,44 @@ def list_records(
     return rows, total
 
 
+def published_context(db: Session, rows: list[GDA]) -> dict[int, dict[str, Any]]:
+    """Per record: the gene's published association count, and the other genes whose published
+    susceptibility records name the same risk allele, so shared evidence is counted once (#539)."""
+    published = GDA.status == "published"
+    counts = dict(
+        db.query(GDA.gene_id, func.count())
+        .filter(published, GDA.gene_id.in_({r.gene_id for r in rows}))
+        .group_by(GDA.gene_id)
+        .all()
+    )
+    allele = func.lower(func.trim(GDA.risk_allele))
+    keys = {
+        r.risk_allele.strip().lower()
+        for r in rows
+        if r.relationship_type == "susceptibility" and r.risk_allele
+    }
+    genes: dict[str, set[str]] = {}
+    if keys:
+        for key, symbol in (
+            db.query(allele, Gene.approved_symbol)
+            .join(Gene, GDA.gene_id == Gene.id)
+            .filter(published, GDA.relationship_type == "susceptibility", allele.in_(keys))
+            .distinct()
+        ):
+            genes.setdefault(key, set()).add(symbol)
+    return {
+        r.id: {
+            "gene_association_count": counts.get(r.gene_id, 0),
+            "shared_risk_allele_genes": sorted(
+                genes.get((r.risk_allele or "").strip().lower(), set()) - {r.gene.approved_symbol}
+            )
+            if r.relationship_type == "susceptibility"
+            else [],
+        }
+        for r in rows
+    }
+
+
 def _locked(db: Session, record_id: int) -> GDA:
     record = db.query(GDA).filter(GDA.id == record_id).with_for_update().first()
     if record is None:

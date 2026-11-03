@@ -136,6 +136,9 @@ class AssociationResponse(BaseModel):
     external_id: Annotated[str | None, Field(title="External Id")] = None
     external_reviewer: Annotated[str | None, Field(title="External Reviewer")] = None
     external_url: Annotated[str | None, Field(title="External Url")] = None
+    gene_association_count: Annotated[
+        int | None, Field(title="Gene Association Count")
+    ] = None
     gene_id: Annotated[int, Field(title="Gene Id")]
     gene_symbol: Annotated[str, Field(title="Gene Symbol")]
     human_reviewed_at: Annotated[
@@ -167,6 +170,9 @@ class AssociationResponse(BaseModel):
     reviewer_id: Annotated[int | None, Field(title="Reviewer Id")] = None
     risk_allele: Annotated[str | None, Field(title="Risk Allele")] = None
     scores: Annotated[dict[str, Any] | None, Field(title="Scores")] = None
+    shared_risk_allele_genes: Annotated[
+        list[str] | None, Field(title="Shared Risk Allele Genes")
+    ] = []
     source: Annotated[Literal["kgdb", "gene_curator"], Field(title="Source")]
     status: Annotated[Literal["draft", "in_review", "published"], Field(title="Status")]
     submitted_at: Annotated[AwareDatetime | None, Field(title="Submitted At")] = None

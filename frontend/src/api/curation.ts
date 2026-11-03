@@ -227,6 +227,11 @@ export interface Association extends AssociationDetails {
   approval_model?: string | null
   human_reviewed_at?: string | null
   human_reviewer_name?: string | null
+  /** List responses only (#539): the gene's published associations */
+  gene_association_count?: number | null
+  /** List responses only (#539): other genes whose published susceptibility records name the
+   * same risk allele, so the shared evidence is counted once */
+  shared_risk_allele_genes?: string[]
   reviewer_id: number | null
   created_at: string
   updated_at: string

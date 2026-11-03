@@ -113,6 +113,96 @@ describe('GeneCuratedAssociations', () => {
     expect(await notes({ ...RECORD, odds_ratio: 1.6 } as Association)).toEqual([])
   })
 
+  describe('several associations (#539)', () => {
+    const entity = (id: number, o: Partial<Association>) =>
+      ({ ...RECORD, id, gene_symbol: 'CASR', relationship_type: 'mendelian', ...o }) as Association
+    const ADH1 = entity(1, {
+      disease_id: 'MONDO:0011013',
+      disease_name: 'autosomal dominant hypocalcemia 1',
+      moi: 'HP:0000006'
+    })
+    const FHH1 = entity(2, {
+      disease_id: 'MONDO:0007791',
+      disease_name: 'familial hypocalciuric hypercalcemia 1',
+      moi: 'HP:0000006'
+    })
+    const NSHPT = entity(3, {
+      disease_id: 'MONDO:0009397',
+      disease_name: 'neonatal severe primary hyperparathyroidism',
+      moi: 'HP:0000007',
+      evidence_strength: 'Strong'
+    })
+    const overviewRows = (w: Awaited<ReturnType<typeof mountFor>>) =>
+      w.findAll('[data-testid="gda-overview-row"]').map(r => r.text())
+
+    it('keeps a single association without count or overview', async () => {
+      const w = await mountFor([RECORD])
+      expect(w.find('[data-testid="gda-count"]').exists()).toBe(false)
+      expect(w.find('[data-testid="gda-overview"]').exists()).toBe(false)
+      expect(w.find('h4').text()).toContain('polycystic kidney disease 1')
+    })
+
+    it('counts two associations and says different classes are not a conflict', async () => {
+      const w = await mountFor([NSHPT, FHH1])
+      expect(w.find('[data-testid="gda-count"]').text()).toBe('· 2')
+      expect(w.find('caption').text()).toContain('not a conflict')
+      // Strongest first, whatever order the API sent
+      expect(overviewRows(w)[0]).toContain('familial hypocalciuric hypercalcemia 1')
+      expect(overviewRows(w)[1]).toContain('Strong')
+    })
+
+    it('gives 3+ associations one overview row each, linked to a record headed by its disease', async () => {
+      const w = await mountFor([NSHPT, FHH1, ADH1])
+      expect(w.find('[data-testid="gda-count"]').text()).toBe('· 3')
+      expect(overviewRows(w)).toHaveLength(3)
+      // Same class: disease name decides the order, never the MONDO number
+      expect(overviewRows(w)[0]).toContain('autosomal dominant hypocalcemia 1')
+      for (const link of w.findAll('[data-testid="gda-overview-row"] a[href^="#gda-"]'))
+        expect(w.find(link.attributes('href')!).find('h4').text()).toContain(link.text())
+      expect(w.findAll('li h4').map(h => h.text().split('MONDO')[0])).toEqual([
+        'autosomal dominant hypocalcemia 1',
+        'familial hypocalciuric hypercalcemia 1',
+        'neonatal severe primary hyperparathyroidism'
+      ])
+    })
+
+    it('shows a Mendelian and a susceptibility association apart, with their type', async () => {
+      const risk = entity(4, {
+        gene_symbol: 'CFH',
+        disease_id: 'MONDO:0016244',
+        disease_name: 'atypical hemolytic-uremic syndrome',
+        relationship_type: 'susceptibility',
+        evidence_strength: 'Likely association',
+        risk_allele: 'CFH-H3 haplotype'
+      })
+      const w = await mountFor([
+        risk,
+        { ...ADH1, disease_name: 'atypical hemolytic-uremic syndrome' }
+      ])
+      const rows = overviewRows(w)
+      expect(rows[0]).toContain('Definitive')
+      expect(rows[0]).toContain('Mendelian')
+      expect(rows[1]).toContain('Likely association')
+      expect(rows[1]).toContain('Susceptibility')
+      expect(w.find('[data-testid="gda-mendelian"]').text()).not.toContain('Likely association')
+      expect(w.find('[data-testid="gda-susceptibility"]').text()).toContain('CFH-H3 haplotype')
+    })
+
+    it('says when a risk allele is shared with another gene, so it is counted once', async () => {
+      const cfhr3 = entity(5, {
+        gene_symbol: 'CFHR3',
+        relationship_type: 'susceptibility',
+        evidence_strength: 'Uncertain association',
+        risk_allele: 'CFHR3-CFHR1 deletion',
+        shared_risk_allele_genes: ['CFHR1']
+      })
+      const w = await mountFor([cfhr3])
+      const record = w.find('[data-testid="gda-susceptibility"]')
+      expect(record.text()).toContain('shared evidence, count it once')
+      expect(record.find('a[href="/curation/associations/CFHR1"]').text()).toBe('CFHR1')
+    })
+  })
+
   // A failed request is GeneDetail's concern now (it fetches the records): see GeneDetail.spec.ts
   it('renders nothing without records', async () => {
     expect((await mountFor([])).html()).not.toContain('Expert-reviewed')

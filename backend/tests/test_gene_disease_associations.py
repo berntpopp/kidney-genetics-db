@@ -635,6 +635,39 @@ async def test_unique_per_relationship_type(async_client, db_session, gene) -> N
 
 
 @pytest.mark.integration
+async def test_list_gives_gene_count_and_shared_risk_allele(async_client, db_session, gene) -> None:
+    """#539: a gene's published count, and other genes naming the same risk allele."""
+    other = Gene(approved_symbol="GDA26OTHER", hgnc_id="HGNC:99926027")
+    db_session.add(other)
+    db_session.commit()
+    author, reviewer = _auth(db_session, "author"), _auth(db_session, "reviewer", "admin")
+    risk = {"relationship_type": "susceptibility", "evidence_strength": "Likely association"}
+
+    async def publish(**overrides) -> None:
+        rec = await _create(async_client, author, **overrides)
+        rec = (await async_client.post(f"{URL}/{rec['id']}/submit", headers=author)).json()
+        resp = await async_client.post(
+            f"{URL}/{rec['id']}/publish", json=_seen(rec), headers=reviewer
+        )
+        assert resp.status_code == 200, resp.text
+
+    await publish(moi="HP:0000006")
+    await publish(moi="HP:0010982", risk_allele="Shared Deletion", **risk)
+    # Same allele on another gene, spelled with other case and spacing
+    await publish(gene_symbol="GDA26OTHER", risk_allele=" shared deletion", **risk)
+    await _create(async_client, author, moi="HP:0000007")  # a draft is not counted
+
+    rows = {r["moi"]: r for r in await _public(async_client)}
+    assert {r["gene_association_count"] for r in rows.values()} == {2}
+    assert rows["HP:0010982"]["shared_risk_allele_genes"] == ["GDA26OTHER"]
+    assert rows["HP:0000006"]["shared_risk_allele_genes"] == []
+    resp = await async_client.get(f"{URL}/", params={"gene_symbol": "GDA26OTHER"})
+    [mirror] = resp.json()["data"]
+    assert mirror["gene_association_count"] == 1
+    assert mirror["shared_risk_allele_genes"] == ["GDA26FAKE"]
+
+
+@pytest.mark.integration
 async def test_imported_record_needs_distinct_confirmer(async_client, db_session, gene) -> None:
     author, other = _auth(db_session, "author"), _auth(db_session, "reviewer", "admin")
     rec = await _create(async_client, author, **GC)
