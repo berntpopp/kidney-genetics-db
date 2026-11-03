@@ -338,6 +338,10 @@ class AssociationResponse(BaseModel):
     approval_model: str | None = None
     human_reviewed_at: datetime | None = None
     human_reviewer_name: str | None = None
+    # List responses only (#539): the gene's published associations, and other genes whose
+    # published susceptibility records name the same risk allele (shared evidence)
+    gene_association_count: int | None = None
+    shared_risk_allele_genes: list[str] = []
 
     model_config = ConfigDict(from_attributes=True)
 

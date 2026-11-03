@@ -49,9 +49,10 @@ class ListQuery:
         }
 
 
-def _page(rows: list[Any], total: int, limit: int, offset: int) -> dict[str, Any]:
+def _page(db: Session, rows: list[Any], total: int, limit: int, offset: int) -> dict[str, Any]:
+    context = service.published_context(db, rows) if rows else {}
     return {
-        "data": [service.to_response(r) for r in rows],
+        "data": [service.to_response(r) | context[r.id] for r in rows],
         "meta": {"total": total, "limit": limit, "offset": offset},
     }
 
@@ -74,7 +75,7 @@ def list_published(
         offset=offset,
         **query.params,
     )
-    return _page(rows, total, limit, offset)
+    return _page(db, rows, total, limit, offset)
 
 
 @router.get("/workflow", response_model=AssociationList)
@@ -99,7 +100,7 @@ def list_workflow(
         pending_human=pending_human,
         **query.params,
     )
-    return _page(rows, total, limit, offset)
+    return _page(db, rows, total, limit, offset)
 
 
 @router.post("/", response_model=AssociationResponse, status_code=201)

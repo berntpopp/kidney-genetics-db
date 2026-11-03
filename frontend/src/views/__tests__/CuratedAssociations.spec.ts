@@ -331,7 +331,43 @@ describe('CuratedAssociations', () => {
       'AD',
       'AR'
     ])
-    expect(headers[0]!.text()).toContain('2 records')
+    expect(headers[0]!.text()).toContain('2 associations')
+  })
+
+  it("links a pair to all of its gene's associations when the gene has more (#539)", async () => {
+    const casr = (id: number, disease_id: string, gene_association_count: number) =>
+      ({
+        ...RECORDS[3]!,
+        id,
+        gene_symbol: 'CASR',
+        disease_id,
+        gene_association_count
+      }) as Association
+    api.listPublished.mockResolvedValue(
+      page([casr(21, 'MONDO:0011013', 3), casr(22, 'MONDO:0007791', 3)])
+    )
+    const links = (await mountAs(null)).findAll('[data-testid="gda-gene-count"]')
+    expect(links.map(l => l.text())).toEqual(['All 3 CASR associations', 'All 3 CASR associations'])
+    expect(links[0]!.attributes('href')).toBe('/curation/associations/CASR')
+    // A gene whose only association is this pair gets no link
+    api.listPublished.mockResolvedValue(page([casr(23, 'MONDO:0011013', 1)]))
+    expect((await mountAs(null)).find('[data-testid="gda-gene-count"]').exists()).toBe(false)
+  })
+
+  it('links a risk allele shared with another gene (#539)', async () => {
+    const shared = {
+      ...RECORDS[3]!,
+      id: 31,
+      gene_symbol: 'CFHR3',
+      relationship_type: 'susceptibility',
+      evidence_strength: 'Uncertain association',
+      risk_allele: 'CFHR3-CFHR1 deletion',
+      shared_risk_allele_genes: ['CFHR1']
+    } as Association
+    api.listPublished.mockResolvedValue(page([shared]))
+    const row = (await mountAs(null)).find('[data-testid="gda-row"]')
+    expect(row.text()).toContain('shared with CFHR1')
+    expect(row.find('a[href="/curation/associations/CFHR1"]').exists()).toBe(true)
   })
 
   it('pages on the server and keeps search, page and size in the URL', async () => {

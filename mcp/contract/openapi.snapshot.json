@@ -542,6 +542,17 @@
             ],
             "title": "External Url"
           },
+          "gene_association_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gene Association Count"
+          },
           "gene_id": {
             "title": "Gene Id",
             "type": "integer"
@@ -724,6 +735,14 @@
               }
             ],
             "title": "Scores"
+          },
+          "shared_risk_allele_genes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Shared Risk Allele Genes",
+            "type": "array"
           },
           "source": {
             "enum": [
