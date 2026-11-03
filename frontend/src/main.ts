@@ -10,7 +10,12 @@ export const createApp = ViteSSG(
     routes,
     base: import.meta.env.BASE_URL,
     // Honour #hash links across routes (e.g. /faq -> /about#faq); 80px clears the sticky header
-    scrollBehavior: (to, _from, saved) => saved ?? (to.hash ? { el: to.hash, top: 80 } : undefined)
+    // The element itself, not "#id": ids may start with a digit (#01-evidence-score), an invalid selector
+    scrollBehavior: (to, _from, saved) =>
+      saved ??
+      (to.hash
+        ? { el: document.getElementById(decodeURIComponent(to.hash.slice(1))) ?? to.hash, top: 80 }
+        : undefined)
   },
   async ({ app, router }) => {
     // vite-ssg (28.3.0, latest) registers its state guard with the deprecated next() callback

@@ -7,6 +7,7 @@
 
 import { type MaybeRefOrGetter, toValue, watchEffect } from 'vue'
 import { useHead } from '@unhead/vue'
+import { isoDuration, LICENSE_URLS, videoAsset, type Video, type VideoManifest } from '@/api/videos'
 
 const SITE_URL = (import.meta.env.VITE_SITE_URL as string) || 'https://kidney-genetics.org'
 const SITE_NAME = 'Kidney Genetics Database'
@@ -190,5 +191,35 @@ export function getBreadcrumbSchema(
       name: crumb.title,
       ...(crumb.to ? { item: `${SITE_URL}${crumb.to}` } : {})
     }))
+  }
+}
+
+/** schema.org VideoObject for a bundle video, deep-linked to its tutorial */
+export function getVideoSchema(manifest: VideoManifest, video: Video) {
+  const asset = (name: string) => `${SITE_URL}${videoAsset(manifest, name)}`
+  const license = LICENSE_URLS[manifest.license]
+  return {
+    '@type': 'VideoObject',
+    '@id': `${SITE_URL}/tutorials#${video.id}`,
+    url: `${SITE_URL}/tutorials#${video.id}`,
+    name: video.title,
+    description: video.summary,
+    thumbnailUrl: asset(video.poster),
+    contentUrl: asset(video.video),
+    encodingFormat: 'video/mp4',
+    duration: isoDuration(video.duration),
+    width: video.width,
+    height: video.height,
+    inLanguage: video.language,
+    caption: {
+      '@type': 'MediaObject',
+      contentUrl: asset(video.captions),
+      encodingFormat: 'text/vtt',
+      inLanguage: video.language
+    },
+    ...(video.captured ? { uploadDate: video.captured } : {}),
+    ...(license ? { license } : {}),
+    isAccessibleForFree: true,
+    publisher: { '@id': `${SITE_URL}/#organization` }
   }
 }

@@ -76,7 +76,8 @@ export const PUBLIC_BREADCRUMBS: Record<string, BreadcrumbItem[]> = {
   dataSources: getPublicBreadcrumbs('Data Sources', '/data-sources'),
   about: getPublicBreadcrumbs('About', '/about'),
   networkAnalysis: getPublicBreadcrumbs('Network Analysis', '/network-analysis'),
-  mcp: getPublicBreadcrumbs('MCP Server', '/mcp')
+  mcp: getPublicBreadcrumbs('MCP Server', '/mcp'),
+  tutorials: getPublicBreadcrumbs('Tutorials', '/tutorials')
 }
 
 /**
