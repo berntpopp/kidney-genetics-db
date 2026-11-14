@@ -1,171 +1,73 @@
 # Kidney-Genetics Database
 
-[![DOI](https://zenodo.org/badge/1029597888.svg)](https://doi.org/10.5281/zenodo.19316248) [![CI](https://github.com/kidney-genetics-org/kidney-genetics-db/actions/workflows/ci.yml/badge.svg)](https://github.com/kidney-genetics-org/kidney-genetics-db/actions/workflows/ci.yml) [![Security](https://github.com/kidney-genetics-org/kidney-genetics-db/actions/workflows/security.yml/badge.svg)](https://github.com/kidney-genetics-org/kidney-genetics-db/actions/workflows/security.yml) [![Version](https://img.shields.io/github/v/release/kidney-genetics-org/kidney-genetics-db?label=version)](https://github.com/kidney-genetics-org/kidney-genetics-db/releases/latest)
+[![CI](https://github.com/kidney-genetics-org/kidney-genetics-db/actions/workflows/ci.yml/badge.svg)](https://github.com/kidney-genetics-org/kidney-genetics-db/actions/workflows/ci.yml)
+[![Security](https://github.com/kidney-genetics-org/kidney-genetics-db/actions/workflows/security.yml/badge.svg)](https://github.com/kidney-genetics-org/kidney-genetics-db/actions/workflows/security.yml)
+[![Release](https://img.shields.io/github/v/release/kidney-genetics-org/kidney-genetics-db?label=release)](https://github.com/kidney-genetics-org/kidney-genetics-db/releases/latest)
+[![Website](https://img.shields.io/badge/web-kidney--genetics.org-blue)](https://kidney-genetics.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![DOI](https://zenodo.org/badge/1029597888.svg)](https://doi.org/10.5281/zenodo.19316248)
 
-A scientific platform for curating and exploring kidney disease-related genes
-with evidence-based scoring. It modernizes the original
-[kidney-genetics](https://github.com/halbritter-lab/kidney-genetics) R pipeline
-as a reproducible web application.
+The Kidney-Genetics Database curates kidney-disease genes and the evidence behind
+them. It integrates 5,080+ genes from 17 sources (among them PanelApp, ClinGen,
+GenCC, HPO, gnomAD, ClinVar, GTEx and PubTator) into an evidence score, with
+provenance-aware annotations and a staging-to-curated ingestion pipeline. It
+modernizes the original [kidney-genetics R pipeline](https://github.com/kidney-genetics-org/kidney-genetics-v1)
+as a reproducible web application: a FastAPI/PostgreSQL backend, a Vue 3
+frontend and a read-only [MCP](mcp/README.md) server for AI assistants.
 
-## Overview
+Use it without installing anything at [kidney-genetics.org](https://kidney-genetics.org/).
+Research use only.
 
-The database curates 5,080+ kidney disease genes from 17 authoritative sources
-with evidence scoring, staging-to-curated ingestion, and provenance-aware
-annotations. It includes unified caching, retries, progress tracking, and an
-administrative pipeline interface.
+## Quick start
 
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Backend** | FastAPI, SQLAlchemy, PostgreSQL, Python 3.14 production image |
-| **Frontend** | Vue 3, TypeScript, Vite SSG, Tailwind CSS, Pinia |
-| **MCP** | Read-only FastMCP server over an allowlisted public API |
-| **Infrastructure** | Docker Compose v2, Redis/ARQ, Alembic, GitHub Actions |
-| **Data sources** | HGNC, gnomAD, ClinVar, HPO, GTEx, Descartes, MPO/MGI, STRING, Ensembl, UniProt, PanelApp, ClinGen, GenCC, and PubTator |
-
-## Prerequisites
-
-- Git
-- [uv](https://docs.astral.sh/uv/) and Python 3.13 for local development and
-  CI. The backend production container deliberately uses Python 3.14.
-- Node.js >=22.18.0 and npm for the frontend.
-- Docker Engine and Docker Compose v2 (`docker compose`).
-
-Check the local toolchain before troubleshooting setup:
-
-```bash
-uv --version
-node --version
-npm --version
-docker compose version
-```
-
-## Quick Start
-
-Clone the repository and install all locked development dependencies:
+Needs `uv`, Node.js >= 22.22.2 and Docker Compose v2.
 
 ```bash
 git clone https://github.com/kidney-genetics-org/kidney-genetics-db.git
 cd kidney-genetics-db
-make install
-
-# Backend configuration is read from backend/.env; never commit this file.
-cp backend/.env.example backend/.env
-# Before starting the API, set DATABASE_URL, POSTGRES_PASSWORD=kidney_pass,
-# a unique JWT_SECRET_KEY of at least 32 characters, and ADMIN_PASSWORD in backend/.env.
-
-# Start PostgreSQL and Redis for local services.
-make hybrid-up
-
-# Apply the reviewed schema to a new local database before starting the API.
+make install                     # locked backend, frontend and MCP dependencies
+cp backend/.env.example backend/.env   # set DATABASE_URL, POSTGRES_PASSWORD, JWT_SECRET_KEY, ADMIN_PASSWORD
+make hybrid-up                   # PostgreSQL + Redis
 (cd backend && uv run alembic upgrade head)
+make backend                     # API at http://localhost:8000/docs
+make frontend                    # UI at http://localhost:5173
 ```
 
-Then use separate terminals as needed:
+`make help` lists every target; `make check` runs the full quality gate.
+
+## Containers
+
+Each release publishes the backend, frontend and MCP images to GHCR with the
+immutable `X.Y.Z` tag and the moving `X.Y` and `X` series tags. Pin `X.Y.Z`
+for a reproducible deployment:
 
 ```bash
-make backend     # FastAPI API at http://localhost:8000/docs
-make frontend    # Vite development server at http://localhost:5173
-make worker      # Optional ARQ worker; requires Redis
-make mcp         # Optional read-only MCP server at http://localhost:8789
+docker pull ghcr.io/kidney-genetics-org/kidney-genetics-db/backend:0.33.1
+docker pull ghcr.io/kidney-genetics-org/kidney-genetics-db/frontend:0.33.1
+docker pull ghcr.io/kidney-genetics-org/kidney-genetics-db/mcp:0.33.1
 ```
 
-Use `make hybrid-down` to stop the hybrid services. For a fully containerized
-development stack, use `make dev-up` and `make dev-down` instead.
+## Documentation
 
-### Access points
+- [Development guide](docs/development.md): prerequisites, setup, commands, repository layout, versioning
+- [AGENTS.md](AGENTS.md): architecture, component boundaries and verification rules for contributors and coding agents
+- Component guides: [backend](backend/README.md), [frontend](frontend/README.md), [MCP server](mcp/README.md)
+- Interactive API reference (Swagger): [kidney-genetics.org/docs](https://kidney-genetics.org/docs)
 
-- Frontend: <http://localhost:5173>
-- API / Swagger: <http://localhost:8000/docs>
-- PostgreSQL: `localhost:5432`
-- Redis: `localhost:6379`
-- MCP: <http://localhost:8789>
+Related repositories in [kidney-genetics-org](https://github.com/kidney-genetics-org):
+[kidney-genetics-v1](https://github.com/kidney-genetics-org/kidney-genetics-v1) (original R pipeline),
+[nephro_candidate_score](https://github.com/kidney-genetics-org/nephro_candidate_score) and
+[nc-scorer](https://github.com/kidney-genetics-org/nc-scorer) (Nephro Candidate Score).
 
-## Development Commands
+## Citing
 
-The root Makefile is the stable local interface. Use `make help` to see every
-available target.
+If you use the Kidney-Genetics Database, please cite the software archive:
 
-```bash
-# Deterministic, locked installs
-make install
-make install-backend
-make install-frontend
-make install-mcp
+> Kidney-Genetics Database. Zenodo. [doi:10.5281/zenodo.19316248](https://doi.org/10.5281/zenodo.19316248)
 
-# Quality checks (lint, format, and contract verification do not rewrite source)
-make check-frontend
-make check-mcp
-make services-up       # PostgreSQL and Redis, required before backend checks
-make check-backend
-make check             # All three checks; therefore also needs PostgreSQL
-make ci                # Local CI wrappers; therefore also needs PostgreSQL
-
-# Explicit source-changing maintenance commands
-make lint-fix
-make format
-
-# Security scans
-make security
-make bandit
-make pip-audit
-make npm-audit
-```
-
-`make check-backend`, and consequently `make check` and `make ci`, exercise the
-backend test suite against a running PostgreSQL service. Tests can write to the
-configured database, so use a dedicated local or disposable test database. The
-checks do not run Alembic migrations or reset the database; on a newly created
-database, apply migrations before testing:
-
-```bash
-cd backend && uv run alembic upgrade head
-```
-
-`make check-frontend` and `make check-mcp` do not require the application
-database. Use `make lint` and `make format-check` for verification-only
-maintenance checks; use the explicit fix commands only when you intend to
-rewrite source files.
-
-## Repository Structure
-
-```text
-backend/                 FastAPI service, Alembic migrations, pipeline, and tests
-frontend/                Vue 3 + TypeScript application and Playwright/Vitest tests
-mcp/                     Read-only FastMCP sidecar and generated API contract
-scrapers/literature/     Independently locked scraper project
-scrapers/diagnostics/    Legacy diagnostics utility (not root-managed)
-docker-compose*.yml      Development, service-only, and production stacks
-.planning/               Design and execution records
-```
-
-`scrapers/diagnostics` is a legacy utility with no dependency manifest,
-lockfile, or test gate. It is deliberately excluded from root installation and
-checks until a dedicated packaging modernization adds those guarantees.
-
-## Guidance for Contributors and Agents
-
-Read [AGENTS.md](AGENTS.md) for the shared repository guidance: architecture,
-component boundaries, safe generated-data handling, verification, and
-multi-agent handoffs. `CLAUDE.md` is only a small bridge to that source of
-truth.
-
-## Versioning
-
-This project uses two independent version streams:
-
-- **Code**: SemVer (`0.5.1`) — tagged releases with the Zenodo software DOI.
-- **Data**: CalVer (`YYYY.MM`) — API-mediated data releases with dataset DOIs.
-
-## Citation
-
-If you use the Kidney-Genetics Database, please cite:
-
-> Kidney-Genetics Database (v0.5.1). DOI: [10.5281/zenodo.19316248](https://doi.org/10.5281/zenodo.19316248)
-
-See [CITATION.cff](CITATION.cff) for full citation metadata.
+GitHub's "Cite this repository" button reads [`CITATION.cff`](CITATION.cff).
 
 ## License
 
-MIT License — see [LICENSE](LICENSE).
+Released under the [MIT License](LICENSE). Issues and pull requests are welcome in the
+[issue tracker](https://github.com/kidney-genetics-org/kidney-genetics-db/issues).
