@@ -38,7 +38,7 @@ LABEL org.opencontainers.image.title="Kidney-Genetics-DB MCP Server" \
       org.opencontainers.image.description="Read-only MCP server exposing Kidney-Genetics-DB public data to LLMs" \
       org.opencontainers.image.vendor="Kidney-Genetics Database" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.source="https://github.com/berntpopp/kidney-genetics-db"
+      org.opencontainers.image.source="https://github.com/kidney-genetics-org/kidney-genetics-db"
 
 # Install runtime dependencies and apply security updates
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \

@@ -40,7 +40,7 @@ describe('About core concepts (#329)', () => {
     const hrefs = mountAbout()
       .findAll('a')
       .map(a => a.attributes('href'))
-    expect(hrefs).toContain('https://github.com/berntpopp/kidney-genetics-db')
+    expect(hrefs).toContain('https://github.com/kidney-genetics-org/kidney-genetics-db')
     expect(hrefs).toContain('https://doi.org/10.5281/zenodo.19316248')
     expect(hrefs.some(h => h?.includes('bernt-popp'))).toBe(false)
     expect(hrefs.some(h => h?.endsWith('/tree/main/docs'))).toBe(false)

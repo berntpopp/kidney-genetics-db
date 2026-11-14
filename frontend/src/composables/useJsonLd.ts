@@ -52,7 +52,7 @@ export function getOrganizationWebSiteSchema() {
           width: 512,
           height: 512
         },
-        sameAs: ['https://github.com/berntpopp/kidney-genetics-db']
+        sameAs: ['https://github.com/kidney-genetics-org/kidney-genetics-db']
       },
       {
         '@type': 'WebSite',
