@@ -214,7 +214,7 @@
             <span>Halbritter Lab — Nephrology &amp; Clinical Genetics</span>
             <span aria-hidden="true">·</span>
             <a
-              href="https://github.com/berntpopp/kidney-genetics-db"
+              href="https://github.com/kidney-genetics-org/kidney-genetics-db"
               target="_blank"
               rel="noopener noreferrer"
               class="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"

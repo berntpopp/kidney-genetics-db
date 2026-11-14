@@ -37,7 +37,7 @@ import {
   WifiOff
 } from 'lucide-vue-next'
 
-const GITHUB_URL = 'https://github.com/berntpopp/kidney-genetics-db'
+const GITHUB_URL = 'https://github.com/kidney-genetics-org/kidney-genetics-db'
 
 // OpenAPI / Swagger UI lives at the backend root `/docs`.
 // Dev (vite): apiBaseUrl='http://localhost:8000' -> cross-origin to the backend.

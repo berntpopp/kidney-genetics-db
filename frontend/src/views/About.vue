@@ -394,7 +394,7 @@ useSeoMeta({
 
 const { manifest: videoManifest } = useVideos()
 const LINK = 'text-primary underline underline-offset-4 hover:text-primary/80'
-const GITHUB_URL = 'https://github.com/berntpopp/kidney-genetics-db'
+const GITHUB_URL = 'https://github.com/kidney-genetics-org/kidney-genetics-db'
 const R_PIPELINE_URL = 'https://github.com/halbritter-lab/kidney-genetics'
 // Zenodo concept DOI (CITATION.cff): resolves to the latest archived version
 const ZENODO_DOI = '10.5281/zenodo.19316248'

@@ -152,4 +152,4 @@ components/branding/
 
 - [Implementation Plan](../../docs/implementation-notes/active/logo-and-favicon-implementation.md)
 - [Design System](../../docs/reference/design-system.md)
-- [GitHub Issue #5](https://github.com/berntpopp/kidney-genetics-db/issues/5)
+- [GitHub Issue #5](https://github.com/kidney-genetics-org/kidney-genetics-db/issues/5)
