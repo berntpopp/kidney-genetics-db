@@ -188,8 +188,7 @@
           <AlertDialogTitle>Delete Release?</AlertDialogTitle>
           <AlertDialogDescription>
             Are you sure you want to delete draft release
-            <strong>{{ deletingRelease?.version }}</strong
-            >? This action cannot be undone.
+            <strong>{{ deletingRelease?.version }}</strong>? This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

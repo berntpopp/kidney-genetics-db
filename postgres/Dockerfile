@@ -1,4 +1,4 @@
-FROM postgres:17.11-alpine3.24@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
+FROM postgres:17.11-alpine3.24@sha256:3540c0362c809df084ffac0ae69fe794515f9de92692f02178bcdce0ef0302ac
 
 # The upstream image predates Alpine's CVE-2026-85091 (zlib) and CVE-2026-107891 (musl) fixes.
 # Minimum versions: Alpine keeps only the newest build, so exact pins break later rebuilds.
