@@ -42,9 +42,9 @@ immutable `X.Y.Z` tag and the moving `X.Y` and `X` series tags. Pin `X.Y.Z`
 for a reproducible deployment:
 
 ```bash
-docker pull ghcr.io/kidney-genetics-org/kidney-genetics-db/backend:0.33.1
-docker pull ghcr.io/kidney-genetics-org/kidney-genetics-db/frontend:0.33.1
-docker pull ghcr.io/kidney-genetics-org/kidney-genetics-db/mcp:0.33.1
+docker pull ghcr.io/kidney-genetics-org/kidney-genetics-db/backend:0.33.2
+docker pull ghcr.io/kidney-genetics-org/kidney-genetics-db/frontend:0.33.2
+docker pull ghcr.io/kidney-genetics-org/kidney-genetics-db/mcp:0.33.2
 ```
 
 ## Documentation
