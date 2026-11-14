@@ -53,6 +53,7 @@
   "overrides": {
     "undici": "^7.30.0",
     "js-cookie": "^3.0.8",
+    "minimatch": "^11.0.1",
     "@vee-validate/zod": {
       "zod": "$zod"
     }

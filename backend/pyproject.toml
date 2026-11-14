@@ -13,7 +13,7 @@ authors = [
     {name = "Kidney Genetics Team", email = "team@kidney-genetics.org"}
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11.5"
 license = {text = "MIT"}
 keywords = ["genetics", "kidney", "fastapi", "bioinformatics", "genomics"]
 classifiers = [
