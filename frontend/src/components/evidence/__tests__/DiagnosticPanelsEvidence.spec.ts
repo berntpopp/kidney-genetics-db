@@ -103,7 +103,7 @@ describe('DiagnosticPanelsEvidence grouped by laboratory', () => {
     expect(natera.get('time').text()).toBe('24 Aug 2026')
     expect(natera.get('a[href="https://natera.example/renasight"]').text()).toContain('Renasight')
     // No registry URL for this panel: plain text
-    expect(rows[0]!.findAll('ul li a')).toHaveLength(0)
+    expect(rows[0]!.findAll(':scope ul li a')).toHaveLength(0)
     expect(w.text()).not.toContain('Seeded from')
   })
 
