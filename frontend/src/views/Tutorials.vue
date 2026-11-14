@@ -136,8 +136,7 @@
                 target="_blank"
                 rel="noopener noreferrer license"
                 class="font-medium text-primary underline-offset-4 hover:underline"
-                >{{ manifest.license }}</a
-              >.
+                >{{ manifest.license }}</a>.
             </template>
             <template v-else-if="manifest.license"
               >Videos licensed {{ manifest.license }}.</template

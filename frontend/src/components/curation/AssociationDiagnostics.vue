@@ -93,8 +93,7 @@ const linkClass =
                     target="_blank"
                     rel="noopener noreferrer"
                     :class="linkClass"
-                    >{{ t.name }}</a
-                  ><span v-else>{{ t.name }}</span
+                    >{{ t.name }}</a><span v-else>{{ t.name }}</span
                   ><span v-if="j < d.tools.length - 1">, </span>
                 </template>
               </span>

@@ -527,14 +527,12 @@
             Strategy:
             <strong>{{
               strategyOptions.find(o => o.value === pipelineForm.strategy)?.title
-            }}</strong
-            >. Sources:
+            }}</strong>. Sources:
             <strong>{{
               pipelineForm.sources.length
                 ? pipelineForm.sources.join(', ').toUpperCase()
                 : 'all annotation sources'
-            }}</strong
-            >.<span v-if="pipelineForm.force"> Cache TTL is ignored (force).</span>
+            }}</strong>.<span v-if="pipelineForm.force"> Cache TTL is ignored (force).</span>
             The update runs in the background.
           </AlertDialogDescription>
         </AlertDialogHeader>

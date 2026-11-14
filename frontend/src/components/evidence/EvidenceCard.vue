@@ -43,8 +43,9 @@
             </li>
             <li v-if="captured" class="text-muted-foreground" data-testid="evidence-captured">
               captured
-              <time :datetime="captured.oldest.toISOString()">{{ formatDay(captured.oldest) }}</time
-              ><template v-if="captured.newest"
+              <time :datetime="captured.oldest.toISOString()">{{
+                formatDay(captured.oldest)
+              }}</time><template v-if="captured.newest"
                 >–<time :datetime="captured.newest.toISOString()">{{
                   formatDay(captured.newest)
                 }}</time></template

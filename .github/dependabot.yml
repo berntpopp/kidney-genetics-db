@@ -118,9 +118,9 @@ updates:
       prefix: "chore"
       include: "scope"
     ignore:
-      # Pin Python base image major version
+      # Backend prod image intentionally pins Python 3.14 (AGENTS.md); bump deliberately
       - dependency-name: "python"
-        update-types: ["version-update:semver-major"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # Docker base images - Frontend
   - package-ecosystem: "docker"
